@@ -1,0 +1,1 @@
+{"data": [[38, 49, "heapScan"], [249, 257, "globalsScan"], [264, 265, " + gcController.heapScan.Load() + gcController.lastStackScan.Load()"]]}

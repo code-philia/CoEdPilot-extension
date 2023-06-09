@@ -1,0 +1,29 @@
+{
+    "0": {
+        "code": "import * as React from 'react';\nimport { IconBaseProps } from 'react-icon-base';\ndeclare class FaShip extends React.Component<IconBaseProps> { }\nexport = FaShip;\n",
+        "new": "import * as React from 'react';\nimport { IconBaseProps } from 'react-icon-base';\ndeclare class FaTable extends React.Component<IconBaseProps> { }\nexport = FaTable;\n",
+        "edit": [
+            [99,103,"Table"],
+            [159,163,"Table"]
+        ]
+    },
+    "1": {
+        "code": "            out.scalar = gcController.globalsScan.Load()\n        },\n    },\n    \"/gc/scan/heap:bytes\": {\n        compute: func(in *statAggregate, out *metricValue) {\n            out.kind = metricKindUint64\n            out.scalar = gcController.heapScan.Load() \n        },\n    },\n    \"/gc/heap/allocs-by-size:bytes\": {\n        deps: makeStatDepSet(heapStatsDep),\n        compute: func(in *statAggregate, out *metricValue) {\n",
+        "new": "            out.scalar = gcController.heapScan.Load()\n        },\n    },\n    \"/gc/scan/total:bytes\": {\n        compute: func(in *statAggregate, out *metricValue) {\n            out.kind = metricKindUint64\n            out.scalar = gcController.globalsScan.Load() + gcController.heapScan.Load() + gcController.lastStackScan.Load()\n        },\n    },\n    \"/gc/heap/allocs-by-size:bytes\": {\n        deps: makeStatDepSet(heapStatsDep),\n        compute: func(in *statAggregate, out *metricValue) {\n",
+        "edit": [
+            [38,49,"heapScan"],
+            [249,257,"globalsScan"],
+            [264,265," + gcController.heapScan.Load() + gcController.lastStackScan.Load()"]
+        ]
+    },
+    "2": {
+        "code": "{\n    Name:\u807d \u807d \u807d \u807d \"/gc/scan/heap:bytes\",\n    Description: \"The total amount of heap space that is scannable.\",\n    Kind:\u807d \u807d \u807d \u807d KindUint64,\n},\n",
+        "new": "{\n    Name:\u807d \u807d \u807d \u807d \"/gc/scan/total:bytes\",\n    Description: \"The total amount space that is scannable. Sum of all metrics in /gc/scan.\",\n    Kind:\u807d \u807d \u807d \u807d KindUint64,\n},",
+        "edit": [
+            [30,34,"total"],
+            [79,87,""],
+            [111,112," Sum of all metrics in /gc/scan."]
+        ]
+    }
+
+}
