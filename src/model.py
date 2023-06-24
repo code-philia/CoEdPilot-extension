@@ -1,41 +1,42 @@
-import json
+# This Python script is purly for test, the actural script is a LLM
+import re
 import sys
-import Levenshtein
+import random
 
-def clear(s):
-    return s.replace('\n','').replace(' ','').replace(' ','')
+def process_text(text):
+    words = ['fly', 'happy', 'good', 'car']
+    word_positions = []
 
-def longest_common_subsequence(nums1, nums2):
-    m, n = len(nums1), len(nums2)
-    if m==0 or n==0:
-        return 0
-    dp = [[0] * (n+1) for _ in range(m+1)]
-    for i in range(1, m+1 ):
-        for j in range(1, n+1):
-            if nums1[i -1] == nums2[j-1]:
-                dp[i][j] = dp[i - 1][j - 1] + 1
+    for word in words:
+        pattern = r'\b' + re.escape(word) + r'\b'
+        matches = re.finditer(pattern, text)
+        for match in matches:
+            if word == 'fly':
+                replace = 'dive'
+            elif word == 'happy':
+                replace = 'sad'
+            elif word == 'good':
+                replace = 'bad'
             else:
-                dp[i][j] = max(dp[i - 1][j], dp[i][j - 1])
-    return dp[m][n]
+                replace = 'bike'
+            word_positions.append([match.start(), match.end(),replace])
 
-def compare(s1,s2):
-    siz=min(len(s1),len(s2))
-    return longest_common_subsequence(s1,s2)>siz-10
+    return {'data': word_positions}
 
-print('ga')
+# # 读取从 Node.js 传递的文本
+input_text = sys.stdin.read()
 
-file=sys.argv[1]
-with open(file+'\\source.json','r') as f:
-    text=json.load(f)
+# 处理文本并生成修改三元组
+modifications = process_text(input_text)
 
-with open(file+'\\newdata\\code-edit.json','r',encoding='utf-8') as f:
-    data=json.load(f)
+# 将修改三元组作为输出发送给 Node.js
+print(modifications)
+sys.stdout.flush()
 
-for i in range(len(data)):
-    if compare(clear(text['code']),clear(data[str(i)]['code'])):
-        code=data[str(i)]['code']
-        truth=data[str(i)]['new']
-        edit={'data':data[str(i)]['edit']}
-        with open(file+'\\source.json','w') as f:
-            json.dump(edit,f)
-        break
+# if __name__ == '__main__':
+#     sentence = """function fly(happy) {
+#     let good = 3;
+#     car(good);
+# }"""
+#     modif = process_text(sentence)
+#     print(modif)
