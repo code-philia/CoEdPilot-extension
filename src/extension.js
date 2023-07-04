@@ -1,5 +1,6 @@
 const vscode = require('vscode');
 const { spawn } = require('child_process');
+const fs = require('fs');
 /**
  * @param {vscode.ExtensionContext} context
  */
@@ -7,35 +8,34 @@ const { spawn } = require('child_process');
 // ------------ Hyper-parameters ------------
 let fontcolor = '#000';
 let bgcolor = 'rgba(255,0,0,0.3)';
-let listenAnyChanges = false; // true: 监听编辑器的每次一变化; false: 当鼠标指针所在行数变化时监听
-let pythonScriptPath = '/Users/russell/Downloads/Code-Edit-main/src/model.py';
+let pyPathEditRange = '/Users/russell/Downloads/Code-Edit-main/src/range_model.py';
+let pyPathEditContent = '/Users/russell/Downloads/Code-Edit-main/src/content_model.py';
 // ------------ Global variants -------------
+let os = ''; // ['mac', 'win'] 
 let modifications = [];
 let prevCursorAtLine = 0;
-let beforeEdit = undefined;
-let afterEdit = undefined;
-let prevLineCount = undefined;
-let currLineCount = undefined;
-// let timer;
-// let textEditorListener;
-// let textDocumentListener;
+let currCursorAtLine = 0;
+let prevSnapshot = undefined;
+let currSnapshot = undefined;
+let currFile = undefined;
+let previousActiveEditor = undefined;
+let commitMessage = "";
 
-
-function convertStringToList(inputString) {
-	var replacedString = inputString.replace(/'/g, '"');
-	var parsedArray = JSON.parse(replacedString);
-	let result = [];
-	
-	for (var i = 0; i < parsedArray.data.length; i++) {
-		var modification = parsedArray.data[i];
-		var startIndex = modification[0];
-		var endIndex = modification[1];
-		var replaceContent = modification[2];
-
-		result.push([startIndex, endIndex, replaceContent]);
+function cleanGlobalVariables(editor) {
+	if (previousActiveEditor && previousActiveEditor.document.isDirty) {
+		previousActiveEditor.document.save(); // 当切换 activeEditor 时，自动保存文档内容
 	}
+	previousActiveEditor = editor; // 更新 previousActiveEditor
 
-	return result;
+	// modifications = [];
+	prevCursorAtLine = 0;
+	currCursorAtLine = 0;
+	prevSnapshot = editor.document.getText();
+	currSnapshot = undefined;
+	currFile = editor.document.fileName;
+	console.log('==> Active File:', currFile);
+	console.log('==> Global variables initialized');
+	highlightModifications(modifications, editor);
 }
 
 let decorationType = vscode.window.createTextEditorDecorationType({
@@ -50,16 +50,17 @@ function highlightModifications(modifications, editor) {
 	}
 	// 遍历每个修改
 	for (const modification of modifications) {
-		const [start, end, content] = modification;
+		if(modification.targetFilePath != currFile) { // 只高亮当前文件的修改
+			continue;
+		}
 		// 创建装饰器范围
-		const startPos = editor.document.positionAt(start);
-		const endPos = editor.document.positionAt(end);
+		const startPos = editor.document.positionAt(modification.startPos);
+		const endPos = editor.document.positionAt(modification.endPos);
 		const range = new vscode.Range(startPos, endPos);
 	
 		// 创建装饰器
 		const decoration = {
-			range,
-			hoverMessage: 'Modified content: ' + content
+			range
 		};
 	
 		// 添加装饰器到数组
@@ -68,130 +69,369 @@ function highlightModifications(modifications, editor) {
 	// 应用装饰器到编辑器
 	editor.setDecorations(decorationType, decorations);
 }
-  
-function runPythonScript(text, beforeEdit, afterEdit, editor) {
-	/*
-	* Python 脚本的输出为字典格式: {"data": [start1, end1, replacement1], ...}
+
+function getFiles() {
+	/* 
+	* FilesList: Workspace 打开的文件夹内的所有文件及其内容 [[filePath, fileContent], ...]
 	*/
-	const pythonProcess = spawn('python', [pythonScriptPath]);
+	// 获取当前工作区的根文件夹路径
+	const rootPath = vscode.workspace.rootPath;
+    // 存储所有文件的文本和名称列表
+    const filesList = [];
+
+	function readFiles(folderPath) {
+		const files = fs.readdirSync(folderPath);
+		files.forEach(file => {
+			let filePath = undefined;
+			if (os == 'win') {
+				filePath = `${folderPath}\\${file}`;
+			} else {
+				filePath = `${folderPath}/${file}`;
+			}
+			const fileStat = fs.statSync(filePath);
+	
+			if (fileStat.isFile()) {
+				// 读取文件内容
+				const fileContent = fs.readFileSync(filePath, 'utf-8');
+				filesList.push([filePath,fileContent]);
+			} else if (fileStat.isDirectory()) {
+				// 递归遍历子文件夹
+				readFiles(filePath);
+			}
+		});
+	}
+	
+    // 开始遍历当前工作区根文件夹
+    readFiles(rootPath);
+    return filesList;
+}
+
+function runPythonScript1(files, beforeEdit, afterEdit, editor) {
+	/*
+	* 输入 Python 脚本的内容为字典格式: {"files": list, [[filePath, fileContent], ...],
+	*                                "targetFilePath": str, filePath,
+	*								 "commitMessage": str, commit message,
+	*								 "beforeEdit": str, content before edit,
+	* 								 "afterEdit": str, content after edit}
+	* Python 脚本的输出为字典格式: {"data": , [ { "targetFilePath": str, filePath,
+    *                                          "beforeEdit", str, the content before edit for previous edit,
+	*                                           "afterEdit", str, the content after edit for previous edit, 
+	*											"toBeReplaced": str, the content to be replaced, 
+	*                                           "startPos": int, start position of the word,
+	*                                           "endPos": int, end position of the word"}, ...]}
+	*/
+	const pythonProcess = spawn('python', [pyPathEditRange]);
+	const activeFilePath = editor.document.fileName;
+	const input = {files: files, 
+				   targetFilePath: activeFilePath,
+				   commitMessage: commitMessage,
+			 	   beforeEdit: beforeEdit,
+			 	   afterEdit: afterEdit};
+	const strJSON = JSON.stringify(input);
 	
 	// 将文本写入标准输入流
 	pythonProcess.stdin.setEncoding('utf-8');
-	pythonProcess.stdin.write(text);
+	pythonProcess.stdin.write(strJSON);
 	pythonProcess.stdin.end();
 
 	// 处理 Python 脚本的输出
 	pythonProcess.stdout.on('data', (data) => {
 		const output = data.toString();
-		// 解析 Python 脚本的输出为三元组（修改起始位置、修改结束位置、修改内容）
-		modifications = convertStringToList(output);
+		// 解析 Python 脚本的输出为三元列表（文件名，修改起始位置，修改结束位置）
+		// var replacedString = output.replace(/'/g, '"');
+		var parsedJSON = JSON.parse(output);
+		modifications = parsedJSON.data;
+		console.log('==> Edit range prediction model returned successfully');
 		// 高亮显示修改的位置
 		highlightModifications(modifications, editor);
 	});
-  
+	
 	// 处理 Python 脚本的错误
 	pythonProcess.stderr.on('data', (data) => {
 	  	console.error(data.toString());
 	});
 }
 
-function handleTextEditorEvent(editor) {
-	if (editor) {
-		const document = editor.document;
-		const fulltext = document.getText();
-		// 在这里执行您对文本内容的操作
-		// 您可以访问 `text` 变量来获取当前编辑器内的内容
-		runPythonScript(fulltext, undefined, undefined, editor);
-	}
-}	
+function runPythonScript2(modification) {
+	/*
+	* 输入 Python 脚本的内容为字典格式: { "files": list, [[filePath, fileContent], ...],
+	* 								"targetFilePath": string filePath,
+	*								"commitMessage": string, commit message,
+	*								"editType": string, edit type,
+	*								"beforeEdit": string, before edit content in previous edit,
+	*								"afterEdit": string, after edit content in previous edit,
+	*								"startPos": int, start position,
+	*								"endPos": int, end position}
+	* 输出 Python 脚本的内容为字典格式: {"data": 
+	*                                       { "targetFilePath": string, filePath of target file,
+	*                                         "startPos": int, start position,
+	*                                         "endPos": int, end position,
+	*                                         "replacement": string, replacement content   
+	*                                       }
+	*                               }
+	*/
+	return new Promise((resolve, reject) => {
+		let files = getFiles();
+		const pythonProcess = spawn('python', [pyPathEditContent]);
+		const editor = vscode.window.activeTextEditor;
 
-function handleTextDocumentEvent(event) {
-	const document = event.document;
-	const fulltext = document.getText();
-	// 在这里执行您对文本内容的操作
-	// 您可以访问 `text` 变量来获取当前编辑器内的内容
-	runPythonScript(fulltext, undefined, undefined, vscode.window.activeTextEditor);
+		for (let file of files) {
+			if(file[0] === currFile) {
+				file[1]=currSnapshot; // 把未保存的文件内容作为实际文件内容
+				break;
+			} 
+		}
+
+		const input = {
+			files: files,
+			targetFilePath: modification.targetFilePath,
+			commitMessage: commitMessage,
+			editType: modification.editType,
+			beforeEdit: modification.beforeEdit,
+			afterEdit: modification.afterEdit,
+			startPos: modification.startPos,
+			endPos: modification.endPos
+		};
+		const strJSON = JSON.stringify(input);
+	
+		// 将文本写入标准输入流
+		pythonProcess.stdin.setEncoding('utf-8');
+		pythonProcess.stdin.write(strJSON);
+		pythonProcess.stdin.end();
+	
+		// 处理 Python 脚本的输出
+		pythonProcess.stdout.on('data', (data) => {
+			const output = data.toString();
+			// 解析 Python 脚本的输出为三元列表（文件名，修改起始位置，修改结束位置）
+			// var replacedString = output.replace(/'/g, '"');
+			var parsedJSON = JSON.parse(output);
+			let newmodification = parsedJSON.data;
+			console.log('==> Edit content prediction model returned successfully');
+			// 高亮显示修改的位置
+			highlightModifications([newmodification], editor);
+			resolve(newmodification); // 返回 newmodification
+		});
+	
+		// 处理 Python 脚本的错误
+		pythonProcess.stderr.on('data', (data) => {
+			console.error(data.toString());
+			reject(data.toString());
+		});
+	});
+}
+
+function detectEdit(prev, curr) {
+	// 将字符串按行分割成字符串列表
+	const prevSnapshotStrList = prev.split('\n');
+	const currSnapshotStrList = curr.split('\n');
+
+	// 从头部找到不同的行号
+	let start = 0;
+	while (start < prevSnapshotStrList.length && start < currSnapshotStrList.length && prevSnapshotStrList[start] === currSnapshotStrList[start]) {
+	  start++;
+	}
+	
+	// 从尾部找到不同的行号
+	let end = 0;
+	while (end < prevSnapshotStrList.length - start && end < currSnapshotStrList.length - start && prevSnapshotStrList[prevSnapshotStrList.length - 1 - end] === currSnapshotStrList[currSnapshotStrList.length - 1 - end]) {
+	  end++;
+	}
+	
+	// 将剩余的行重新组合成字符串
+	const beforeEdit = prevSnapshotStrList.slice(start, prevSnapshotStrList.length - end).join('\n');
+	const afterEdit = currSnapshotStrList.slice(start, currSnapshotStrList.length - end).join('\n');
+	
+
+	// 返回结果
+	return {
+	  before: beforeEdit.trim(),
+	  after: afterEdit.trim()
+	};
 }
 
 function handleTextEditorSelectionEvent(event) {
 	const line = event.selections[0].active.line;
-	const currCursorAtLine = line + 1; // VScode API 行数从 0 开始，我们的行数从 1 开始，注意 +- 1
-	console.log(`Current cursor position: Line ${currCursorAtLine}`);
-	const fulltext = vscode.window.activeTextEditor.document.getText(); // 读取当前编辑器内文本
-	if (prevCursorAtLine != currCursorAtLine) {
-		if (prevCursorAtLine != 0){ // 当此次鼠标指针位置变化不是第一次选中时
-			currLineCount = vscode.window.activeTextEditor.document.lineCount;
-			if (currLineCount == prevLineCount - 1) { // 当鼠标指针变化是由于删除了一整行引起的时
-				afterEdit = ''; // 此时直接读取上次一指针所在行得到的实际是上一次所在行的下一行
-			} else {
-				// 获取鼠标指针上一次所在行修改后的内容
-				afterEdit = vscode.window.activeTextEditor.document.lineAt(prevCursorAtLine - 1).text; 
+	currCursorAtLine = line + 1; // VScode API 行数从 0 开始，我们的行数从 1 开始，注意 +- 1
+	console.log(`==> Cursor position: Line ${prevCursorAtLine} -> ${currCursorAtLine}`);
+	currSnapshot = vscode.window.activeTextEditor.document.getText(); // 读取当前编辑器内文本
+	if (prevCursorAtLine != currCursorAtLine && prevCursorAtLine != 0) { // 当指针改变位置 且 不是在编辑器第一次获得位置时
+		let edition = detectEdit(prevSnapshot, currSnapshot); // 检测相比上一次快照的变化
+
+		if (edition.before != edition.after) {
+			console.log('==> Before edit:\n', edition.before);
+			console.log('==> After edit:\n', edition.after); 
+			prevSnapshot = currSnapshot;
+			console.log('==> Send to LLM (After cursor changed line)');
+			let files = getFiles();
+			//因为fs方式只能拿到已保存的代码文本
+			for (let file of files) {
+				if(file[0] === currFile) {
+					file[1] = currSnapshot; // 把未保存的文件内容作为实际文件内容
+					runPythonScript1(files, edition.before, edition.after, vscode.window.activeTextEditor);
+					break;
+				} 
 			}
 		}
-		// 立即获取鼠标当前指针修改前的内容，避免因用户在 runPythonScript 运行中修改导致 beforeEdit 内容不准
-		let newLineBeforeEdit = vscode.window.activeTextEditor.document.lineAt(currCursorAtLine - 1).text; 
-		// 立即获取文本当前行数，避免因用户在 runPythonScript 运行中修改导致行数不准
-		let newLineCount = vscode.window.activeTextEditor.document.lineCount;
-		console.log(`Line ${prevCursorAtLine} before edit:`,beforeEdit);
-		console.log(`Line ${prevCursorAtLine} after  edit:`,afterEdit);
-		runPythonScript(fulltext, beforeEdit, afterEdit, vscode.window.activeTextEditor);
-		prevCursorAtLine = currCursorAtLine; // 更新鼠标指针所在行数
-		beforeEdit = newLineBeforeEdit; 
-		prevLineCount = newLineCount;
 	}
+	prevCursorAtLine = currCursorAtLine; // 更新鼠标指针所在行数
+}
+
+function updateAfterApplyQuickFix(text) {
+	/*
+	* 当用户采纳了 QuickFix 的建议时，不需要等到指针所在行变化，直接将修改后的版本送入 LLM 更新 modifications
+	*/
+	let edition = detectEdit(prevSnapshot, text); // 检测相比上一次快照的变化
+	currSnapshot = text;
+	if (edition.before != edition.after) {
+		console.log('==> Before edit:\n', edition.before); 
+		console.log('==> After edit:\n', edition.after);
+		prevSnapshot = currSnapshot;
+		console.log('==> Send to LLM (After apply QucikFix)');
+		let files = getFiles();
+        for (let file of files) {
+            if(file[0] === currFile) {
+                file[1] = currSnapshot;
+                runPythonScript1(files, edition.before, edition.after, vscode.window.activeTextEditor);
+                break;
+            } 
+        }
+	}
+	prevCursorAtLine = currCursorAtLine; // 更新鼠标指针所在行数
+}
+
+function OriginEditorEvent() {
+	//在启动时获得当前文件名
+	let editor = vscode.window.activeTextEditor;
+	if (editor) {
+        // 获取当前活动的文本编辑器
+        const activeEditor = editor;
+		var file = activeEditor.document.fileName;
+        const activeFilePath = file;
+        console.log('==> Active File:', activeFilePath);
+		currFile = activeFilePath;
+    }
+}	
+
+async function getModification(doc, range) {
+	const filePath = doc.uri.fsPath;
+	const startPos = doc.offsetAt(range.start);
+    const endPos = doc.offsetAt(range.end);
+	for(let modification of modifications) {
+		if (filePath == modification.targetFilePath && modification.startPos <= startPos && modification.endPos >= endPos) {
+			let highlightedRange = new vscode.Range(doc.positionAt(modification.startPos), doc.positionAt(modification.endPos));
+			if (doc.getText(highlightedRange) == modification.toBeReplaced) { 
+				// 当用户不按照推荐修改时，例如推荐修改单词 good，但用户删除了 good，此时会导致高亮位置对应的内容偏移，则无需进行修正内容推荐
+				return await runPythonScript2(modification);
+			} else {
+				console.log(doc.getText(highlightedRange));
+				console.log(modification.toBeReplaced);
+				console.log('==> Highlighted range is not the suggested edit range');
+			}
+		}
+	}
+	return undefined;
 }
 
 function activate(context) {
+	console.log('==> Congratulations, your extension is now active!');
 
-	console.log('Congratulations, your extension is now active!');
-
-	if (listenAnyChanges) { // 保留两个实时监听器用于快速 debug
-		// 注册一个事件监听器，当编辑器激活时触发
-		context.subscriptions.push(
-			vscode.window.onDidChangeActiveTextEditor(handleTextEditorEvent)
-		);
-
-		// 注册一个事件监听器，当文本发生更改时触发
-		context.subscriptions.push(
-			vscode.workspace.onDidChangeTextDocument(handleTextDocumentEvent)
-		);
+	if (Boolean(vscode.env.appRoot && vscode.env.appRoot[0] !== "/")) { // 检测用户操作系统
+		os = 'win';
+	} else {
+		os = 'mac';
 	}
-	else {
-		// 注册一个事件监听器，监听光标位置的变化
-		vscode.window.onDidChangeTextEditorSelection(handleTextEditorSelectionEvent);
-	}
+
+	const inputBox = vscode.window.createInputBox();
+	inputBox.prompt = 'Enter commit message';
+	inputBox.ignoreFocusOut = true; // 输入框在失去焦点后不会隐藏
+
+	inputBox.onDidAccept(() => {
+		const userInput = inputBox.value;
+		console.log('==> Commit message:', userInput);
+		commitMessage = userInput;
+		let files = getFiles();
+		for (let file of files) {
+			if(file[0] === currFile) {
+				file[1] = currSnapshot;
+				runPythonScript1(files, '', '', vscode.window.activeTextEditor);
+				break;
+			} 
+		}
+	});
+
+	inputBox.onDidHide(() => {
+		// 输入框被隐藏后的处理逻辑
+		console.log('==> Commit message box is hidden');
+	});
+	
+	OriginEditorEvent();
+
+	previousActiveEditor = vscode.window.activeTextEditor;
+	// 当 VSCode 存在默认打开的 activeTextEditor 时，自动读取当前文本内容作为 prevSnapshot
+	prevSnapshot = vscode.window.activeTextEditor.document.getText();
+	currSnapshot = vscode.window.activeTextEditor.document.getText(); // 读取当前编辑器内文本
+
+	// 注册一个事件监听器，当切换编辑器激活时触发，初始化全局变量
+	context.subscriptions.push(
+		vscode.window.onDidChangeActiveTextEditor(cleanGlobalVariables)
+	);
+
+	// 注册一个事件监听器，监听光标位置的变化
+	vscode.window.onDidChangeTextEditorSelection(handleTextEditorSelectionEvent);
 
 	// 注册 CodeAction Provider，为 Python 脚本返回的修改位置提供 QuickFix
     let codeActionsProvider = vscode.languages.registerCodeActionsProvider({ scheme: 'file' }, {
-        provideCodeActions(document) {
-            const codeActions = modifications.map(modifiedContent => {
-                const [startPos, endPos, replaceContent] = modifiedContent;
-                const diagnosticRange = new vscode.Range(document.positionAt(startPos), document.positionAt(endPos));
+        async provideCodeActions(document, range) {
+			const newmodification = await getModification(document, range);
+			
+			if (! newmodification || newmodification.targetFilePath != currFile )
+				return [];
 
-                // 创建诊断
-                const diagnostic = new vscode.Diagnostic(diagnosticRange, 'Replace with: ' + replaceContent, vscode.DiagnosticSeverity.Hint);
-                diagnostic.code = 'replaceCode';
+			const diagnosticRange = new vscode.Range(document.positionAt(newmodification.startPos), document.positionAt(newmodification.endPos));
 
-                // 创建快速修复
-				const textInRange = document.getText(diagnosticRange);
-                const codeAction = new vscode.CodeAction(textInRange+'-->'+replaceContent, vscode.CodeActionKind.QuickFix);
-                codeAction.diagnostics = [diagnostic];
-                codeAction.isPreferred = true;
+			// 创建诊断
+			const diagnostic = new vscode.Diagnostic(diagnosticRange, 'Replace with: ' + newmodification.replacement, vscode.DiagnosticSeverity.Hint);
+			diagnostic.code = 'replaceCode';
 
-                // 创建 WorkspaceEdit
-                const edit = new vscode.WorkspaceEdit();
-                const replaceRange = new vscode.Range(document.positionAt(startPos), document.positionAt(endPos));
-                edit.replace(document.uri, replaceRange, replaceContent);
-                codeAction.edit = edit;
+			// 创建快速修复
+			const textInRange = document.getText(diagnosticRange);
+			const codeAction = new vscode.CodeAction(textInRange+' --> '+newmodification.replacement, vscode.CodeActionKind.QuickFix);
+			codeAction.diagnostics = [diagnostic];
+			codeAction.isPreferred = true;
 
-                return codeAction;
-            });
+			// 创建 WorkspaceEdit
+			const edit = new vscode.WorkspaceEdit();
+			const replaceRange = new vscode.Range(document.positionAt(newmodification.startPos), document.positionAt(newmodification.endPos));
+			edit.replace(document.uri, replaceRange, newmodification.replacement);
+			codeAction.edit = edit;
 
-            return codeActions;
+			codeAction.command = {
+				command: 'extension.applyFix',
+				title: '',
+				arguments: [],
+			};
+
+			return [codeAction];
         }
     });
 
     context.subscriptions.push(codeActionsProvider);
+
+    context.subscriptions.push(
+		vscode.commands.registerCommand('extension.applyFix', async () => {
+			console.log('==> applyFix');
+			const editor = vscode.window.activeTextEditor;
+			if (editor) {
+				modifications = []; // 清除 modifications 内容，避免因为指针还处于建议修改位置时触发 runPythonScript2
+				updateAfterApplyQuickFix(editor.document.getText());
+			}
+		})
+	);
+
+	vscode.commands.registerCommand('extension.commit_message',async function(){
+		console.log('==> Commit message box is displayed')
+		inputBox.show();
+	});
 }
  
 function deactivate() {
@@ -203,34 +443,3 @@ module.exports = {
 	activate,
 	deactivate
 }
-
-// Obselet code
-// function startTimer() {
-//     if (timer) {
-//         clearTimeout(timer);
-//     }
-
-//     // 设置一个10秒的计时器
-// 	stopListeners();
-// 	timer = setTimeout(() => {
-// 		startListeners();
-// 		timer = undefined;
-// 	}, listen_interval);
-// }
-
-// function stopListeners() {
-//     textEditorListener.dispose();
-//     textDocumentListener.dispose();
-// 	console.log('Listener sleep for '+ String(listen_interval/1000) + 's.')
-// }
-
-// function startListeners() {
-//     // 注册一个事件监听器，当编辑器激活时触发
-//     textEditorListener = vscode.window.onDidChangeActiveTextEditor(handleTextEditorEvent);
-
-//     // 注册一个事件监听器，当文本发生更改时触发
-//     textDocumentListener = vscode.workspace.onDidChangeTextDocument(handleTextDocumentEvent);
-
-// 	// 监听器重新工作
-// 	console.log('Listener reactivate.')
-// }
