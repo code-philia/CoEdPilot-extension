@@ -166,7 +166,7 @@ function runPythonScript2(modification) {
 	*                                       { "targetFilePath": string, filePath of target file,
 	*                                         "startPos": int, start position,
 	*                                         "endPos": int, end position,
-	*                                         "replacement": string, replacement content   
+	*                                         "replacement": list of strings, replacement content   
 	*                                       }
 	*                               }
 	*/
@@ -388,30 +388,33 @@ function activate(context) {
 				return [];
 
 			const diagnosticRange = new vscode.Range(document.positionAt(newmodification.startPos), document.positionAt(newmodification.endPos));
+			
+			const codeActions = newmodification.replacement.map(replacement => {
+				// 创建诊断
+				const diagnostic = new vscode.Diagnostic(diagnosticRange, 'Replace with: ' + replacement, vscode.DiagnosticSeverity.Hint);
+				diagnostic.code = 'replaceCode';
+				
+				// 创建快速修复
+				const codeAction = new vscode.CodeAction(replacement, vscode.CodeActionKind.QuickFix);
+				codeAction.diagnostics = [diagnostic];
+				codeAction.isPreferred = true;
 
-			// 创建诊断
-			const diagnostic = new vscode.Diagnostic(diagnosticRange, 'Replace with: ' + newmodification.replacement, vscode.DiagnosticSeverity.Hint);
-			diagnostic.code = 'replaceCode';
+				// 创建 WorkspaceEdit
+				const edit = new vscode.WorkspaceEdit();
+				const replaceRange = new vscode.Range(document.positionAt(newmodification.startPos), document.positionAt(newmodification.endPos));
+				edit.replace(document.uri, replaceRange, replacement);
+				codeAction.edit = edit;
 
-			// 创建快速修复
-			const textInRange = document.getText(diagnosticRange);
-			const codeAction = new vscode.CodeAction(textInRange+' --> '+newmodification.replacement, vscode.CodeActionKind.QuickFix);
-			codeAction.diagnostics = [diagnostic];
-			codeAction.isPreferred = true;
+				codeAction.command = {
+					command: 'extension.applyFix',
+					title: '',
+					arguments: [],
+				};
 
-			// 创建 WorkspaceEdit
-			const edit = new vscode.WorkspaceEdit();
-			const replaceRange = new vscode.Range(document.positionAt(newmodification.startPos), document.positionAt(newmodification.endPos));
-			edit.replace(document.uri, replaceRange, newmodification.replacement);
-			codeAction.edit = edit;
+				return codeAction;
+			})
 
-			codeAction.command = {
-				command: 'extension.applyFix',
-				title: '',
-				arguments: [],
-			};
-
-			return [codeAction];
+			return codeActions;
         }
     });
 

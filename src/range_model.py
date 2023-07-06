@@ -20,7 +20,7 @@ def RangeModel(codeWindow, commitMessage = None, prevEdit = None):
         remain = True
         for word in words:
             if word in line:
-                preds.append('add')
+                preds.append('remove')
                 remain = False
                 break
         if remain:

@@ -16,7 +16,7 @@ def ContentModel(codeWindow, commitMessage=None, prevEdit=None):
     for keyword, replacement in replace_dict.items():
         editLine = editLine.replace(keyword, replacement)
 
-    return editLine
+    return [editLine]
 
 def main(input):
     # read input from vscode extension
@@ -81,12 +81,12 @@ def main(input):
         else:
             codeWindow += f'{targetFileLines[lineIdx]}'
     
-    replacement = ContentModel(codeWindow, commitMessage, prevEdit)
+    replacements = ContentModel(codeWindow, commitMessage, prevEdit)
 
     if editType == 'add':
-        replacement = targetFileLines[editLineIdx] + '\n' + replacement
+        replacements = [targetFileLines[editLineIdx] + '\n' + replacement for replacement in replacements]
 
-    result["replacement"] = replacement
+    result["replacement"] = replacements
 
     return json.dumps({"data": result})  
 
@@ -107,7 +107,7 @@ output = main(input)
 #                                       { "targetFilePath": string, filePath of target file,
 #                                         "startPos": int, start position,
 #                                         "endPos": int, end position,
-#                                         "replacement": string, replacement content   
+#                                         "replacement": list of strings, replacement content   
 #                                       }
 #                               }
 print(output)
