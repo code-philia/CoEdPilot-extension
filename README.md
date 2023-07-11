@@ -1,27 +1,43 @@
-# CodeSuggestion-demo README
+# README
 
-A plug-in that provides code recommendations
+本插件为提供自动代码推荐的 VSCode 插件。
 
-## Features
+## 功能
+插件能够根据前一次修改和提交的 commit message，通过高亮推荐修改位置。用户点击或选中高亮位置会给出一个或多个修改建议。若采纳修改建议，用户可以通过点击修改建议实现自动修改。
 
-Can modify the content through the drop-down menu
+修改位置推荐功能拥有以下触发方式：
+* 修改内容识别（编辑器内容变化且光标所在行发生改变）；
+    1. 键盘输入/删除内容，完成后鼠标点击另一行；
+    2. 键盘输入内容后回车换行；
+    3. 删除键删除本行直到返回上一行；
+    4. 复制多行内容到任意位置；
+    5. 选中单行内容并删除/键入修改，完成后鼠标点击另一行；
+    6. 向前选中删除多行内容，完成后鼠标点击另一行；
+    7. 向后选中删除多行内容；
+    7. 向前选中替换相同行数内容；
+    8. 向后选中替换相同行数内容，完成后鼠标点击另一行；
+    9. 向前/后选中替换不同行数的内容；
+* 提交 commit message；
+* 接受插件给出的修改内容建议。
 
-Code edits can be selected one by one through the sidebar
+## 插件用法
 
-Can realize simple linkage between code editing and has the function of retraction
+1. 插件暂未发布，请在 VSCode 内按 **F5**，在 debug 模式内使用；
+2. 提交 commit message，请在编辑器内任意位置单击右键，在菜单内选择 **Enter commit messge**。此时顶部会出现输入框。请在完成输入后按 **Enter** 键确认;
+3. 若要关闭 commit message 输入框，请点击后按 **Esc**;
+4. 关闭 commit message 输入框不会删除当前保留的 commit message，若要更新 commit message，请在 commit message 输入框内输入新的内容并按 **Enter** 键确认；
+5. 红色高亮代表建议此行修改，绿色高亮代码建议此行后增加内容；
+6. 当出现高亮的推荐修改位置时，用户可以点击或选择一个位置，此时会在位置前方出现**蓝色小灯泡**。点击该灯泡即可查看多个推荐的修改内容；
+7. 若接受推荐的修改内容，用户可以直接点击实现修改。
 
-## How to use
+## 开发者操作
+1. 请修改 src/extension.js 开头的 Hyper-parameters，包括 高亮效果的设置（fontcolor，bgcolor）和 后端 python 脚本路径（pyPathEditRange，pyPathEditContent）；
+2. 本插件拥有两个后端 Python 脚本，分别为：**修改位置预测脚本** 和 **修改内容预测脚本**，其路径应分别记录在 pyPathEditRange 和 pyPathEditContent 两个参数中；
+3. Python 大模型分别为 src/locator_pytorch_model.bin 和 src/generator_pytorch_model.bin。
 
-The plug-in is not released yet, so you need to modify some of the executeSecondCode in extension.js
+## 问题
 
-Once set up, press F5 in the vscode screen to start
-
-## Known Issues
-
-Editing is not implemented in the drop-down menu (with the help of the editor's code completion)
-
-Sometimes the selection effect fails
-
-The model is not fully deployed and can only be run in some examples(test sample)
+* 暂未添加真实案例演示；
+* 目前 Python 脚本必须位于本地，且使用 stdin 和 stdout 进行内容传递。
 
 **Enjoy!**

@@ -1,2 +1,0 @@
-const message = "This is a highlighted message.";
-console.log(message);

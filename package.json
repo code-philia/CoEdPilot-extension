@@ -1,5 +1,5 @@
 {
-  "name": "CodeSuggestion-demo",
+  "name": "codesuggestion-demo",
   "displayName": "CodeSuggestion-demo",
   "description": "",
   "version": "0.0.1",
@@ -9,39 +9,25 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": ["onLanguage:javascript"],
+  "activationEvents": [
+    "onLanguage:typescript",
+    "onLanguage:javascript",
+    "onLanguage:go"
+  ],
   "main": "./src/extension.js",
   "contributes": {
     "commands": [
       { 
-        "command": "extension.showMenu",
-        "title": "test"
-      },
-      { 
-        "command": "demo.code_suggestion",
-        "title": "suggestion"
-      },
-      { 
-        "command": "demo.change",
-        "title": "change"
+        "command": "extension.commit_message",
+        "title": "Enter commit message"
       }
     ],
     "menus": {
       "editor/context": [
         {
           "when": "editorFocus", 
-          "command": "demo.code_suggestion", 
-          "group": "codegeneration@2"
-        },
-        {
-          "when": "editorFocus", 
-          "command": "demo.change", 
-          "group": "codegeneration@3"
-        },
-        {
-          "when": "editorFocus", 
-          "command": "extension.showMenu", 
-          "group": "codegeneration@4"
+          "command": "extension.commit_message", 
+          "group": "code_suggestion@1"
         }
       ]
     }
@@ -52,14 +38,17 @@
     "test": "node ./test/runTest.js"
   },
   "devDependencies": {
-    "@types/vscode": "^1.78.0",
     "@types/glob": "^8.1.0",
     "@types/mocha": "^10.0.1",
     "@types/node": "16.x",
+    "@types/vscode": "^1.78.0",
+    "@vscode/test-electron": "^2.3.0",
     "eslint": "^8.39.0",
     "glob": "^8.1.0",
     "mocha": "^10.2.0",
-    "typescript": "^5.0.4",
-    "@vscode/test-electron": "^2.3.0"
+    "typescript": "^5.0.4"
+  },
+  "dependencies": {
+    "vscode-languageserver": "^8.1.0"
   }
 }
