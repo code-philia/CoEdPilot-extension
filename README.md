@@ -26,17 +26,18 @@
 2. 提交 commit message，请在编辑器内任意位置单击右键，在菜单内选择 **Enter commit messge**。此时顶部会出现输入框。请在完成输入后按 **Enter** 键确认;
 3. 若要关闭 commit message 输入框，请点击后按 **Esc**;
 4. 关闭 commit message 输入框不会删除当前保留的 commit message，若要更新 commit message，请在 commit message 输入框内输入新的内容并按 **Enter** 键确认；
-5. 当出现粉红色高亮的推荐修改位置时，用户可以点击或选择一个位置，此时会在位置前方出现**蓝色小灯泡**。点击该灯泡即可查看多个推荐的修改内容；
-6. 若接受推荐的修改内容，用户可以直接点击实现修改。
+5. 红色高亮代表建议此行修改，绿色高亮代码建议此行后增加内容；
+6. 当出现高亮的推荐修改位置时，用户可以点击或选择一个位置，此时会在位置前方出现**蓝色小灯泡**。点击该灯泡即可查看多个推荐的修改内容；
+7. 若接受推荐的修改内容，用户可以直接点击实现修改。
 
 ## 开发者操作
 1. 请修改 src/extension.js 开头的 Hyper-parameters，包括 高亮效果的设置（fontcolor，bgcolor）和 后端 python 脚本路径（pyPathEditRange，pyPathEditContent）；
-5. 本插件拥有两个后端 Python 脚本，分别为：**修改位置预测脚本** 和 **修改内容预测脚本**，其路径应分别记录在 pyPathEditRange 和 pyPathEditContent 两个参数中；
-6. src/range_model.py 和 src/content_model.py 主要实现了对传入传出参数的转化处理，请用实际模型替换两个脚本中的 RangeModel() 和 ContentModel() 两个函数。
+2. 本插件拥有两个后端 Python 脚本，分别为：**修改位置预测脚本** 和 **修改内容预测脚本**，其路径应分别记录在 pyPathEditRange 和 pyPathEditContent 两个参数中；
+3. Python 大模型分别为 src/locator_pytorch_model.bin 和 src/generator_pytorch_model.bin。
 
 ## 问题
 
-* 暂未为真实数据的例子实现前端演示或前后端的联合演示；
-* src/edit.json 和 src/demo_model.py 是为了真实数据例子 test/test case/code-demo.go 的前端演示所准备的数据。
+* 暂未添加真实案例演示；
+* 目前 Python 脚本必须位于本地，且使用 stdin 和 stdout 进行内容传递。
 
 **Enjoy!**

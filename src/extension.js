@@ -6,8 +6,10 @@ const fs = require('fs');
  */
 
 // ------------ Hyper-parameters ------------
-let fontcolor = '#000';
-let bgcolor = 'rgba(255,0,0,0.3)';
+let fontcolor1 = '#000';
+let bgcolor1 = 'rgba(255,0,0,0.3)';
+let fontcolor2 = '#000';
+let bgcolor2 = 'rgba(0, 255, 0, 0.3)';
 let pyPathEditRange = '/Users/russell/Downloads/Code-Edit-main/src/range_model.py';
 let pyPathEditContent = '/Users/russell/Downloads/Code-Edit-main/src/content_model.py';
 // ------------ Global variants -------------
@@ -38,13 +40,19 @@ function cleanGlobalVariables(editor) {
 	highlightModifications(modifications, editor);
 }
 
-let decorationType = vscode.window.createTextEditorDecorationType({
-    color: fontcolor,
-	backgroundColor: bgcolor
+let decorationTypeForAlter = vscode.window.createTextEditorDecorationType({
+    color: fontcolor1,
+	backgroundColor: bgcolor1
+});
+
+let decorationTypeForAdd = vscode.window.createTextEditorDecorationType({
+    color: fontcolor2,
+	backgroundColor: bgcolor2
 });
   
 function highlightModifications(modifications, editor) {
-	const decorations = [];
+	const decorationsForAlter = []; // highlight for replace, delete
+	const decorationsForAdd = []; // highlight for add
 	if (!editor) {
 		return;
 	}
@@ -62,12 +70,17 @@ function highlightModifications(modifications, editor) {
 		const decoration = {
 			range
 		};
-	
+
 		// 添加装饰器到数组
-		decorations.push(decoration);
+		if (modification.editType == 'add') {
+			decorationsForAdd.push(decoration);
+		} else {
+			decorationsForAlter.push(decoration);
+		}
 	}
 	// 应用装饰器到编辑器
-	editor.setDecorations(decorationType, decorations);
+	editor.setDecorations(decorationTypeForAlter, decorationsForAlter);
+	editor.setDecorations(decorationTypeForAdd, decorationsForAdd);
 }
 
 function getFiles() {
@@ -118,7 +131,9 @@ function runPythonScript1(files, beforeEdit, afterEdit, editor) {
 	*                                           "afterEdit", str, the content after edit for previous edit, 
 	*											"toBeReplaced": str, the content to be replaced, 
 	*                                           "startPos": int, start position of the word,
-	*                                           "endPos": int, end position of the word"}, ...]}
+	*                                           "endPos": int, end position of the word,
+	* 											"editType": str, the type of edit, add or remove,
+	*											"lineBreak": str, '\n', '\r' or '\r\n'}, ...]
 	*/
 	const pythonProcess = spawn('python', [pyPathEditRange]);
 	const activeFilePath = editor.document.fileName;
@@ -164,6 +179,7 @@ function runPythonScript2(modification) {
 	*								"endPos": int, end position}
 	* 输出 Python 脚本的内容为字典格式: {"data": 
 	*                                       { "targetFilePath": string, filePath of target file,
+	* 										  "editType": string, 'remove', 'add'
 	*                                         "startPos": int, start position,
 	*                                         "endPos": int, end position,
 	*                                         "replacement": list of strings, replacement content   
@@ -326,6 +342,7 @@ async function getModification(doc, range) {
 				console.log(doc.getText(highlightedRange));
 				console.log(modification.toBeReplaced);
 				console.log('==> Highlighted range is not the suggested edit range');
+				return undefined;
 			}
 		}
 	}
@@ -439,7 +456,8 @@ function activate(context) {
  
 function deactivate() {
 	// 清除装饰器
-	decorationType.dispose();
+	decorationTypeForAlter.dispose();
+	decorationTypeForAdd.dispose();
 }
 
 module.exports = {
