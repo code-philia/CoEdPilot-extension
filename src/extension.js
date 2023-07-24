@@ -10,6 +10,7 @@ let fontcolor1 = '#000';
 let bgcolor1 = 'rgba(255,0,0,0.3)';
 let fontcolor2 = '#000';
 let bgcolor2 = 'rgba(0, 255, 0, 0.3)';
+let prevEditNum = 3;
 let pyPathEditRange = '/Users/russell/Downloads/Code-Edit-main/src/range_model.py';
 let pyPathEditContent = '/Users/russell/Downloads/Code-Edit-main/src/content_model.py';
 // ------------ Global variants -------------
@@ -22,6 +23,7 @@ let currSnapshot = undefined;
 let currFile = undefined;
 let previousActiveEditor = undefined;
 let commitMessage = "";
+let prevEdits = []; // 堆栈，长度为 prevEditNum，记录历史修改
 
 function cleanGlobalVariables(editor) {
 	if (previousActiveEditor && previousActiveEditor.document.isDirty) {
@@ -29,7 +31,7 @@ function cleanGlobalVariables(editor) {
 	}
 	previousActiveEditor = editor; // 更新 previousActiveEditor
 
-	// modifications = [];
+	// modifications = []; // 切换 editor 不需要清空建议的修改位置
 	prevCursorAtLine = 0;
 	currCursorAtLine = 0;
 	prevSnapshot = editor.document.getText();
@@ -119,29 +121,27 @@ function getFiles() {
     return filesList;
 }
 
-function runPythonScript1(files, beforeEdit, afterEdit, editor) {
+function runPythonScript1(files, prevEdits, editor) {
 	/*
 	* 输入 Python 脚本的内容为字典格式: {"files": list, [[filePath, fileContent], ...],
 	*                                "targetFilePath": str, filePath,
 	*								 "commitMessage": str, commit message,
-	*								 "beforeEdit": str, content before edit,
-	* 								 "afterEdit": str, content after edit}
+	*								 "prevEdits": list, of previous edits, each in format: {"beforeEdit":"", "afterEdit":""}}
 	* Python 脚本的输出为字典格式: {"data": , [ { "targetFilePath": str, filePath,
     *                                          "beforeEdit", str, the content before edit for previous edit,
-	*                                           "afterEdit", str, the content after edit for previous edit, 
-	*											"toBeReplaced": str, the content to be replaced, 
-	*                                           "startPos": int, start position of the word,
-	*                                           "endPos": int, end position of the word,
-	* 											"editType": str, the type of edit, add or remove,
-	*											"lineBreak": str, '\n', '\r' or '\r\n'}, ...]
+	*                                          "afterEdit", str, the content after edit for previous edit, 
+	*										   "toBeReplaced": str, the content to be replaced, 
+	*                                          "startPos": int, start position of the word,
+	*                                          "endPos": int, end position of the word,
+	* 										   "editType": str, the type of edit, add or remove,
+	*										   "lineBreak": str, '\n', '\r' or '\r\n'}, ...]}
 	*/
 	const pythonProcess = spawn('python', [pyPathEditRange]);
 	const activeFilePath = editor.document.fileName;
 	const input = {files: files, 
 				   targetFilePath: activeFilePath,
 				   commitMessage: commitMessage,
-			 	   beforeEdit: beforeEdit,
-			 	   afterEdit: afterEdit};
+			 	   prevEdits: prevEdits};
 	const strJSON = JSON.stringify(input);
 	
 	// 将文本写入标准输入流
@@ -173,8 +173,7 @@ function runPythonScript2(modification) {
 	* 								"targetFilePath": string filePath,
 	*								"commitMessage": string, commit message,
 	*								"editType": string, edit type,
-	*								"beforeEdit": string, before edit content in previous edit,
-	*								"afterEdit": string, after edit content in previous edit,
+	*								"prevEdits": list, of previous edits, each in format: {"beforeEdit":"", "afterEdit":""},
 	*								"startPos": int, start position,
 	*								"endPos": int, end position}
 	* 输出 Python 脚本的内容为字典格式: {"data": 
@@ -203,8 +202,7 @@ function runPythonScript2(modification) {
 			targetFilePath: modification.targetFilePath,
 			commitMessage: commitMessage,
 			editType: modification.editType,
-			beforeEdit: modification.beforeEdit,
-			afterEdit: modification.afterEdit,
+			prevEdits: modification.prevEdits,
 			startPos: modification.startPos,
 			endPos: modification.endPos
 		};
@@ -238,8 +236,8 @@ function runPythonScript2(modification) {
 
 function detectEdit(prev, curr) {
 	// 将字符串按行分割成字符串列表
-	const prevSnapshotStrList = prev.split('\n');
-	const currSnapshotStrList = curr.split('\n');
+	const prevSnapshotStrList = prev.match(/(.*?(?:\r\n|\n|\r|$))/g).slice(0, -1); // 保留每行尾部换行符
+	const currSnapshotStrList = curr.match(/(.*?(?:\r\n|\n|\r|$))/g).slice(0, -1); // 保留每行尾部换行符
 
 	// 从头部找到不同的行号
 	let start = 0;
@@ -254,15 +252,22 @@ function detectEdit(prev, curr) {
 	}
 	
 	// 将剩余的行重新组合成字符串
-	const beforeEdit = prevSnapshotStrList.slice(start, prevSnapshotStrList.length - end).join('\n');
-	const afterEdit = currSnapshotStrList.slice(start, currSnapshotStrList.length - end).join('\n');
+	const beforeEdit = prevSnapshotStrList.slice(start, prevSnapshotStrList.length - end).join('');
+	const afterEdit = currSnapshotStrList.slice(start, currSnapshotStrList.length - end).join('');
 	
-
 	// 返回结果
 	return {
-	  before: beforeEdit.trim(),
-	  after: afterEdit.trim()
+	  beforeEdit: beforeEdit.trim(),
+	  afterEdit: afterEdit.trim()
 	};
+}
+
+function pushToStack(item) {
+	prevEdits.push(item);
+  
+	if (prevEdits.length > prevEditNum) {
+		prevEdits.shift(); // 先入先出弹出最早的元素
+	}
 }
 
 function handleTextEditorSelectionEvent(event) {
@@ -273,9 +278,11 @@ function handleTextEditorSelectionEvent(event) {
 	if (prevCursorAtLine != currCursorAtLine && prevCursorAtLine != 0) { // 当指针改变位置 且 不是在编辑器第一次获得位置时
 		let edition = detectEdit(prevSnapshot, currSnapshot); // 检测相比上一次快照的变化
 
-		if (edition.before != edition.after) {
-			console.log('==> Before edit:\n', edition.before);
-			console.log('==> After edit:\n', edition.after); 
+		if (edition.beforeEdit != edition.afterEdit) {
+			// 把该修改增加到 prevEdit 中
+			pushToStack(edition);
+			console.log('==> Before edit:\n', edition.beforeEdit);
+			console.log('==> After edit:\n', edition.afterEdit); 
 			prevSnapshot = currSnapshot;
 			console.log('==> Send to LLM (After cursor changed line)');
 			let files = getFiles();
@@ -283,7 +290,7 @@ function handleTextEditorSelectionEvent(event) {
 			for (let file of files) {
 				if(file[0] === currFile) {
 					file[1] = currSnapshot; // 把未保存的文件内容作为实际文件内容
-					runPythonScript1(files, edition.before, edition.after, vscode.window.activeTextEditor);
+					runPythonScript1(files, prevEdits, vscode.window.activeTextEditor);
 					break;
 				} 
 			}
@@ -298,16 +305,18 @@ function updateAfterApplyQuickFix(text) {
 	*/
 	let edition = detectEdit(prevSnapshot, text); // 检测相比上一次快照的变化
 	currSnapshot = text;
-	if (edition.before != edition.after) {
-		console.log('==> Before edit:\n', edition.before); 
-		console.log('==> After edit:\n', edition.after);
+	if (edition.beforeEdit != edition.afterEdit) {
+		// 把该修改增加到 prevEdit 中
+		pushToStack(edition);
+		console.log('==> Before edit:\n', edition.beforeEdit); 
+		console.log('==> After edit:\n', edition.afterEdit);
 		prevSnapshot = currSnapshot;
 		console.log('==> Send to LLM (After apply QucikFix)');
 		let files = getFiles();
         for (let file of files) {
             if(file[0] === currFile) {
                 file[1] = currSnapshot;
-                runPythonScript1(files, edition.before, edition.after, vscode.window.activeTextEditor);
+                runPythonScript1(files, prevEdits, vscode.window.activeTextEditor);
                 break;
             } 
         }
@@ -339,7 +348,9 @@ async function getModification(doc, range) {
 				// 当用户不按照推荐修改时，例如推荐修改单词 good，但用户删除了 good，此时会导致高亮位置对应的内容偏移，则无需进行修正内容推荐
 				return await runPythonScript2(modification);
 			} else {
+				console.log('==> The suggested edit target:');
 				console.log(doc.getText(highlightedRange));
+				console.log('==> Current edit target:');
 				console.log(modification.toBeReplaced);
 				console.log('==> Highlighted range is not the suggested edit range');
 				return undefined;
@@ -359,10 +370,10 @@ function activate(context) {
 	}
 
 	const inputBox = vscode.window.createInputBox();
-	inputBox.prompt = 'Enter commit message';
+	inputBox.prompt = 'Enter edit description';
 	inputBox.ignoreFocusOut = true; // 输入框在失去焦点后不会隐藏
 
-	inputBox.onDidAccept(() => {
+	inputBox.onDidAccept(() => { // 用户回车确认 commit message 后进行 edit range 推荐
 		const userInput = inputBox.value;
 		console.log('==> Commit message:', userInput);
 		commitMessage = userInput;
@@ -370,7 +381,7 @@ function activate(context) {
 		for (let file of files) {
 			if(file[0] === currFile) {
 				file[1] = currSnapshot;
-				runPythonScript1(files, '', '', vscode.window.activeTextEditor);
+				runPythonScript1(files, prevEdits, vscode.window.activeTextEditor);
 				break;
 			} 
 		}

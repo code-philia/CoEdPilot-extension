@@ -274,8 +274,7 @@ def predict(example, model, tokenizer, device):
         result.append(multiple_results)
     return result[0]
 
-def ContentModel(codeWindow, commitMessage, beforeEdit, afterEdit):
-    prevEdit = ' <s> Delete ' + beforeEdit.strip() + ' </s> <s> Add ' + afterEdit.strip() + ' </s>'
+def ContentModel(codeWindow, commitMessage, prevEdits):
     # extract the edit line from codeWindow
     editLine = codeWindow.split('<s>')[1][1:-1].rstrip("\n\r")
 
@@ -300,8 +299,7 @@ def main(input):
     targetFilePath = dict["targetFilePath"]
     commitMessage = dict["commitMessage"]
     editType = dict["editType"]
-    beforeEdit = dict["beforeEdit"]
-    afterEdit = dict["afterEdit"]
+    prevEdits = dict["prevEdits"]
     startPos = dict["startPos"]
     endPos = dict["endPos"]
     
@@ -369,12 +367,14 @@ def main(input):
     else:
         raise ValueError('editLineIdx is empty')
 
-    # 将 codeWindow， commitMessage， beforeEdit， afterEdit 拼接成 example
+    # 将 codeWindow， commitMessage， prevEdits 拼接成 example
     if run_real_model:
-        example = codeWindow + ' </s> '  + commitMessage + ' <s> Delete ' + beforeEdit.strip() + ' </s> <s> Add ' + afterEdit.strip() + ' </s>'
+        example = codeWindow + ' </s> '  + commitMessage + ' </s>'
+        for prevEdit in prevEdits:
+            example += ' Delete ' + prevEdit["beforeEdit"].strip() + ' Add ' + prevEdit["afterEdit"].strip() + ' </s>'
         replacements = predict(example, finetuned_model, tokenizer, device)
     else:
-        replacements = ContentModel(codeWindow, commitMessage, beforeEdit, afterEdit)
+        replacements = ContentModel(codeWindow, commitMessage, prevEdits)
 
     if editType == 'add':
         replacements = [targetFileLines[editLineIdx[0]] + replacement for replacement in replacements]
@@ -387,8 +387,7 @@ def main(input):
 #                                 "targetFilePath": string filePath,
 #                                 "commitMessage": string, commit message,
 #                                 "editType": str, the type of edit,
-#                                 "beforeEdit": string, before edit content in previous edit,
-#                                 "afterEdit": string, after edit content in previous edit,
+#                                 "prevEdits": list, of previous edits, each in format: {"beforeEdit":"", "afterEdit":""},
 #                                 "startPos": int, start position,
 #                                 "endPos": int, end position}
 input = sys.stdin.read()

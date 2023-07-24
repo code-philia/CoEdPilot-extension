@@ -1,43 +1,45 @@
 # README
 
-本插件为提供自动代码推荐的 VSCode 插件。
+This plugin is a VSCode extension that provides automatic code edit recommendations.
 
-## 功能
-插件能够根据前一次修改和提交的 commit message，通过高亮推荐修改位置。用户点击或选中高亮位置会给出一个或多个修改建议。若采纳修改建议，用户可以通过点击修改建议实现自动修改。
+## Feature
+The plugin can highlight recommended edit locations based on the previous changes and user's description of the edit. When the user clicks or selects a highlighted position, one or more modification suggestions will be presented. If the user accepts the suggestions, they can apply the modifications automatically by clicking on the suggestion.
 
-修改位置推荐功能拥有以下触发方式：
-* 修改内容识别（编辑器内容变化且光标所在行发生改变）；
-    1. 键盘输入/删除内容，完成后鼠标点击另一行；
-    2. 键盘输入内容后回车换行；
-    3. 删除键删除本行直到返回上一行；
-    4. 复制多行内容到任意位置；
-    5. 选中单行内容并删除/键入修改，完成后鼠标点击另一行；
-    6. 向前选中删除多行内容，完成后鼠标点击另一行；
-    7. 向后选中删除多行内容；
-    7. 向前选中替换相同行数内容；
-    8. 向后选中替换相同行数内容，完成后鼠标点击另一行；
-    9. 向前/后选中替换不同行数的内容；
-* 提交 commit message；
-* 接受插件给出的修改内容建议。
+The edit location recommendation feature can be triggered in the following ways:
+* Detection of content modification (when the editor content changes and the cursor moves to a new line):
+    1. Typing or deleting content and then clicking on another line when done.
+    2. Typing content and pressing enter to create a new line.
+    3. Pressing the delete key to remove content until reaching the previous line.
+    4. Copying multiple lines of content to any location.
+    5. Selecting a single line of content, making changes, and then clicking on another line when done.
+    6. Selecting forward and deleting multiple lines of content and then clicking on another line when done.
+    7. Selecting backward and deleting multiple lines of content.
+    8. Selecting forward and replacing with content of the same number of lines.
+    9. Selecting forward or backward, then replacing with content of different numbers of lines.
+* Enter edit description.
+* Accepting modification suggestions provided by the plugin。
 
-## 插件用法
+## Plugin Usage
 
-1. 插件暂未发布，请在 VSCode 内按 **F5**，在 debug 模式内使用；
-2. 提交 commit message，请在编辑器内任意位置单击右键，在菜单内选择 **Enter commit messge**。此时顶部会出现输入框。请在完成输入后按 **Enter** 键确认;
-3. 若要关闭 commit message 输入框，请点击后按 **Esc**;
-4. 关闭 commit message 输入框不会删除当前保留的 commit message，若要更新 commit message，请在 commit message 输入框内输入新的内容并按 **Enter** 键确认；
-5. 红色高亮代表建议此行修改，绿色高亮代码建议此行后增加内容；
-6. 当出现高亮的推荐修改位置时，用户可以点击或选择一个位置，此时会在位置前方出现**蓝色小灯泡**。点击该灯泡即可查看多个推荐的修改内容；
-7. 若接受推荐的修改内容，用户可以直接点击实现修改。
+1. The plugin is not yet published, please use it in debug mode by pressing **F5** in VSCode.
+2. To enter edit description, right-click anywhere in the editor, select **Enter edit description** from the menu. An input box will appear at the top. After entering the description, press **Enter** to confirm.
+3. To close the edit description input box, click it and then press **ESC**.
+4. Closing the edit description input box does not empty the current edit description. To update the edit description, enter new content in the input box and press **Enter** to confirm.
+5. Red highlight suggests deleting or updating this line, while green highlight suggests adding content after this line.
+6. When highlighted edit locations appear, the user can click or select a position. A blue dot will appear at the right side of the location. Clicking the blue dot will display multiple recommended modification contents.
+If the user accepts the recommended modifications, they can directly click it to implement the changes.
 
-## 开发者操作
-1. 请修改 src/extension.js 开头的 Hyper-parameters，包括 高亮效果的设置（fontcolor，bgcolor）和 后端 python 脚本路径（pyPathEditRange，pyPathEditContent）；
-2. 本插件拥有两个后端 Python 脚本，分别为：**修改位置预测脚本** 和 **修改内容预测脚本**，其路径应分别记录在 pyPathEditRange 和 pyPathEditContent 两个参数中；
-3. Python 大模型分别为 src/locator_pytorch_model.bin 和 src/generator_pytorch_model.bin。
+## Developer's Operations
+1. Please modify the Hyper-parameters at the beginning of *src/extension.js*, including settings for highlighting effects (font color, background color) and the paths to the backend Python scripts (*pyPathEditRange, pyPathEditContent*).
+2. Please modify variable *model_name* in both *src/range_model.py* and *src/content_model.py*. 
+3. All path should use the absolute path.
+4. *src/range_model.py* bridges the front-end and the back-end to provide edit location recommendation.
+5. *src/content_model.py* bridges the front-end and the back-end to provide edit content recommendation.
+6. The large langauge models are *src/locator_pytorch_model.bin* and *src/generator_pytorch_model.bin*.
 
-## 问题
+## Issues
 
-* 暂未添加真实案例演示；
-* 目前 Python 脚本必须位于本地，且使用 stdin 和 stdout 进行内容传递。
+* Currently, the Python scripts must be located locally and use stdin and stdout for content transmission.
+
 
 **Enjoy!**

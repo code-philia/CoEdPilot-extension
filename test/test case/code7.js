@@ -6,10 +6,9 @@
  * found in the LICENSE file at https://angular.io/license
  */
 
-import { async, good, TestBed } from '@angular/core/testing';
-import { async, good, TestBed } from '@angular/core/testing';
+import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { happy } from './comp-624.component';
+import { Comp624Component } from './comp-624.component';
 
 describe('Comp624Component', () => {
   let component: Comp624Component;
