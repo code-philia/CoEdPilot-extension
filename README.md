@@ -1,43 +1,51 @@
 # README
 
-本插件为提供自动代码推荐的 VSCode 插件。
+This plugin is a VSCode extension that provides automatic code edit recommendations.
 
-## 功能
-插件能够根据前一次修改和提交的 commit message，通过高亮推荐修改位置。用户点击或选中高亮位置会给出一个或多个修改建议。若采纳修改建议，用户可以通过点击修改建议实现自动修改。
+## Feature
+The plugin is composed of an edit locator and an edit generator. The edit locator can highlight recommended edit locations based on previous edits and the edit description provided by user. When the user clicks or selects a highlighted location, multiple edit suggestions will be provided by the edit generator. If the user chooses to accept the edit suggestion, they can click on the suggestion, and the plugin will automatically apply the edit.
 
-修改位置推荐功能拥有以下触发方式：
-* 修改内容识别（编辑器内容变化且光标所在行发生改变）；
-    1. 键盘输入/删除内容，完成后鼠标点击另一行；
-    2. 键盘输入内容后回车换行；
-    3. 删除键删除本行直到返回上一行；
-    4. 复制多行内容到任意位置；
-    5. 选中单行内容并删除/键入修改，完成后鼠标点击另一行；
-    6. 向前选中删除多行内容，完成后鼠标点击另一行；
-    7. 向后选中删除多行内容；
-    7. 向前选中替换相同行数内容；
-    8. 向后选中替换相同行数内容，完成后鼠标点击另一行；
-    9. 向前/后选中替换不同行数的内容；
-* 提交 commit message；
-* 接受插件给出的修改内容建议。
+The edit location recommendation feature can be triggered in the following ways:
+* Content edit (editor content changes, and the cursor moves to a different line):
+    1. Typing/deleting content and then clicking on another line.
+    2. Typing content and pressing "Enter" for a new line.
+    3. Pressing the "Backspace" key to delete the current line until returning to the previous line.
+    4. Copying multiple lines of content to any location.
+    5. Selecting a single line of content, making edits (deleting/typing), and then clicking on another line.
+    6. Selecting multiple lines of content forward, deleting, and then clicking on another line.
+    7. Selecting multiple lines of content backward and deleting them.
+    8. Selecting and replacing content with the same number of lines forward.
+    9. Selecting and replacing content with the same number of lines backward, then clicking on another line.
+    10. Selecting and replacing content with different numbers of lines forward/backward.
+* User enter edit description.
+* Accept edit suggestion provided by the extension.
 
-## 插件用法
+## Plugin Usage
+1. The plugin is not yet published. Please press **F5** within VS Code to use it in debug mode.
+2. To submit an edit description, right-click anywhere in the editor, then select **Enter edit description** from the menu. An input box will appear at the top. After entering your message, press **Enter** to confirm.
+3. To close the edit description input box, click it and then press **Esc**.
+4. Closing the edit description input box will not delete the current saved edit description. If you want to update the edit description, enter the new content inside the edit description input box and press **Enter** to confirm.
+5. Red highlighting indicates recommended edits for the current line, while green highlighting suggests additions to the code after the current line.
+6. When recommended edit locations are highlighted, users can click or select a location, and a **blue dot** will appear in front of it. Clicking on it will display multiple recommended edit options.
+7. If you want to accept a recommended edit, you can directly click on it to apply the change.
 
-1. 插件暂未发布，请在 VSCode 内按 **F5**，在 debug 模式内使用；
-2. 提交 commit message，请在编辑器内任意位置单击右键，在菜单内选择 **Enter commit messge**。此时顶部会出现输入框。请在完成输入后按 **Enter** 键确认;
-3. 若要关闭 commit message 输入框，请点击后按 **Esc**;
-4. 关闭 commit message 输入框不会删除当前保留的 commit message，若要更新 commit message，请在 commit message 输入框内输入新的内容并按 **Enter** 键确认；
-5. 红色高亮代表建议此行修改，绿色高亮代码建议此行后增加内容；
-6. 当出现高亮的推荐修改位置时，用户可以点击或选择一个位置，此时会在位置前方出现**蓝色小灯泡**。点击该灯泡即可查看多个推荐的修改内容；
-7. 若接受推荐的修改内容，用户可以直接点击实现修改。
+## Deployment of the extension
+1. Install [Node.js](https://nodejs.org/en/download).
+2. Install packages required for VS Code extension: 
+```
+npm install -g yo generator-code
+```
+3. Download extension [code](https://github.com/code-philia/Code-Edit).
+4. Download backend [models]().
+5. Rename the edit locator model as *locator_pytorch_model.bin*, and the edit generation model as *generator_pytorch_model.bin*, move them to folder *src/*.
+6. Open file *src/extension.js*, edit the path variable `pyPathEditRange` and `pyPathEditContent`. The target file is still *src/range_model.py* and *src/content_model.py*, but the variables are modified to your absolute path of the two files.
+7. open file *src/range_model.py*, edit path variable `model_name`, The target file is still *src/locator_pytorch_model.bin*, but the variable is modified to your absolute path of the file.
+8. open file *src/content_model.py*, edit path variable `model_name`, The target file is still *src/generator_pytorch_model.bin*, but the variable is modified to the absolute paths of the file.
+9. Open the extension folder within VS Code, open *src/extension.js*, press `F5` to run the extension in debug mode. If a VS Code menu pop up, select "VS Code Extension".
+10. New VS Code window should appear and the extension is ready. 
 
-## 开发者操作
-1. 请修改 src/extension.js 开头的 Hyper-parameters，包括 高亮效果的设置（fontcolor，bgcolor）和 后端 python 脚本路径（pyPathEditRange，pyPathEditContent）；
-2. 本插件拥有两个后端 Python 脚本，分别为：**修改位置预测脚本** 和 **修改内容预测脚本**，其路径应分别记录在 pyPathEditRange 和 pyPathEditContent 两个参数中；
-3. Python 大模型分别为 src/locator_pytorch_model.bin 和 src/generator_pytorch_model.bin。
+## Issues
 
-## 问题
-
-* 暂未添加真实案例演示；
-* 目前 Python 脚本必须位于本地，且使用 stdin 和 stdout 进行内容传递。
+* Currently, Python scripts must be located locally and use stdin and stdout for content exchange.
 
 **Enjoy!**

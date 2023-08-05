@@ -280,8 +280,7 @@ def normalize_string(s):
         s = s.replace("'", "\'")
     return s
 
-def RangeModel(codeWindow, commitMessage, beforeEdit, afterEdit):
-    prevEdit = '<s> Delete ' + beforeEdit + ' </s> <s> Add ' + afterEdit + ' </s>'
+def RangeModel(codeWindow, commitMessage, prevEdits):
     lines = codeWindow.splitlines(True)
     words = ['fly', 'happy', 'good', 'car']
     preds = []
@@ -335,8 +334,7 @@ def main(input):
     dict = json.loads(input)
     files = dict["files"]
     commitMessage = dict["commitMessage"]
-    beforeEdit = dict["beforeEdit"]
-    afterEdit = dict["afterEdit"]
+    prevEdits = dict["prevEdits"]
     results = []
 
     # 获取每个文件的内容
@@ -359,13 +357,15 @@ def main(input):
 
             if run_real_model:
                 # 将 CodeWindow， CommitMessage 和 prevEdit 合并为一个字符串，作为模型的输入
-                example = codeWindow + ' </s> '  + commitMessage + ' <s> Delete ' + beforeEdit.strip() + ' </s> <s> Add ' + afterEdit.strip() + ' </s>'
+                example = '<s>' + codeWindow + ' </s> '  + commitMessage + ' </s>'
+                for prevEdit in prevEdits:
+                    example +=' <s> Delete ' + prevEdit["beforeEdit"].strip() + ' Add ' + prevEdit["afterEdit"].strip() + ' </s>'
                 
                 # 用 大模型 模型预测，输出为：'<editType> <editType> ... <editType>'
                 predInCodeWindow = predict(example, finetuned_model, tokenizer, device).split(' ')
             else:
                 # 若使用自制的 RangeModel 模型预测，使用以下代码
-                predInCodeWindow = RangeModel(codeWindow, commitMessage, beforeEdit, afterEdit).split(' ')
+                predInCodeWindow = RangeModel(codeWindow, commitMessage, prevEdits).split(' ')
             
             # 当模型输出的 editType 数量和 codeWindow 内行数不一致时，进行警告
             if len(predInCodeWindow) > len(codeWindowLines):
@@ -395,8 +395,7 @@ def main(input):
                     lineBreak = ''
                 results.append({
                     "targetFilePath": targetFilePath,
-                    "beforeEdit": normalize_string(beforeEdit),
-                    "afterEdit": normalize_string(afterEdit),
+                    "prevEdits": prevEdits,
                     "toBeReplaced": normalize_string(targetFileLines[i].rstrip("\n\r")), # 高亮的部分不包括行尾的换行符
                     "startPos": len(text),
                     "endPos": len(text)+len(targetFileLines[i].rstrip("\n\r")), # 高亮的部分不包括行尾的换行符
@@ -414,15 +413,13 @@ def main(input):
 # 输入 Python 脚本的内容为字典格式: {"files": list, [[filePath, fileContent], ...],
 #                                "targetFilePath": str, filePath,
 #                                "commitMessage": str, commit message,
-#								 "beforeEdit": str, content before edit,
-# 								 "afterEdit": str, content after edit}
+#								 "prevEdits": list, of previous edits, each in format: {"beforeEdit":"", "afterEdit":""}}
 input = sys.stdin.read()
 output = main(input)
 
 # 将修改三元组作为输出发送给 Node.js
 # 输出 Python 脚本的内容为字典格式: {"data": , [ { "targetFilePath": str, filePath,
-#                                              "beforeEdit", str, the content before edit for previous edit,
-#                                              "afterEdit", str, the content after edit for previous edit,
+#                                              "prevEdits": list, of previous edits, each in format: {"beforeEdit":"", "afterEdit":""},
 #                                              "toBeReplaced": str, the content to be replaced,
 #                                              "startPos": int, start position of the word,
 #                                              "endPos": int, end position of the word,

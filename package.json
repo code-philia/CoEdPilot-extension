@@ -12,14 +12,15 @@
   "activationEvents": [
     "onLanguage:typescript",
     "onLanguage:javascript",
-    "onLanguage:go"
+    "onLanguage:go",
+    "onLanguage:json"
   ],
   "main": "./src/extension.js",
   "contributes": {
     "commands": [
       { 
         "command": "extension.commit_message",
-        "title": "Enter commit message"
+        "title": "Enter edit description"
       }
     ],
     "menus": {
