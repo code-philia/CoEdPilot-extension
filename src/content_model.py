@@ -1,3 +1,4 @@
+import os
 import sys
 import json
 import torch
@@ -9,7 +10,8 @@ logging.disable(logging.CRITICAL)
 warnings.filterwarnings("ignore")
 
 contextLength = 5
-model_name = 'C:\\Users\\NUS\\Downloads\\Chenyan_File\\Code-Edit\\src\\generator_pytorch_model.bin'
+current_file_path = os.path.dirname(os.path.abspath(__file__))
+model_name = os.path.join(current_file_path, 'content_pytorch_model.bin')
 run_real_model = True # 为了 debug 添加的参数
 
 class Seq2Seq(nn.Module):
