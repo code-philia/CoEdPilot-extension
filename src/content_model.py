@@ -9,7 +9,7 @@ logging.disable(logging.CRITICAL)
 warnings.filterwarnings("ignore")
 
 contextLength = 5
-model_name = '/Users/russell/Downloads/Code-Edit-main/src/generator_pytorch_model.bin'
+model_name = 'C:\\Users\\NUS\\Downloads\\Chenyan_File\\Code-Edit\\src\\generator_pytorch_model.bin'
 run_real_model = True # 为了 debug 添加的参数
 
 class Seq2Seq(nn.Module):
@@ -41,6 +41,7 @@ class Seq2Seq(nn.Module):
         self.max_length=max_length
         self.sos_id=sos_id
         self.eos_id=eos_id
+        self.device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
         
     def _tie_or_clone_weights(self, first_module, second_module):
         """ Tie or clone module weights depending of weither we are using TorchScript or not
@@ -83,7 +84,7 @@ class Seq2Seq(nn.Module):
         else:
             #Predict 
             preds=[]       
-            zero=torch.LongTensor(1).fill_(0)     
+            zero=torch.LongTensor(1).fill_(0).to(self.device)     
             for i in range(source_ids.shape[0]):
                 context=encoder_output[:,i:i+1]
                 context_mask=source_mask[i:i+1,:]
@@ -246,7 +247,7 @@ def load_model():
     import os
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     load_model_path = os.path.join(base_model_dir, model_name)
-    pretrained_model.load_state_dict(torch.load(load_model_path, map_location='cpu'))
+    pretrained_model.load_state_dict(torch.load(load_model_path, map_location="cuda" if torch.cuda.is_available() else "cpu"))
     finetuned_model = pretrained_model.to(device)
     return finetuned_model, tokenizer, device
 
@@ -348,13 +349,15 @@ def main(input):
     
     # 把 editRange 的上下文和 editRange 的内容拼接成 codeWindow
     codeWindow = ''
-    if len(editLineIdx) == 1: # 如果 editRange 只有一行
+    if len(editLineIdx) == 1: # 如果 editRange 只有一行，此时 editType 可能为 add 或 remove
         for lineIdx in range(startLineIdx, endLineIdx):
-            if lineIdx == editLineIdx[0]:
+            if lineIdx == editLineIdx[0] and editType == 'remove': # 当行数命中 且 editType 是 remove 时，用 <s> 包围本行
                 codeWindow += f'<s> {targetFileLines[lineIdx]} <s>'
+            elif lineIdx == editLineIdx[0] and editType == 'add': # 当行数命中 且 editType 是 add 时，用 <s> 包围不存在的下一行
+                codeWindow += f'{targetFileLines[lineIdx]}<s> <s>'
             else:
                 codeWindow += f'{targetFileLines[lineIdx]}'
-    elif len(editLineIdx) > 1: # 如果 editRange 有多行
+    elif len(editLineIdx) > 1: # 如果 editRange 有多行，则 editType 必然为 remove
         for lineIdx in range(startLineIdx, endLineIdx):
             if lineIdx == editLineIdx[0]:
                 codeWindow += f'<s> {targetFileLines[lineIdx]}'

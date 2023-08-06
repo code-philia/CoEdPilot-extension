@@ -41,8 +41,16 @@ npm install -g yo generator-code
 6. Open file *src/extension.js*, edit the path variable `pyPathEditRange` and `pyPathEditContent`. The target file is still *src/range_model.py* and *src/content_model.py*, but the variables are modified to your absolute path of the two files.
 7. open file *src/range_model.py*, edit path variable `model_name`, The target file is still *src/locator_pytorch_model.bin*, but the variable is modified to your absolute path of the file.
 8. open file *src/content_model.py*, edit path variable `model_name`, The target file is still *src/generator_pytorch_model.bin*, but the variable is modified to the absolute paths of the file.
-9. Open the extension folder within VS Code, open *src/extension.js*, press `F5` to run the extension in debug mode. If a VS Code menu pop up, select "VS Code Extension".
-10. New VS Code window should appear and the extension is ready. 
+9. Create environment and install dependencies of the backend models
+```
+conda create -n code-edit
+conda activate code-edit
+pip install transformers==4.13.0
+pip3 install torch torchvision torchaudio
+```
+10. Open file *src/extension.js*, edit the path variable `PyInterpreter` with the absolute path of the interpreter. E.g.: */home/username/miniconda3/envs/codebert/bin/python*.
+11. Open the extension folder within VS Code, open *src/extension.js*, press `F5` to run the extension in debug mode. If a VS Code menu pop up, select "VS Code Extension".
+12. New VS Code window should appear and the extension is ready. 
 
 ## Issues
 

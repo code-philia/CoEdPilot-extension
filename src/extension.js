@@ -11,8 +11,9 @@ let bgcolor1 = 'rgba(255,0,0,0.3)';
 let fontcolor2 = '#000';
 let bgcolor2 = 'rgba(0, 255, 0, 0.3)';
 let prevEditNum = 3;
-let pyPathEditRange = '/Users/russell/Downloads/Code-Edit-main/src/range_model.py';
-let pyPathEditContent = '/Users/russell/Downloads/Code-Edit-main/src/content_model.py';
+let pyPathEditRange = 'C:\\Users\\NUS\\Downloads\\Chenyan_File\\Code-Edit\\src\\range_model.py';
+let pyPathEditContent = 'C:\\Users\\NUS\\Downloads\\Chenyan_File\\Code-Edit\\src\\content_model.py';
+let PyInterpreter = 'python'
 // ------------ Global variants -------------
 let os = ''; // ['mac', 'win'] 
 let modifications = [];
@@ -136,14 +137,14 @@ function runPythonScript1(files, prevEdits, editor) {
 	* 										   "editType": str, the type of edit, add or remove,
 	*										   "lineBreak": str, '\n', '\r' or '\r\n'}, ...]}
 	*/
-	const pythonProcess = spawn('python', [pyPathEditRange]);
+	const pythonProcess = spawn(PyInterpreter, [pyPathEditRange]);
 	const activeFilePath = editor.document.fileName;
 	const input = {files: files, 
 				   targetFilePath: activeFilePath,
 				   commitMessage: commitMessage,
 			 	   prevEdits: prevEdits};
 	const strJSON = JSON.stringify(input);
-	
+
 	// 将文本写入标准输入流
 	pythonProcess.stdin.setEncoding('utf-8');
 	pythonProcess.stdin.write(strJSON);
@@ -187,7 +188,7 @@ function runPythonScript2(modification) {
 	*/
 	return new Promise((resolve, reject) => {
 		let files = getFiles();
-		const pythonProcess = spawn('python', [pyPathEditContent]);
+		const pythonProcess = spawn(PyInterpreter, [pyPathEditContent]);
 		const editor = vscode.window.activeTextEditor;
 
 		for (let file of files) {

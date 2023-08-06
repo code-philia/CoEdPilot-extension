@@ -10,7 +10,7 @@ logging.disable(logging.CRITICAL)
 warnings.filterwarnings("ignore")
 
 codeWindowLength = 10
-model_name = '/Users/russell/Downloads/Code-Edit-main/src/locator_pytorch_model.bin'
+model_name = 'C:\\Users\\NUS\\Downloads\\Chenyan_File\\Code-Edit\\src\\locator_pytorch_model.bin'
 run_real_model = True # 为了 debug 添加的参数
 
 class Seq2Seq(nn.Module):
@@ -42,6 +42,7 @@ class Seq2Seq(nn.Module):
         self.max_length=max_length
         self.sos_id=sos_id
         self.eos_id=eos_id
+        self.device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
         
     def _tie_or_clone_weights(self, first_module, second_module):
         """ Tie or clone module weights depending of weither we are using TorchScript or not
@@ -84,7 +85,7 @@ class Seq2Seq(nn.Module):
         else:
             #Predict 
             preds=[]       
-            zero=torch.LongTensor(1).fill_(0)     
+            zero=torch.LongTensor(1).fill_(0).to(self.device) 
             for i in range(source_ids.shape[0]):
                 context=encoder_output[:,i:i+1]
                 context_mask=source_mask[i:i+1,:]
@@ -247,7 +248,7 @@ def load_model():
     import os
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     load_model_path = os.path.join(base_model_dir, model_name)
-    pretrained_model.load_state_dict(torch.load(load_model_path, map_location='cpu'))
+    pretrained_model.load_state_dict(torch.load(load_model_path, map_location="cuda" if torch.cuda.is_available() else "cpu"))
     finetuned_model = pretrained_model.to(device)
     return finetuned_model, tokenizer, device
 
