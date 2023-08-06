@@ -1,0 +1,14 @@
+<script type="text/javascript">
+  $$('#testSelectNode a').first().observe('click', function(e) {
+    var node = editor.document.body.getElementsByTagName("span")[0];
+    editor.selection.selectNode(node);
+
+    var range = editor.selection.getRange();
+    if (range.startContainer.textContent == "Lorem ipsum")
+      $('testSelectNode').passed('Pass');
+    else
+      $('testSelectNode').failed('Fail');
+    log(range);
+    Event.stop(e);
+  });
+</script>

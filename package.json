@@ -13,7 +13,8 @@
     "onLanguage:typescript",
     "onLanguage:javascript",
     "onLanguage:go",
-    "onLanguage:json"
+    "onLanguage:json",
+    "onLanguage:markdown"
   ],
   "main": "./src/extension.js",
   "contributes": {
