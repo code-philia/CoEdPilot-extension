@@ -11,7 +11,7 @@ warnings.filterwarnings("ignore")
 
 contextLength = 5
 current_file_path = os.path.dirname(os.path.abspath(__file__))
-model_name = os.path.join(current_file_path, 'content_pytorch_model.bin')
+model_name = os.path.join(current_file_path, 'generator_pytorch_model.bin')
 run_real_model = True # 为了 debug 添加的参数
 
 class Seq2Seq(nn.Module):
