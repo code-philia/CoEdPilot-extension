@@ -11,5 +11,5 @@ function initialize(window) {
 *  Get selected text.
 **/
 function getSelection() {
- return this.window.getSelection ? this.window.getSelection() : this.window.getDocument().selection;
+ return this.window.getSelection ? this.window.getSelection() : this.window.document.selection;
 }

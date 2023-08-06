@@ -1,19 +1,22 @@
 const vscode = require('vscode');
 const { spawn } = require('child_process');
 const fs = require('fs');
+const path = require('path');
 /**
  * @param {vscode.ExtensionContext} context
  */
 
 // ------------ Hyper-parameters ------------
+// 获取当前文件所在目录的绝对路径
+const currentDirectory = __dirname;
 let fontcolor1 = '#000';
 let bgcolor1 = 'rgba(255,0,0,0.3)';
 let fontcolor2 = '#000';
 let bgcolor2 = 'rgba(0, 255, 0, 0.3)';
 let prevEditNum = 3;
-let pyPathEditRange = 'C:\\Users\\NUS\\Downloads\\Chenyan_File\\Code-Edit\\src\\range_model.py';
-let pyPathEditContent = 'C:\\Users\\NUS\\Downloads\\Chenyan_File\\Code-Edit\\src\\content_model.py';
-let PyInterpreter = 'python'
+let pyPathEditRange = path.join(currentDirectory, "range_model.py");
+let pyPathEditContent = path.join(currentDirectory, "content_model.py");
+let PyInterpreter = "python";
 // ------------ Global variants -------------
 let os = ''; // ['mac', 'win'] 
 let modifications = [];
