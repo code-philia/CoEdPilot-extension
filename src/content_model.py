@@ -254,6 +254,7 @@ def load_model():
     return finetuned_model, tokenizer, device
 
 def predict(example, model, tokenizer, device):
+    model.eval()
     max_source_length=256
     source_tokens = tokenizer.tokenize(example)[:max_source_length]
     source_tokens =[tokenizer.cls_token]+source_tokens+[tokenizer.sep_token]
