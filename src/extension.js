@@ -1,24 +1,25 @@
-const vscode = require('vscode');
-const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const vscode = require('vscode');
+const { spawn } = require('child_process');
+
+const { getWebviewContent }=require('./sidebar')
 /**
  * @param {vscode.ExtensionContext} context
  */
 
 // ------------ Hyper-parameters ------------
 // 获取当前文件所在目录的绝对路径
-const currentDirectory = __dirname;
+const extensionDirectory = __dirname;
 let fontcolor1 = '#000';
 let bgcolor1 = 'rgba(255,0,0,0.3)';
 let fontcolor2 = '#000';
 let bgcolor2 = 'rgba(0, 255, 0, 0.3)';
 let prevEditNum = 3;
-let pyPathEditRange = path.join(currentDirectory, "range_model.py");
-let pyPathEditContent = path.join(currentDirectory, "content_model.py");
+let pyPathEditRange = path.join(extensionDirectory, "range_model.py");
+let pyPathEditContent = path.join(extensionDirectory, "content_model.py");
 let PyInterpreter = "python";
 // ------------ Global variants -------------
-let os = ''; // ['mac', 'win'] 
 let modifications = [];
 let prevCursorAtLine = 0;
 let currCursorAtLine = 0;
@@ -102,11 +103,7 @@ function getFiles() {
 		const files = fs.readdirSync(folderPath);
 		files.forEach(file => {
 			let filePath = undefined;
-			if (os == 'win') {
-				filePath = `${folderPath}\\${file}`;
-			} else {
-				filePath = `${folderPath}/${file}`;
-			}
+			filePath = path.join(folderPath, file);
 			const fileStat = fs.statSync(filePath);
 	
 			if (fileStat.isFile()) {
@@ -123,6 +120,17 @@ function getFiles() {
     // 开始遍历当前工作区根文件夹
     readFiles(rootPath);
     return filesList;
+}
+
+function showModificationsWebview(modificationsList) {
+	let panel = vscode.window.createWebviewPanel(
+		"modificationsWebview",
+		"Modifications",
+		vscode.ViewColumn.Two,
+		{ enableScripts: true }
+	);
+	const rootPath = vscode.workspace.rootPath;
+    panel.webview.html = getWebviewContent(panel, modificationsList, rootPath);
 }
 
 function runPythonScript1(files, prevEdits, editor) {
@@ -163,6 +171,7 @@ function runPythonScript1(files, prevEdits, editor) {
 		console.log('==> Edit range prediction model returned successfully');
 		// 高亮显示修改的位置
 		highlightModifications(modifications, editor);
+		showModificationsWebview(modifications);
 	});
 	
 	// 处理 Python 脚本的错误
@@ -357,6 +366,9 @@ async function getModification(doc, range) {
 				console.log('==> Current edit target:');
 				console.log(modification.toBeReplaced);
 				console.log('==> Highlighted range is not the suggested edit range');
+				// 此时清空 modifications，取消所有高亮
+				modifications = [];
+				highlightModifications(modifications, vscode.window.activeTextEditor);
 				return undefined;
 			}
 		}
@@ -367,36 +379,8 @@ async function getModification(doc, range) {
 function activate(context) {
 	console.log('==> Congratulations, your extension is now active!');
 
-	if (Boolean(vscode.env.appRoot && vscode.env.appRoot[0] !== "/")) { // 检测用户操作系统
-		os = 'win';
-	} else {
-		os = 'mac';
-	}
-
-	const inputBox = vscode.window.createInputBox();
-	inputBox.prompt = 'Enter edit description';
-	inputBox.ignoreFocusOut = true; // 输入框在失去焦点后不会隐藏
-
-	inputBox.onDidAccept(() => { // 用户回车确认 commit message 后进行 edit range 推荐
-		const userInput = inputBox.value;
-		console.log('==> Commit message:', userInput);
-		commitMessage = userInput;
-		let files = getFiles();
-		for (let file of files) {
-			if(file[0] === currFile) {
-				file[1] = currSnapshot;
-				runPythonScript1(files, prevEdits, vscode.window.activeTextEditor);
-				break;
-			} 
-		}
-	});
-
-	inputBox.onDidHide(() => {
-		// 输入框被隐藏后的处理逻辑
-		console.log('==> Commit message box is hidden');
-	});
-	
-	OriginEditorEvent();
+	/*----------------------- Monitor edit behavior --------------------------------*/
+	OriginEditorEvent(); // 获取当前活跃编辑器和在编辑器内打开的文件名与路径
 
 	previousActiveEditor = vscode.window.activeTextEditor;
 	// 当 VSCode 存在默认打开的 activeTextEditor 时，自动读取当前文本内容作为 prevSnapshot
@@ -410,7 +394,9 @@ function activate(context) {
 
 	// 注册一个事件监听器，监听光标位置的变化
 	vscode.window.onDidChangeTextEditorSelection(handleTextEditorSelectionEvent);
+	/*----------------------- Monitor edit behavior --------------------------------*/
 
+	/*----------------------- Provide QuickFix feature -----------------------------*/
 	// 注册 CodeAction Provider，为 Python 脚本返回的修改位置提供 QuickFix
     let codeActionsProvider = vscode.languages.registerCodeActionsProvider({ scheme: 'file' }, {
         async provideCodeActions(document, range) {
@@ -458,15 +444,45 @@ function activate(context) {
 			const editor = vscode.window.activeTextEditor;
 			if (editor) {
 				modifications = []; // 清除 modifications 内容，避免因为指针还处于建议修改位置时触发 runPythonScript2
+				highlightModifications(modifications, editor); // 出现新的推荐位置高亮可能会耗费一定时间，该段时间内此修改位置需避免继续高亮
 				updateAfterApplyQuickFix(editor.document.getText());
 			}
 		})
 	);
+	/*----------------------- Provide QuickFix feature ---------------------------------*/
+
+	/*----------------------- Edit description input box --------------------------------*/
+	const inputBox = vscode.window.createInputBox();
+	inputBox.prompt = 'Enter edit description';
+	inputBox.ignoreFocusOut = true; // 输入框在失去焦点后不会隐藏
 
 	vscode.commands.registerCommand('extension.commit_message',async function(){
-		console.log('==> Commit message box is displayed')
+		console.log('==> Edit description input box is displayed')
 		inputBox.show();
 	});
+
+	inputBox.onDidAccept(() => { // 用户回车确认 commit message 后进行 edit range 推荐
+		const userInput = inputBox.value;
+		console.log('==> Edit description:', userInput);
+		commitMessage = userInput;
+		let files = getFiles();
+		for (let file of files) {
+			if(file[0] === currFile) {
+				file[1] = currSnapshot;
+				runPythonScript1(files, prevEdits, vscode.window.activeTextEditor);
+				break;
+			} 
+		}
+	});
+
+	inputBox.onDidHide(() => {
+		// 输入框被隐藏后的处理逻辑
+		console.log('==> Edit description input box is hidden');
+	});
+	/*----------------------- Edit description input box --------------------------------*/
+
+	/*----------------------- Webview of modification list ------------------------------*/
+	
 }
  
 function deactivate() {

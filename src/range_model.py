@@ -255,6 +255,7 @@ def load_model():
     return finetuned_model, tokenizer, device
 
 def predict(example, model, tokenizer, device):
+    model.eval()
     max_source_length=256
     source_tokens = tokenizer.tokenize(example)[:max_source_length]
     source_tokens =[tokenizer.cls_token]+source_tokens+[tokenizer.sep_token]
@@ -316,12 +317,14 @@ def merge_adjacent_removals(results):
                 merged_results[-1]["endPos"] = modification["endPos"]
                 merged_results[-1]["toBeReplaced"] += merged_results[-1]["lineBreak"] + modification["toBeReplaced"] # 合并两个修改的 toBeReplaced
                 merged_results[-1]["lineBreak"] = modification["lineBreak"] # 更新 lineBreak 为 当前修改的 lineBreak
+                merged_results[-1]["atLine"].extend(modification["atLine"]) # 更新高亮所在行
             elif merged_results[-1]["lineBreak"] == "\r\n" and \
             merged_results[-1]["endPos"] + 2 == modification["startPos"]:
                 # 当 当前修改 和 前一个修改 之间间隔的是 \r\n，且前一个修改的 endPos 和当前修改的 startPos 相差 2 时，将两个修改合并
                 merged_results[-1]["endPos"] = modification["endPos"]
                 merged_results[-1]["toBeReplaced"] += merged_results[-1]["lineBreak"] + modification["toBeReplaced"] # 合并两个修改的 toBeReplaced
                 merged_results[-1]["lineBreak"] = modification["lineBreak"] # 更新 lineBreak 为 当前修改的 lineBreak
+                merged_results[-1]["atLine"].extend(modification["atLine"]) # 更新高亮所在行
             else:
                 merged_results.append(modification)
         else:
@@ -350,12 +353,12 @@ def main(input):
         targetFileLineNum = len(targetFileLines)
 
         preds = []
-        for i in range(math.ceil(targetFileLineNum/codeWindowLength)):
+        for windowIdx in range(math.ceil(targetFileLineNum/codeWindowLength)):
             # 按照 codeWindowLength 将文件内容分割成 codeWindow
-            if i == math.ceil(targetFileLineNum/codeWindowLength)-1:
-                codeWindowLines = targetFileLines[i*codeWindowLength:]
+            if windowIdx == math.ceil(targetFileLineNum/codeWindowLength)-1:
+                codeWindowLines = targetFileLines[windowIdx*codeWindowLength:]
             else:
-                codeWindowLines = targetFileLines[i*codeWindowLength:(i+1)*codeWindowLength]
+                codeWindowLines = targetFileLines[windowIdx*codeWindowLength:(windowIdx+1)*codeWindowLength]
             codeWindow = ''.join(codeWindowLines)
 
             if run_real_model:
@@ -372,10 +375,10 @@ def main(input):
             
             # 当模型输出的 editType 数量和 codeWindow 内行数不一致时，进行警告
             if len(predInCodeWindow) > len(codeWindowLines):
-                # logging.warning(f'{i*codeWindowLength+1}~{min((i+1)*codeWindowLength, targetFileLineNum)}: 模型输出大于Window行数，将多余的输出截断')
+                # logging.warning(f'{windowIdx*codeWindowLength+1}~{min((windowIdx+1)*codeWindowLength, targetFileLineNum)}: 模型输出大于Window行数，将多余的输出截断')
                 predInCodeWindow = predInCodeWindow[:len(codeWindowLines)]
             elif len(predInCodeWindow) < len(codeWindowLines):
-                # logging.warning(f'{i*codeWindowLength+1}~{min((i+1)*codeWindowLength, targetFileLineNum)}: 模型输出小于Window行数，设为 maintain')
+                # logging.warning(f'{windowIdx*codeWindowLength+1}~{min((windowIdx+1)*codeWindowLength, targetFileLineNum)}: 模型输出小于Window行数，设为 maintain')
                 predInCodeWindow = ['maintain'] * len(codeWindowLines)
             
             # 将模型的输出进行记录 
@@ -396,6 +399,9 @@ def main(input):
                     lineBreak = '\r'
                 else:
                     lineBreak = ''
+                
+                if targetFileLines[i].rstrip("\n\r") == '': # 如果该行为空，则默认其 editType 为 maintain
+                    continue
                 results.append({
                     "targetFilePath": targetFilePath,
                     "prevEdits": prevEdits,
@@ -403,7 +409,8 @@ def main(input):
                     "startPos": len(text),
                     "endPos": len(text)+len(targetFileLines[i].rstrip("\n\r")), # 高亮的部分不包括行尾的换行符
                     "editType": preds[i],
-                    "lineBreak": lineBreak
+                    "lineBreak": lineBreak,
+                    "atLine": [i+1]
                 })
             
             text += targetFileLines[i]
@@ -413,20 +420,21 @@ def main(input):
         
 
 # 读取从 Node.js 传递的文本
-# 输入 Python 脚本的内容为字典格式: {"files": list, [[filePath, fileContent], ...],
-#                                "targetFilePath": str, filePath,
-#                                "commitMessage": str, commit message,
-#								 "prevEdits": list, of previous edits, each in format: {"beforeEdit":"", "afterEdit":""}}
+# 输入 Python 脚本的内容为字典格式: { "files": list, [[filePath, fileContent], ...],
+#                                   "targetFilePath": str, filePath,
+#                                   "commitMessage": str, commit message,
+#								    "prevEdits": list, of previous edits, each in format: {"beforeEdit":"", "afterEdit":""}}
 input = sys.stdin.read()
 output = main(input)
 
 # 将修改三元组作为输出发送给 Node.js
 # 输出 Python 脚本的内容为字典格式: {"data": , [ { "targetFilePath": str, filePath,
-#                                              "prevEdits": list, of previous edits, each in format: {"beforeEdit":"", "afterEdit":""},
-#                                              "toBeReplaced": str, the content to be replaced,
-#                                              "startPos": int, start position of the word,
-#                                              "endPos": int, end position of the word,
-#                                              "editType": str, the type of edit, add or remove，
-#                                              "lineBreak": str, '\n', '\r' or '\r\n' }, ...]}
+#                                                "prevEdits": list, of previous edits, each in format: {"beforeEdit":"", "afterEdit":""},
+#                                                "toBeReplaced": str, the content to be replaced,
+#                                                "startPos": int, start position of the word,
+#                                                "endPos": int, end position of the word,
+#                                                "editType": str, the type of edit, add or remove，
+#                                                "lineBreak": str, '\n', '\r' or '\r\n',
+#                                                "atLine": list, of the lineInx of the to be replaced code }, ...]}
 print(output)
 sys.stdout.flush()

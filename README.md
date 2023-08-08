@@ -21,10 +21,10 @@ The edit location recommendation feature can be triggered in the following ways:
 * Accept edit suggestion provided by the extension.
 
 ## Plugin Usage
-1. The plugin is not yet published. Please press **F5** within VS Code to use it in debug mode.
-2. To submit an edit description, right-click anywhere in the editor, then select **Enter edit description** from the menu. An input box will appear at the top. After entering your message, press **Enter** to confirm.
-3. To close the edit description input box, click it and then press **Esc**.
-4. Closing the edit description input box will not delete the current saved edit description. If you want to update the edit description, enter the new content inside the edit description input box and press **Enter** to confirm.
+1. The plugin is not yet published. Please press `F5` within VS Code to use it in debug mode.
+2. To submit an edit description, right-click anywhere in the editor, then select **Enter edit description** from the menu. An input box will appear at the top. After entering your message, press `Enter` to confirm.
+3. To close the edit description input box, click it and then press `Enter`.
+4. Closing the edit description input box will not delete the current saved edit description. If you want to update the edit description, enter the new content inside the edit description input box and press `Enter` to confirm.
 5. Red highlighting indicates recommended edits for the current line, while green highlighting suggests additions to the code after the current line.
 6. When recommended edit locations are highlighted, users can click or select a location, and a **blue dot** will appear in front of it. Clicking on it will display multiple recommended edit options.
 7. If you want to accept a recommended edit, you can directly click on it to apply the change.
@@ -38,7 +38,7 @@ npm install -g yo generator-code
 3. Download extension [code](https://github.com/code-philia/Code-Edit).
 4. Download backend [models](https://drive.google.com/drive/folders/19nMYbbbWCxr2zLzaGskjVhystEgPhddX).
 5. Rename the edit locator model as *locator_pytorch_model.bin*, and the edit generation model as *generator_pytorch_model.bin*, move them to folder *src/*.
-6. Create environment and install dependencies of the backend models
+6. Create environment and install dependencies of the backend models. The backend model can also work with cuda.
 ```
 conda create -n code-edit
 conda activate code-edit
