@@ -1,15 +1,15 @@
-function getWebviewContent(panel, modifications, rootPath) {
+function getWebviewContent(modifications, rootPath) {
 	let elements = "";
   
 	modifications.forEach((modification) => {
-        const absoluteTargetFilePath = modification.targetFilePath;
+        const absoluteTargetFilePath = modification.targetFilePath.replace(/\\/g, '\\\\');
         const relativeTargetFilePath = modification.targetFilePath.replace(rootPath, ".");
         const toBeReplaced = modification.toBeReplaced;
         const atLine = modification.atLine;
         const element = `
             <div style="margin-bottom: 20px; padding: 10px; border: 1px solid #ccc; border-radius: 5px;">
             <p style="font-weight: bold; color: #222;">Target File Path:</p>
-            <pre style="background-color: #f4f4f4; padding: 5px; margin: 0; font-family: Consolas, monospace; color: #222; font-weight: 600; overflow-x: auto;">${relativeTargetFilePath}</pre>
+            <pre style="background-color: #f4f4f4; padding: 5px; margin: 0; font-family: Consolas, monospace; color: #222; font-weight: 600; overflow-x: auto;"><a href="#" onclick="openFile('${absoluteTargetFilePath}'); return false;">${relativeTargetFilePath}</a></pre>
             <p style="font-weight: bold; color: #222;">Code to be edited:</p>
             <pre style="background-color: #f4f4f4; padding: 5px; margin: 0; font-family: Consolas, monospace; color: #222; font-weight: 600; overflow-x: auto;">Line ${atLine}:\n${toBeReplaced}</pre>
             </div>
@@ -88,11 +88,21 @@ function getWebviewContent(panel, modifications, rootPath) {
 	  </style>
 	</head>
 	<body>
-        <h1> Suggested edits </h1>
+        <h1> Suggested edit locations </h1>
         <div id="modificationsWebview">
             ${elements}
         </div>
 	</body>
+    <script>
+        const vscode = acquireVsCodeApi();
+        function openFile(filePath) {
+            // 发送消息给扩展，让扩展打开对应的文件，并指定要操作的 Webview 面板
+            vscode.postMessage({
+                command: 'openFile',
+                path: filePath,
+            });
+        }
+    </script>
 	</html>
 	`;
 }

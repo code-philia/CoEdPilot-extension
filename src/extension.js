@@ -130,7 +130,16 @@ function showModificationsWebview(modificationsList) {
 		{ enableScripts: true }
 	);
 	const rootPath = vscode.workspace.rootPath;
-    panel.webview.html = getWebviewContent(panel, modificationsList, rootPath);
+    panel.webview.html = getWebviewContent(modificationsList, rootPath);
+	panel.webview.onDidReceiveMessage(message => {
+        if (message.command === 'openFile') {
+            const filePath = message.path;
+            // 打开文件
+            vscode.workspace.openTextDocument(filePath).then(document => {
+                vscode.window.showTextDocument(document, { viewColumn: vscode.ViewColumn.One });
+            });
+        }
+    });
 }
 
 function runPythonScript1(files, prevEdits, editor) {
