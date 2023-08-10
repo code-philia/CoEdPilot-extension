@@ -363,7 +363,7 @@ def main(input):
 
             if run_real_model:
                 # 将 CodeWindow， CommitMessage 和 prevEdit 合并为一个字符串，作为模型的输入
-                example = '<s>' + codeWindow + ' </s> '  + commitMessage + ' </s>'
+                example = codeWindow + ' </s> '  + commitMessage + ' </s>'
                 for prevEdit in prevEdits:
                     example +=' <s> Delete ' + prevEdit["beforeEdit"].strip() + ' Add ' + prevEdit["afterEdit"].strip() + ' </s>'
                 
