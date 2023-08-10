@@ -355,7 +355,7 @@ def main(input):
     if len(editLineIdx) == 1: # 如果 editRange 只有一行，此时 editType 可能为 add 或 remove
         for lineIdx in range(startLineIdx, endLineIdx):
             if lineIdx == editLineIdx[0] and editType == 'remove': # 当行数命中 且 editType 是 remove 时，用 <s> 包围本行
-                codeWindow += f'<s> {targetFileLines[lineIdx]} <s>'
+                codeWindow += f' <s> {targetFileLines[lineIdx]} <s>'
             elif lineIdx == editLineIdx[0] and editType == 'add': # 当行数命中 且 editType 是 add 时，用 <s> 包围不存在的下一行
                 codeWindow += f'{targetFileLines[lineIdx]}<s> <s>'
             else:
@@ -363,7 +363,7 @@ def main(input):
     elif len(editLineIdx) > 1: # 如果 editRange 有多行，则 editType 必然为 remove
         for lineIdx in range(startLineIdx, endLineIdx):
             if lineIdx == editLineIdx[0]:
-                codeWindow += f'<s> {targetFileLines[lineIdx]}'
+                codeWindow += f' <s> {targetFileLines[lineIdx]}'
             elif lineIdx > editLineIdx[0] and lineIdx < editLineIdx[-1]:
                 codeWindow += f'{targetFileLines[lineIdx]}'
             elif lineIdx == editLineIdx[-1]:
@@ -377,7 +377,7 @@ def main(input):
     if run_real_model:
         example = codeWindow + ' </s> '  + commitMessage + ' </s>'
         for prevEdit in prevEdits:
-            example += ' Delete ' + prevEdit["beforeEdit"].strip() + ' Add ' + prevEdit["afterEdit"].strip() + ' </s>'
+            example += 'Delete ' + prevEdit["beforeEdit"].strip() + ' Add ' + prevEdit["afterEdit"].strip() + ' </s>'
         replacements = predict(example, finetuned_model, tokenizer, device)
     else:
         replacements = ContentModel(codeWindow, commitMessage, prevEdits)

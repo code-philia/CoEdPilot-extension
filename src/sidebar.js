@@ -1,3 +1,7 @@
+function escapeHtmlTags(input) { // 避免代码内因为包含左右尖括号而被 html 转义为 html 元素
+	return input.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 function getWebviewContent(modifications, rootPath) {
 	let elements = "";
   
@@ -11,7 +15,7 @@ function getWebviewContent(modifications, rootPath) {
             <p style="font-weight: bold; color: #222;">Target File Path:</p>
             <pre style="background-color: #f4f4f4; padding: 5px; margin: 0; font-family: Consolas, monospace; color: #222; font-weight: 600; overflow-x: auto;"><a href="#" onclick="openFile('${absoluteTargetFilePath}'); return false;">${relativeTargetFilePath}</a></pre>
             <p style="font-weight: bold; color: #222;">Code to be edited:</p>
-            <pre style="background-color: #f4f4f4; padding: 5px; margin: 0; font-family: Consolas, monospace; color: #222; font-weight: 600; overflow-x: auto;">Line ${atLine}:\n${toBeReplaced}</pre>
+            <pre style="background-color: #f4f4f4; padding: 5px; margin: 0; font-family: Consolas, monospace; color: #222; font-weight: 600; overflow-x: auto;">Line ${atLine}:\n${escapeHtmlTags(toBeReplaced)}</pre>
             </div>
         `;
 	    elements += element; 

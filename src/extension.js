@@ -126,7 +126,11 @@ function showModificationsWebview(modificationsList) {
 	let panel = vscode.window.createWebviewPanel(
 		"modificationsWebview",
 		"Modifications",
-		vscode.ViewColumn.Two,
+		// 当 Webview 和 editor 窗口并列时，
+		// 用户回到 editor 的第一次点击会被识别成 onDidChangeActiveTextEditor，
+		// 若第一次点击在高亮位置，则不会激活 generator，对用户造成困扰
+		// 因此使用 vscode.ViewColumn.One 避免并列
+		vscode.ViewColumn.One, 
 		{ enableScripts: true }
 	);
 	const rootPath = vscode.workspace.rootPath;
@@ -169,6 +173,7 @@ function runPythonScript1(files, prevEdits, editor) {
 	pythonProcess.stdin.setEncoding('utf-8');
 	pythonProcess.stdin.write(strJSON);
 	pythonProcess.stdin.end();
+	console.log('==> Sent to edit locator model');
 
 	// 处理 Python 脚本的输出
 	pythonProcess.stdout.on('data', (data) => {
@@ -177,7 +182,7 @@ function runPythonScript1(files, prevEdits, editor) {
 		// var replacedString = output.replace(/'/g, '"');
 		var parsedJSON = JSON.parse(output);
 		modifications = parsedJSON.data;
-		console.log('==> Edit range prediction model returned successfully');
+		console.log('==> Edit locator model returned successfully');
 		// 高亮显示修改的位置
 		highlightModifications(modifications, editor);
 		showModificationsWebview(modifications);
@@ -234,6 +239,7 @@ function runPythonScript2(modification) {
 		pythonProcess.stdin.setEncoding('utf-8');
 		pythonProcess.stdin.write(strJSON);
 		pythonProcess.stdin.end();
+		console.log('==> Sent to edit generator model');
 	
 		// 处理 Python 脚本的输出
 		pythonProcess.stdout.on('data', (data) => {
@@ -242,7 +248,7 @@ function runPythonScript2(modification) {
 			// var replacedString = output.replace(/'/g, '"');
 			var parsedJSON = JSON.parse(output);
 			let newmodification = parsedJSON.data;
-			console.log('==> Edit content prediction model returned successfully');
+			console.log('==> Edit generator model returned successfully');
 			// 高亮显示修改的位置
 			highlightModifications([newmodification], editor);
 			resolve(newmodification); // 返回 newmodification

@@ -1,1 +1,0 @@
-This page will show you how to install Dat for the command line, and use it in JavaScript applications. There are [many other applications](https://dat.land/apps) built on Dat, such as [Beaker Browser](https://beakerbrowser.com), which provide a graphical user interface.
