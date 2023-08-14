@@ -293,6 +293,15 @@ def ContentModel(codeWindow, commitMessage, prevEdits):
 
     return [editLine, editLine+'(2nd)', editLine+'(3rd)']
 
+def extract_indentation(str): # 提取出开头的缩进
+    indentation = ""
+    for char in str:
+        if char == "\t" or char == " ":
+            indentation += char
+        else:
+            return indentation
+    return indentation
+
 def main(input):
     if run_real_model:
         finetuned_model, tokenizer, device = load_model()
@@ -306,6 +315,7 @@ def main(input):
     prevEdits = dict["prevEdits"]
     startPos = dict["startPos"]
     endPos = dict["endPos"]
+    editLineIdx = dict["atLine"]
     
     result = { # 提前记录返回的部分参数
         "targetFilePath": targetFilePath,
@@ -323,28 +333,6 @@ def main(input):
     # 获取文本的行数
     targetFileLines = targetFileContent.splitlines(True) # 保留每行的换行符
     targetFileLineNum = len(targetFileLines)
-    
-    text = ''
-    editLineIdx = []
-    # 获取 startPos ~ endPos 所对应的行数，可能是多行
-    # 在匹配 endPos 时，需要去掉每行的换行符
-    for i in range(targetFileLineNum): # editLineIdx 从 0 计数
-        if len(text) == startPos and len(text)+len(targetFileLines[i].rstrip("\n\r")) == endPos: # 如果 startPos ~ endPos 匹配到唯一一行
-            editLineIdx.append(i) 
-            break
-        else: # 否则若 startPos ~ endPos 对应多行
-            if len(text) == startPos: # 如果是 editRange 的第一行
-                editLineIdx.append(i) 
-            elif len(text) > startPos and len(text)+len(targetFileLines[i].rstrip("\n\r")) == endPos: # 如果是 editRange 的最后一行
-                editLineIdx.append(i)
-                break
-            elif len(text) > startPos and len(text)+len(targetFileLines[i].rstrip("\n\r")) < endPos: # 如果是 editRange 的最后一行
-                # 如果是 editRange 的中间行
-                editLineIdx.append(i)
-            elif len(text) > startPos and len(text)+len(targetFileLines[i].rstrip("\n\r")) > endPos:
-                # 如果超过了 endPos，说明 editRange 的最后一行在当前行的一半位置
-                break
-        text += targetFileLines[i]
 
     # 获取 editRange 的上下文
     startLineIdx = max(0, editLineIdx[0]-contextLength)
@@ -352,18 +340,22 @@ def main(input):
     
     # 把 editRange 的上下文和 editRange 的内容拼接成 codeWindow
     codeWindow = ''
+    indentation = ''
     if len(editLineIdx) == 1: # 如果 editRange 只有一行，此时 editType 可能为 add 或 remove
         for lineIdx in range(startLineIdx, endLineIdx):
             if lineIdx == editLineIdx[0] and editType == 'remove': # 当行数命中 且 editType 是 remove 时，用 <s> 包围本行
                 codeWindow += f' <s> {targetFileLines[lineIdx]} <s>'
+                indentation = extract_indentation(targetFileLines[lineIdx])
             elif lineIdx == editLineIdx[0] and editType == 'add': # 当行数命中 且 editType 是 add 时，用 <s> 包围不存在的下一行
                 codeWindow += f'{targetFileLines[lineIdx]}<s> <s>'
+                indentation = extract_indentation(targetFileLines[lineIdx])
             else:
                 codeWindow += f'{targetFileLines[lineIdx]}'
     elif len(editLineIdx) > 1: # 如果 editRange 有多行，则 editType 必然为 remove
         for lineIdx in range(startLineIdx, endLineIdx):
             if lineIdx == editLineIdx[0]:
                 codeWindow += f' <s> {targetFileLines[lineIdx]}'
+                indentation = extract_indentation(targetFileLines[lineIdx])
             elif lineIdx > editLineIdx[0] and lineIdx < editLineIdx[-1]:
                 codeWindow += f'{targetFileLines[lineIdx]}'
             elif lineIdx == editLineIdx[-1]:
@@ -382,10 +374,18 @@ def main(input):
     else:
         replacements = ContentModel(codeWindow, commitMessage, prevEdits)
 
-    if editType == 'add':
-        replacements = [targetFileLines[editLineIdx[0]] + replacement for replacement in replacements]
+    # 将缩进补充到每行头部
+    replacements_w_indentation = []
+    for replacement in replacements:
+        replace_lines = replacement.splitlines(True) # 保留每行的换行符
+        replace_lines = [indentation+replace_line for replace_line in replace_lines]
+        replacement = "".join(replace_lines)
+        replacements_w_indentation.append(replacement)
 
-    result["replacement"] = replacements
+    if editType == 'add':
+        replacements_w_indentation = [targetFileLines[editLineIdx[0]] + replacement for replacement in replacements_w_indentation]
+
+    result["replacement"] = replacements_w_indentation
     return json.dumps({"data": result})  
 
 # 读取从 Node.js 传递的文本
