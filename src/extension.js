@@ -183,6 +183,9 @@ function runPythonScript1(files, prevEdits, editor) {
 		var parsedJSON = JSON.parse(output);
 		modifications = parsedJSON.data;
 		console.log('==> Edit locator model returned successfully');
+		if (modifications.length == 0) {
+			console.log('==> No suggested edit location')
+		}
 		// 高亮显示修改的位置
 		highlightModifications(modifications, editor);
 		showModificationsWebview(modifications);
@@ -231,7 +234,8 @@ function runPythonScript2(modification) {
 			editType: modification.editType,
 			prevEdits: modification.prevEdits,
 			startPos: modification.startPos,
-			endPos: modification.endPos
+			endPos: modification.endPos,
+			atLine: modification.atLine
 		};
 		const strJSON = JSON.stringify(input);
 	
