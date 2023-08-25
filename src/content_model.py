@@ -369,7 +369,7 @@ def main(input):
     if run_real_model:
         example = codeWindow + ' </s> '  + commitMessage + ' </s>'
         for prevEdit in prevEdits:
-            example += 'Delete ' + prevEdit["beforeEdit"].strip() + ' Add ' + prevEdit["afterEdit"].strip() + ' </s>'
+            example += ' Delete ' + prevEdit["beforeEdit"].strip() + ' Add ' + prevEdit["afterEdit"].strip() + ' </s>'
         replacements = predict(example, finetuned_model, tokenizer, device)
     else:
         replacements = ContentModel(codeWindow, commitMessage, prevEdits)
@@ -382,11 +382,11 @@ def main(input):
         replacement = "".join(replace_lines)
         replacements_w_indentation.append(replacement)
 
-    if editType == 'add':
-        replacements_w_indentation = [targetFileLines[editLineIdx[0]] + replacement for replacement in replacements_w_indentation]
+    # if editType == 'add':
+    #     replacements_w_indentation = [targetFileLines[editLineIdx[0]] + replacement for replacement in replacements_w_indentation]
 
     result["replacement"] = replacements_w_indentation
-    return json.dumps({"data": result})  
+    return json.dumps({"data": result, "input": example})  
 
 # 读取从 Node.js 传递的文本
 # 输入 Python 脚本的内容为字典格式: { "files": list, [[filePath, fileContent], ...],

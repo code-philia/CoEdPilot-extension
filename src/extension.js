@@ -3,7 +3,6 @@ const path = require('path');
 const vscode = require('vscode');
 const { spawn } = require('child_process');
 
-const { getWebviewContent }=require('./sidebar')
 /**
  * @param {vscode.ExtensionContext} context
  */
@@ -122,150 +121,6 @@ function getFiles() {
     return filesList;
 }
 
-function showModificationsWebview(modificationsList) {
-	let panel = vscode.window.createWebviewPanel(
-		"modificationsWebview",
-		"Modifications",
-		// 当 Webview 和 editor 窗口并列时，
-		// 用户回到 editor 的第一次点击会被识别成 onDidChangeActiveTextEditor，
-		// 若第一次点击在高亮位置，则不会激活 generator，对用户造成困扰
-		// 因此使用 vscode.ViewColumn.One 避免并列
-		vscode.ViewColumn.One, 
-		{ enableScripts: true }
-	);
-	const rootPath = vscode.workspace.rootPath;
-    panel.webview.html = getWebviewContent(modificationsList, rootPath);
-	panel.webview.onDidReceiveMessage(message => {
-        if (message.command === 'openFile') {
-            const filePath = message.path;
-            // 打开文件
-            vscode.workspace.openTextDocument(filePath).then(document => {
-                vscode.window.showTextDocument(document, { viewColumn: vscode.ViewColumn.One });
-            });
-        }
-    });
-}
-
-function runPythonScript1(files, prevEdits, editor) {
-	/*
-	* 输入 Python 脚本的内容为字典格式: {"files": list, [[filePath, fileContent], ...],
-	*                                "targetFilePath": str, filePath,
-	*								 "commitMessage": str, commit message,
-	*								 "prevEdits": list, of previous edits, each in format: {"beforeEdit":"", "afterEdit":""}}
-	* Python 脚本的输出为字典格式: {"data": , [ { "targetFilePath": str, filePath,
-    *                                          "beforeEdit", str, the content before edit for previous edit,
-	*                                          "afterEdit", str, the content after edit for previous edit, 
-	*										   "toBeReplaced": str, the content to be replaced, 
-	*                                          "startPos": int, start position of the word,
-	*                                          "endPos": int, end position of the word,
-	* 										   "editType": str, the type of edit, add or remove,
-	*										   "lineBreak": str, '\n', '\r' or '\r\n'}, ...]}
-	*/
-	const pythonProcess = spawn(PyInterpreter, [pyPathEditRange]);
-	const activeFilePath = editor.document.fileName;
-	const input = {files: files, 
-				   targetFilePath: activeFilePath,
-				   commitMessage: commitMessage,
-			 	   prevEdits: prevEdits};
-	const strJSON = JSON.stringify(input);
-
-	// 将文本写入标准输入流
-	pythonProcess.stdin.setEncoding('utf-8');
-	pythonProcess.stdin.write(strJSON);
-	pythonProcess.stdin.end();
-	console.log('==> Sent to edit locator model');
-
-	// 处理 Python 脚本的输出
-	pythonProcess.stdout.on('data', (data) => {
-		const output = data.toString();
-		// 解析 Python 脚本的输出为三元列表（文件名，修改起始位置，修改结束位置）
-		// var replacedString = output.replace(/'/g, '"');
-		var parsedJSON = JSON.parse(output);
-		modifications = parsedJSON.data;
-		console.log('==> Edit locator model returned successfully');
-		if (modifications.length == 0) {
-			console.log('==> No suggested edit location')
-		}
-		// 高亮显示修改的位置
-		highlightModifications(modifications, editor);
-		showModificationsWebview(modifications);
-	});
-	
-	// 处理 Python 脚本的错误
-	pythonProcess.stderr.on('data', (data) => {
-	  	console.error(data.toString());
-	});
-}
-
-function runPythonScript2(modification) {
-	/*
-	* 输入 Python 脚本的内容为字典格式: { "files": list, [[filePath, fileContent], ...],
-	* 								"targetFilePath": string filePath,
-	*								"commitMessage": string, commit message,
-	*								"editType": string, edit type,
-	*								"prevEdits": list, of previous edits, each in format: {"beforeEdit":"", "afterEdit":""},
-	*								"startPos": int, start position,
-	*								"endPos": int, end position}
-	* 输出 Python 脚本的内容为字典格式: {"data": 
-	*                                       { "targetFilePath": string, filePath of target file,
-	* 										  "editType": string, 'remove', 'add'
-	*                                         "startPos": int, start position,
-	*                                         "endPos": int, end position,
-	*                                         "replacement": list of strings, replacement content   
-	*                                       }
-	*                               }
-	*/
-	return new Promise((resolve, reject) => {
-		let files = getFiles();
-		const pythonProcess = spawn(PyInterpreter, [pyPathEditContent]);
-		const editor = vscode.window.activeTextEditor;
-
-		for (let file of files) {
-			if(file[0] === currFile) {
-				file[1]=currSnapshot; // 把未保存的文件内容作为实际文件内容
-				break;
-			} 
-		}
-
-		const input = {
-			files: files,
-			targetFilePath: modification.targetFilePath,
-			commitMessage: commitMessage,
-			editType: modification.editType,
-			prevEdits: modification.prevEdits,
-			startPos: modification.startPos,
-			endPos: modification.endPos,
-			atLine: modification.atLine
-		};
-		const strJSON = JSON.stringify(input);
-	
-		// 将文本写入标准输入流
-		pythonProcess.stdin.setEncoding('utf-8');
-		pythonProcess.stdin.write(strJSON);
-		pythonProcess.stdin.end();
-		console.log('==> Sent to edit generator model');
-	
-		// 处理 Python 脚本的输出
-		pythonProcess.stdout.on('data', (data) => {
-			const output = data.toString();
-			// 解析 Python 脚本的输出为三元列表（文件名，修改起始位置，修改结束位置）
-			// var replacedString = output.replace(/'/g, '"');
-			var parsedJSON = JSON.parse(output);
-			let newmodification = parsedJSON.data;
-			console.log('==> Edit generator model returned successfully');
-			// 高亮显示修改的位置
-			highlightModifications([newmodification], editor);
-			resolve(newmodification); // 返回 newmodification
-		});
-	
-		// 处理 Python 脚本的错误
-		pythonProcess.stderr.on('data', (data) => {
-			console.error(data.toString());
-			reject(data.toString());
-		});
-	});
-}
-
 function detectEdit(prev, curr) {
 	// 将字符串按行分割成字符串列表
 	const prevSnapshotStrList = prev.match(/(.*?(?:\r\n|\n|\r|$))/g).slice(0, -1); // 保留每行尾部换行符
@@ -316,42 +171,8 @@ function handleTextEditorSelectionEvent(event) {
 			console.log('==> Before edit:\n', edition.beforeEdit);
 			console.log('==> After edit:\n', edition.afterEdit); 
 			prevSnapshot = currSnapshot;
-			console.log('==> Send to LLM (After cursor changed line)');
-			let files = getFiles();
-			//因为fs方式只能拿到已保存的代码文本
-			for (let file of files) {
-				if(file[0] === currFile) {
-					file[1] = currSnapshot; // 把未保存的文件内容作为实际文件内容
-					runPythonScript1(files, prevEdits, vscode.window.activeTextEditor);
-					break;
-				} 
-			}
+			console.log('==> Edit pused to prevEdit stack');
 		}
-	}
-	prevCursorAtLine = currCursorAtLine; // 更新鼠标指针所在行数
-}
-
-function updateAfterApplyQuickFix(text) {
-	/*
-	* 当用户采纳了 QuickFix 的建议时，不需要等到指针所在行变化，直接将修改后的版本送入 LLM 更新 modifications
-	*/
-	let edition = detectEdit(prevSnapshot, text); // 检测相比上一次快照的变化
-	currSnapshot = text;
-	if (edition.beforeEdit != edition.afterEdit) {
-		// 把该修改增加到 prevEdit 中
-		pushToStack(edition);
-		console.log('==> Before edit:\n', edition.beforeEdit); 
-		console.log('==> After edit:\n', edition.afterEdit);
-		prevSnapshot = currSnapshot;
-		console.log('==> Send to LLM (After apply QucikFix)');
-		let files = getFiles();
-        for (let file of files) {
-            if(file[0] === currFile) {
-                file[1] = currSnapshot;
-                runPythonScript1(files, prevEdits, vscode.window.activeTextEditor);
-                break;
-            } 
-        }
 	}
 	prevCursorAtLine = currCursorAtLine; // 更新鼠标指针所在行数
 }
@@ -368,32 +189,6 @@ function OriginEditorEvent() {
 		currFile = activeFilePath;
     }
 }	
-
-async function getModification(doc, range) {
-	const filePath = doc.uri.fsPath;
-	const startPos = doc.offsetAt(range.start);
-    const endPos = doc.offsetAt(range.end);
-	for(let modification of modifications) {
-		if (filePath == modification.targetFilePath && modification.startPos <= startPos && modification.endPos >= endPos) {
-			let highlightedRange = new vscode.Range(doc.positionAt(modification.startPos), doc.positionAt(modification.endPos));
-			if (doc.getText(highlightedRange) == modification.toBeReplaced) { 
-				// 当用户不按照推荐修改时，例如推荐修改单词 good，但用户删除了 good，此时会导致高亮位置对应的内容偏移，则无需进行修正内容推荐
-				return await runPythonScript2(modification);
-			} else {
-				console.log('==> The suggested edit target:');
-				console.log(doc.getText(highlightedRange));
-				console.log('==> Current edit target:');
-				console.log(modification.toBeReplaced);
-				console.log('==> Highlighted range is not the suggested edit range');
-				// 此时清空 modifications，取消所有高亮
-				modifications = [];
-				highlightModifications(modifications, vscode.window.activeTextEditor);
-				return undefined;
-			}
-		}
-	}
-	return undefined;
-}
 
 function activate(context) {
 	console.log('==> Congratulations, your extension is now active!');
@@ -415,60 +210,147 @@ function activate(context) {
 	vscode.window.onDidChangeTextEditorSelection(handleTextEditorSelectionEvent);
 	/*----------------------- Monitor edit behavior --------------------------------*/
 
-	/*----------------------- Provide QuickFix feature -----------------------------*/
-	// 注册 CodeAction Provider，为 Python 脚本返回的修改位置提供 QuickFix
-    let codeActionsProvider = vscode.languages.registerCodeActionsProvider({ scheme: 'file' }, {
-        async provideCodeActions(document, range) {
-			const newmodification = await getModification(document, range);
-			
-			if (! newmodification || newmodification.targetFilePath != currFile )
-				return [];
+	/*----------------------- Get selected text ------------------------------------*/
+	let getRemoveEditLocation = vscode.commands.registerCommand('extension.generate_remove_edit', () => {
+		let editor = vscode.window.activeTextEditor;
+		if (editor) {
+			let document = editor.document;
+			let selection = editor.selection;
+		
+			let text = document.getText(selection);
+			let targetFilePath = document.uri.path;
+			let startLineIdx = selection.start.line; // 行号从 0 开始
+			let endLineIdx = selection.end.line; // 行号从 0 开始
+			// console.log(text);
+			// console.log(targetFilePath);
+			// console.log(startLineIdx, endLineIdx);
 
-			const diagnosticRange = new vscode.Range(document.positionAt(newmodification.startPos), document.positionAt(newmodification.endPos));
-			
-			const codeActions = newmodification.replacement.map(replacement => {
-				// 创建诊断
-				const diagnostic = new vscode.Diagnostic(diagnosticRange, 'Replace with: ' + replacement, vscode.DiagnosticSeverity.Hint);
-				diagnostic.code = 'replaceCode';
-				
-				// 创建快速修复
-				const codeAction = new vscode.CodeAction(replacement, vscode.CodeActionKind.QuickFix);
-				codeAction.diagnostics = [diagnostic];
-				codeAction.isPreferred = true;
+			// 处理 Pyth
+			let files = getFiles();
+			const pythonProcess = spawn(PyInterpreter, [pyPathEditContent]);
 
-				// 创建 WorkspaceEdit
-				const edit = new vscode.WorkspaceEdit();
-				const replaceRange = new vscode.Range(document.positionAt(newmodification.startPos), document.positionAt(newmodification.endPos));
-				edit.replace(document.uri, replaceRange, replacement);
-				codeAction.edit = edit;
-
-				codeAction.command = {
-					command: 'extension.applyFix',
-					title: '',
-					arguments: [],
-				};
-
-				return codeAction;
-			})
-
-			return codeActions;
-        }
-    });
-
-    context.subscriptions.push(codeActionsProvider);
-
-    context.subscriptions.push(
-		vscode.commands.registerCommand('extension.applyFix', async () => {
-			console.log('==> applyFix');
-			const editor = vscode.window.activeTextEditor;
-			if (editor) {
-				modifications = []; // 清除 modifications 内容，避免因为指针还处于建议修改位置时触发 runPythonScript2
-				highlightModifications(modifications, editor); // 出现新的推荐位置高亮可能会耗费一定时间，该段时间内此修改位置需避免继续高亮
-				updateAfterApplyQuickFix(editor.document.getText());
+			for (let file of files) {
+				if(file[0] === currFile) {
+					file[1]=currSnapshot; // 把未保存的文件内容作为实际文件内容
+					break;
+				} 
 			}
-		})
-	);
-	/*----------------------- Provide QuickFix feature ---------------------------------*/
+			const input = {
+				files: files,
+				targetFilePath: targetFilePath,
+				commitMessage: commitMessage,
+				editType: "remove",
+				prevEdits: prevEdits,
+				startPos: document.offsetAt(selection.start),
+				endPos: document.offsetAt(selection.end),
+				atLine: Array.from({ length: endLineIdx - startLineIdx + 1 }, (_, i) => i + startLineIdx)
+			};
+			const strJSON = JSON.stringify(input);
+	
+			// 将文本写入标准输入流
+			pythonProcess.stdin.setEncoding('utf-8');
+			pythonProcess.stdin.write(strJSON);
+			pythonProcess.stdin.end();
+			console.log('==> Sent to edit generator model');
+		
+			// 处理 Python 脚本的输出
+			pythonProcess.stdout.on('data', (data) => {
+				const output = data.toString();
+				// 解析 Python 脚本的输出为三元列表（文件名，修改起始位置，修改结束位置）
+				// var replacedString = output.replace(/'/g, '"');
+				var parsedJSON = JSON.parse(output);
+				let newmodification = parsedJSON.data;
+				console.log('Input\n', parsedJSON.input);
+				console.log('==> Returned successfully');
+				editor.edit(editBuilder => {
+					// 标记原先的内容
+					for (let i = startLineIdx; i <= endLineIdx; i++) {
+						let position = new vscode.Position(i, 0); // 创建表示行起始位置的Position对象
+						editBuilder.insert(position, '-'); // 在该位置插入一个 "-" 号
+					}
+				  
+					// 插入返回的修改内容
+					let newPosition = new vscode.Position(endLineIdx+1, 0);
+					let cnt = 1;
+					for (let str of newmodification.replacement) {
+						editBuilder.insert(newPosition, cnt + '+ ' + str + '\n');
+						cnt = cnt + 1;
+					}
+				});
+			});
+			pythonProcess.stderr.on('data', (data) => {
+				console.error(`stderr: ${data}`);
+			});  
+		}
+	});
+
+	context.subscriptions.push(getRemoveEditLocation);
+
+	let getAddEditLocation = vscode.commands.registerCommand('extension.generate_add_edit', () => {
+		let editor = vscode.window.activeTextEditor;
+		if (editor) {
+			let document = editor.document;
+			let selection = editor.selection;
+		
+			let text = document.getText(selection);
+			let targetFilePath = document.uri.path;
+			let startLineIdx = selection.start.line + 1; // 行号从 1 开始
+			let endLineIdx = selection.end.line + 1; // 行号从 1 开始
+			// console.log(text);
+			// console.log(targetFilePath);
+			// console.log(startLineIdx, endLineIdx);
+
+			// 处理 Pyth
+			let files = getFiles();
+			const pythonProcess = spawn(PyInterpreter, [pyPathEditContent]);
+
+			for (let file of files) {
+				if(file[0] === currFile) {
+					file[1]=currSnapshot; // 把未保存的文件内容作为实际文件内容
+					break;
+				} 
+			}
+			const input = {
+				files: files,
+				targetFilePath: targetFilePath,
+				commitMessage: commitMessage,
+				editType: "add",
+				prevEdits: prevEdits,
+				startPos: document.offsetAt(selection.start),
+				endPos: document.offsetAt(selection.end),
+				atLine: Array.from({ length: endLineIdx - startLineIdx + 1 }, (_, i) => i + startLineIdx)
+			};
+			const strJSON = JSON.stringify(input);
+	
+			// 将文本写入标准输入流
+			pythonProcess.stdin.setEncoding('utf-8');
+			pythonProcess.stdin.write(strJSON);
+			pythonProcess.stdin.end();
+			console.log('==> Sent to edit generator model');
+		
+			// 处理 Python 脚本的输出
+			pythonProcess.stdout.on('data', (data) => {
+				const output = data.toString();
+				// 解析 Python 脚本的输出为三元列表（文件名，修改起始位置，修改结束位置）
+				// var replacedString = output.replace(/'/g, '"');
+				var parsedJSON = JSON.parse(output);
+				let newmodification = parsedJSON.data;
+				console.log('==> Returned successfully');
+				// 插入返回的修改内容
+				let newPosition = new vscode.Position(endLineIdx, 0);
+				editor.edit(editBuilder => {
+					let cnt = 1;
+					for (let str of newmodification.replacement) {
+					  editBuilder.insert(newPosition, cnt+'+ '+str+'\n');
+					  cnt = cnt + 1;
+					}
+				  });
+			});
+				
+		}
+	});
+
+	context.subscriptions.push(getAddEditLocation);
 
 	/*----------------------- Edit description input box --------------------------------*/
 	const inputBox = vscode.window.createInputBox();
@@ -484,24 +366,13 @@ function activate(context) {
 		const userInput = inputBox.value;
 		console.log('==> Edit description:', userInput);
 		commitMessage = userInput;
-		let files = getFiles();
-		for (let file of files) {
-			if(file[0] === currFile) {
-				file[1] = currSnapshot;
-				runPythonScript1(files, prevEdits, vscode.window.activeTextEditor);
-				break;
-			} 
-		}
 	});
 
 	inputBox.onDidHide(() => {
 		// 输入框被隐藏后的处理逻辑
 		console.log('==> Edit description input box is hidden');
 	});
-	/*----------------------- Edit description input box --------------------------------*/
-
-	/*----------------------- Webview of modification list ------------------------------*/
-	
+	/*----------------------- Edit description input box --------------------------------*/	
 }
  
 function deactivate() {

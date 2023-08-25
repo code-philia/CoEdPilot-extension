@@ -22,6 +22,14 @@
       { 
         "command": "extension.commit_message",
         "title": "Enter edit description"
+      },
+      { 
+        "command": "extension.generate_remove_edit",
+        "title": "Generate remove type edit"
+      },
+      { 
+        "command": "extension.generate_add_edit",
+        "title": "Generate add type edit"
       }
     ],
     "menus": {
@@ -29,6 +37,16 @@
         {
           "when": "editorFocus", 
           "command": "extension.commit_message", 
+          "group": "code_suggestion@1"
+        },
+        {
+          "when": "editorHasSelection", 
+          "command": "extension.generate_remove_edit", 
+          "group": "code_suggestion@1"
+        },
+        {
+          "when": "editorHasSelection", 
+          "command": "extension.generate_add_edit", 
           "group": "code_suggestion@1"
         }
       ]
