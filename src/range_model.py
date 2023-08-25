@@ -410,7 +410,7 @@ def main(input):
                     "endPos": len(text)+len(targetFileLines[i].rstrip("\n\r")), # 高亮的部分不包括行尾的换行符
                     "editType": preds[i],
                     "lineBreak": lineBreak,
-                    "atLine": [i+1]
+                    "atLine": [i] # 行数从 0 开始
                 })
             
             text += targetFileLines[i]
