@@ -386,7 +386,7 @@ def main(input):
         replacements_w_indentation = [targetFileLines[editLineIdx[0]] + replacement for replacement in replacements_w_indentation]
 
     result["replacement"] = replacements_w_indentation
-    return json.dumps({"data": result})  
+    return json.dumps({"data": result, "input": example})  
 
 # 读取从 Node.js 传递的文本
 # 输入 Python 脚本的内容为字典格式: { "files": list, [[filePath, fileContent], ...],
@@ -406,7 +406,8 @@ output = main(input)
 #                                         "startPos": int, start position,
 #                                         "endPos": int, end position,
 #                                         "replacement": list of strings, replacement content   
-#                                       }
+#                                       },
+#                                 "input": string, the input of the model, make debugging easier       
 #                               }
 print(output)
 sys.stdout.flush()
