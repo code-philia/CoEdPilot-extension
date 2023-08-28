@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import os
 import sys
 import json
@@ -399,7 +400,7 @@ def main(input):
 input = sys.stdin.read()
 output = main(input)
 
-# 将修改三元组作为输出发送给 Node.js
+# 将修改字典作为输出发送给 Node.js
 # 输出 Python 脚本的内容为字典格式: {"data": 
 #                                       { "targetFilePath": string, filePath of target file,
 #                                         "editType": str, the type of edit,

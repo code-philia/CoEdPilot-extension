@@ -9,7 +9,7 @@ function getWebviewContent(modifications, rootPath) {
         const absoluteTargetFilePath = modification.targetFilePath.replace(/\\/g, '\\\\');
         const relativeTargetFilePath = modification.targetFilePath.replace(rootPath, ".");
         const toBeReplaced = modification.toBeReplaced;
-        const atLine = modification.atLine;
+        const atLine = modification.atLine.map(element => element + 1); // atLine 从 0 开始，但是显示的行数从 1 开始
         const element = `
             <div style="margin-bottom: 20px; padding: 10px; border: 1px solid #ccc; border-radius: 5px;">
             <p style="font-weight: bold; color: #222;">Target File Path:</p>
