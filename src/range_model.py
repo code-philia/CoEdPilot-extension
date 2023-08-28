@@ -427,7 +427,7 @@ def main(input):
 input = sys.stdin.read()
 output = main(input)
 
-# 将修改三元组作为输出发送给 Node.js
+# 将修改字典作为输出发送给 Node.js
 # 输出 Python 脚本的内容为字典格式: {"data": , [ { "targetFilePath": str, filePath,
 #                                                "prevEdits": list, of previous edits, each in format: {"beforeEdit":"", "afterEdit":""},
 #                                                "toBeReplaced": str, the content to be replaced,

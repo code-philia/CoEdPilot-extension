@@ -18,6 +18,7 @@ let bgcolor2 = 'rgba(0, 255, 0, 0.3)';
 let prevEditNum = 3;
 let pyPathEditRange = path.join(extensionDirectory, "range_model.py");
 let pyPathEditContent = path.join(extensionDirectory, "content_model.py");
+let pyPathDiscriminator = path.join(extensionDirectory, "discriminator_model.py");
 let PyInterpreter = "python";
 // ------------ Global variants -------------
 let modifications = [];
@@ -161,25 +162,47 @@ function runPythonScript1(files, prevEdits, editor) {
 	* 										   "editType": str, the type of edit, add or remove,
 	*										   "lineBreak": str, '\n', '\r' or '\r\n'}, ...]}
 	*/
-	const pythonProcess = spawn(PyInterpreter, [pyPathEditRange]);
+	const locatorProcess = spawn(PyInterpreter, [pyPathEditRange]);
+	const discrminiatorProcess = spawn(PyInterpreter, [pyPathDiscriminator]);
 	const activeFilePath = editor.document.fileName;
-	const input = {files: files, 
+	let input = {files: files, 
 				   targetFilePath: activeFilePath,
 				   commitMessage: commitMessage,
 			 	   prevEdits: prevEdits};
-	const strJSON = JSON.stringify(input);
+	let strJSON = JSON.stringify(input);
+
+	// 先送入 discriminator 进行判断
+	discrminiatorProcess.stdin.setEncoding('utf-8');
+	discrminiatorProcess.stdin.write(strJSON);
+	discrminiatorProcess.stdin.end();
+	console.log('==> Sent to discriminator model');
+
+	// 处理 discriminator Python 脚本的输出
+	discrminiatorProcess.stdout.on('data', (data) => {
+		const output = data.toString();
+		var parsedJSON = JSON.parse(output);
+		files = parsedJSON.files;
+		console.log('==> Discriminator model returned successfully');
+	});
+
+	// 处理 Python 脚本的错误
+	discrminiatorProcess.stderr.on('data', (data) => {
+		console.error(data.toString());
+  	});
+
+	// 将被选中的文件送入 locator 进行定位
+	input.files = files;
+	strJSON = JSON.stringify(input);
 
 	// 将文本写入标准输入流
-	pythonProcess.stdin.setEncoding('utf-8');
-	pythonProcess.stdin.write(strJSON);
-	pythonProcess.stdin.end();
+	locatorProcess.stdin.setEncoding('utf-8');
+	locatorProcess.stdin.write(strJSON);
+	locatorProcess.stdin.end();
 	console.log('==> Sent to edit locator model');
 
-	// 处理 Python 脚本的输出
-	pythonProcess.stdout.on('data', (data) => {
+	// 处理 locator Python 脚本的输出
+	locatorProcess.stdout.on('data', (data) => {
 		const output = data.toString();
-		// 解析 Python 脚本的输出为三元列表（文件名，修改起始位置，修改结束位置）
-		// var replacedString = output.replace(/'/g, '"');
 		var parsedJSON = JSON.parse(output);
 		modifications = parsedJSON.data;
 		console.log('==> Edit locator model returned successfully');
@@ -192,7 +215,7 @@ function runPythonScript1(files, prevEdits, editor) {
 	});
 	
 	// 处理 Python 脚本的错误
-	pythonProcess.stderr.on('data', (data) => {
+	locatorProcess.stderr.on('data', (data) => {
 	  	console.error(data.toString());
 	});
 }
