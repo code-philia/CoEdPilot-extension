@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import os
 import sys
 import math
@@ -11,10 +12,11 @@ from torch.utils.data import DataLoader, TensorDataset
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
 current_file_path = os.path.dirname(os.path.abspath(__file__))
-checkpoint_path = os.path.join(current_file_path, 'discriminator_pytorch_model.bin')
+checkpoint_path = os.path.join(current_file_path, 'discriminator_pytorch_model.pth')
 
 def main(input):
     dict = json.loads(input)
+    rootPath = dict["rootPath"]
     files = dict["files"]
     targetFilePath = dict["targetFilePath"]
 
@@ -36,6 +38,7 @@ def main(input):
     encoded_data = []
     attention_mask = []
     for model_input in model_inputs:
+        model_input = os.path.relpath(model_input, rootPath) # 将路径转换为相对路径
         encoded_code = tokenizer.tokenize(model_input)[:max_length-2]
         encoded_code =[tokenizer.cls_token]+encoded_code+[tokenizer.sep_token]
         encoded_code =  tokenizer.convert_tokens_to_ids(encoded_code)
@@ -77,17 +80,20 @@ def main(input):
     for i in range(len(predictions)):
         if predictions[i] == 1:
             results.append(files[i])
+        elif files[i][0] == targetFilePath: # 如果是目标文件，也添加到结果中
+            results.append(files[i])
     
     return json.dumps({"data": results})
 
 # 读取从 Node.js 传递的文本
-# 输入 Python 脚本的内容为字典格式: { "files": list, [[filePath, fileContent], ...],
+# 输入 Python 脚本的内容为字典格式: {   "rootPath": str, "rootPath",
+#                                   "files": list, [[filePath, fileContent], ...],
 #                                   "targetFilePath": str, filePath,
 #                                   "commitMessage": str, commit message,
 #								    "prevEdits": list, of previous edits, each in format: {"beforeEdit":"", "afterEdit":""}}
 input = sys.stdin.read()
 output = main(input)
 
-# 输出 Python 脚本的内容为字典格式: {"files": list, [[filePath, fileContent], ...]}
+# 输出 Python 脚本的内容为字典格式: {"data": list, [[filePath, fileContent], ...]}
 print(output)
 sys.stdout.flush()

@@ -19,7 +19,7 @@ let prevEditNum = 3;
 let pyPathEditRange = path.join(extensionDirectory, "range_model.py");
 let pyPathEditContent = path.join(extensionDirectory, "content_model.py");
 let pyPathDiscriminator = path.join(extensionDirectory, "discriminator_model.py");
-let PyInterpreter = "python";
+let PyInterpreter = "/home/chenyan/anaconda3/envs/nlp/bin/python";
 // ------------ Global variants -------------
 let modifications = [];
 let prevCursorAtLine = 0;
@@ -120,7 +120,7 @@ function getFiles() {
 	
     // 开始遍历当前工作区根文件夹
     readFiles(rootPath);
-    return filesList;
+    return [rootPath, filesList];
 }
 
 function showModificationsWebview(modificationsList) {
@@ -147,13 +147,18 @@ function showModificationsWebview(modificationsList) {
     });
 }
 
-function runPythonScript1(files, prevEdits, editor) {
+async function runPythonScript1(rootPath, files, prevEdits, editor) {
 	/*
-	* 输入 Python 脚本的内容为字典格式: {"files": list, [[filePath, fileContent], ...],
+	* 输入 discriminator Python 脚本的内容为字典格式: {"rootPath": str, rootPath,
+	*								 "files": list, [[filePath, fileContent], ...],
+	*                                "targetFilePath": str, filePath}
+	* discriminator Python 脚本的输出为字典格式: {"data": list, [[filePath, fileContent], ...]}
+	*
+	* 输入 locator Python 脚本的内容为字典格式: {"files": list, [[filePath, fileContent], ...],
 	*                                "targetFilePath": str, filePath,
 	*								 "commitMessage": str, commit message,
 	*								 "prevEdits": list, of previous edits, each in format: {"beforeEdit":"", "afterEdit":""}}
-	* Python 脚本的输出为字典格式: {"data": , [ { "targetFilePath": str, filePath,
+	* locator Python 脚本的输出为字典格式: {"data": , [ { "targetFilePath": str, filePath,
     *                                          "beforeEdit", str, the content before edit for previous edit,
 	*                                          "afterEdit", str, the content after edit for previous edit, 
 	*										   "toBeReplaced": str, the content to be replaced, 
@@ -164,60 +169,69 @@ function runPythonScript1(files, prevEdits, editor) {
 	*/
 	const locatorProcess = spawn(PyInterpreter, [pyPathEditRange]);
 	const discrminiatorProcess = spawn(PyInterpreter, [pyPathDiscriminator]);
-	const activeFilePath = editor.document.fileName;
-	let input = {files: files, 
-				   targetFilePath: activeFilePath,
-				   commitMessage: commitMessage,
-			 	   prevEdits: prevEdits};
-	let strJSON = JSON.stringify(input);
+    const activeFilePath = editor.document.fileName;
 
-	// 先送入 discriminator 进行判断
-	discrminiatorProcess.stdin.setEncoding('utf-8');
-	discrminiatorProcess.stdin.write(strJSON);
-	discrminiatorProcess.stdin.end();
-	console.log('==> Sent to discriminator model');
+    const executeProcess = (process, pyPath, inputData) => {
+        return new Promise((resolve, reject) => {
+            const spawnedProcess = spawn(PyInterpreter, [pyPath]);
+            spawnedProcess.stdin.setEncoding('utf-8');
+            spawnedProcess.stdin.write(inputData);
+            spawnedProcess.stdin.end();
 
-	// 处理 discriminator Python 脚本的输出
-	discrminiatorProcess.stdout.on('data', (data) => {
-		const output = data.toString();
-		var parsedJSON = JSON.parse(output);
-		files = parsedJSON.files;
-		console.log('==> Discriminator model returned successfully');
-	});
+            spawnedProcess.stdout.on('data', (data) => {
+                const output = data.toString();
+                var parsedJSON = JSON.parse(output);
+                resolve(parsedJSON);
+            });
 
-	// 处理 Python 脚本的错误
-	discrminiatorProcess.stderr.on('data', (data) => {
-		console.error(data.toString());
-  	});
+            spawnedProcess.stderr.on('data', (data) => {
+                reject(data.toString());
+            });
+        });
+    };
 
-	// 将被选中的文件送入 locator 进行定位
-	input.files = files;
-	strJSON = JSON.stringify(input);
-
-	// 将文本写入标准输入流
-	locatorProcess.stdin.setEncoding('utf-8');
-	locatorProcess.stdin.write(strJSON);
-	locatorProcess.stdin.end();
-	console.log('==> Sent to edit locator model');
-
-	// 处理 locator Python 脚本的输出
-	locatorProcess.stdout.on('data', (data) => {
-		const output = data.toString();
-		var parsedJSON = JSON.parse(output);
-		modifications = parsedJSON.data;
-		console.log('==> Edit locator model returned successfully');
-		if (modifications.length == 0) {
-			console.log('==> No suggested edit location')
+    try {
+        // 先送入 discriminator 进行判断
+		let input = {
+			rootPath: rootPath,
+			files: files,
+			targetFilePath: activeFilePath,
+		};
+		let strJSON = JSON.stringify(input);
+        console.log('==> Sending to discriminator model');
+        const discriminatorOutput = await executeProcess(discrminiatorProcess, pyPathDiscriminator, strJSON);
+        console.log('==> Discriminator model returned successfully');
+		if (discriminatorOutput.data.length == 0) {
+			console.log('==> No files will be analyzed');
+			return;
 		}
-		// 高亮显示修改的位置
-		highlightModifications(modifications, editor);
-		showModificationsWebview(modifications);
-	});
-	
-	// 处理 Python 脚本的错误
-	locatorProcess.stderr.on('data', (data) => {
-	  	console.error(data.toString());
-	});
+		console.log('==> Files will be analyzed are:');
+		discriminatorOutput.data.forEach(file => {
+			console.log('\t*'+file[0]);
+		});
+
+        // 将被选中的文件送入 locator 进行定位
+		input = {
+			files: discriminatorOutput.data,
+			targetFilePath: activeFilePath,
+			commitMessage: commitMessage,
+			prevEdits: prevEdits
+		};
+        strJSON = JSON.stringify(input);
+        console.log('==> Sending to edit locator model');
+        const locatorOutput = await executeProcess(locatorProcess, pyPathEditRange, strJSON);
+        console.log('==> Edit locator model returned successfully');
+        
+        // 处理 locator Python 脚本的输出
+        modifications = locatorOutput.data;
+        if (modifications.length == 0) {
+            console.log('==> No suggested edit location');
+        }
+        highlightModifications(modifications, editor);
+        showModificationsWebview(modifications);
+    } catch (error) {
+        console.error(error);
+    }
 }
 
 function runPythonScript2(modification) {
@@ -239,7 +253,7 @@ function runPythonScript2(modification) {
 	*                               }
 	*/
 	return new Promise((resolve, reject) => {
-		let files = getFiles();
+		let files = getFiles()[1];
 		const pythonProcess = spawn(PyInterpreter, [pyPathEditContent]);
 		const editor = vscode.window.activeTextEditor;
 
@@ -340,12 +354,12 @@ function handleTextEditorSelectionEvent(event) {
 			console.log('==> After edit:\n', edition.afterEdit); 
 			prevSnapshot = currSnapshot;
 			console.log('==> Send to LLM (After cursor changed line)');
-			let files = getFiles();
+			let [rootPath, files] = getFiles();
 			//因为fs方式只能拿到已保存的代码文本
 			for (let file of files) {
 				if(file[0] === currFile) {
 					file[1] = currSnapshot; // 把未保存的文件内容作为实际文件内容
-					runPythonScript1(files, prevEdits, vscode.window.activeTextEditor);
+					runPythonScript1(rootPath, files, prevEdits, vscode.window.activeTextEditor);
 					break;
 				} 
 			}
@@ -367,11 +381,11 @@ function updateAfterApplyQuickFix(text) {
 		console.log('==> After edit:\n', edition.afterEdit);
 		prevSnapshot = currSnapshot;
 		console.log('==> Send to LLM (After apply QucikFix)');
-		let files = getFiles();
+		let [rootPath, files] = getFiles();
         for (let file of files) {
             if(file[0] === currFile) {
                 file[1] = currSnapshot;
-                runPythonScript1(files, prevEdits, vscode.window.activeTextEditor);
+                runPythonScript1(rootPath, files, prevEdits, vscode.window.activeTextEditor);
                 break;
             } 
         }
@@ -507,11 +521,11 @@ function activate(context) {
 		const userInput = inputBox.value;
 		console.log('==> Edit description:', userInput);
 		commitMessage = userInput;
-		let files = getFiles();
+		let [rootPath, files] = getFiles();
 		for (let file of files) {
 			if(file[0] === currFile) {
 				file[1] = currSnapshot;
-				runPythonScript1(files, prevEdits, vscode.window.activeTextEditor);
+				runPythonScript1(rootPath, files, prevEdits, vscode.window.activeTextEditor);
 				break;
 			} 
 		}
