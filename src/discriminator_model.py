@@ -10,6 +10,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, TensorDataset
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
+logging.disable(logging.CRITICAL)
+warnings.filterwarnings("ignore")
 
 current_file_path = os.path.dirname(os.path.abspath(__file__))
 checkpoint_path = os.path.join(current_file_path, 'discriminator_pytorch_model.pth')
@@ -21,11 +23,13 @@ def main(input):
     targetFilePath = dict["targetFilePath"]
 
     model_inputs = []
-    for filePath, fileContent in files:
-        if filePath <= targetFilePath:
-            model_inputs.append(filePath+" </s> "+targetFilePath)
+    relativeTargetFilePath = os.path.relpath(targetFilePath, rootPath) # 将路径转换为相对路径
+    for filePath, _ in files:
+        filePath = os.path.relpath(filePath, rootPath) # 将路径转换为相对路径
+        if filePath <= relativeTargetFilePath:
+            model_inputs.append(filePath+" <s> "+relativeTargetFilePath)
         else:
-            model_inputs.append(targetFilePath+" </s> "+filePath)
+            model_inputs.append(relativeTargetFilePath+" <s> "+filePath)
     
     # 初始化tokenizer和模型
     max_length = 128
@@ -38,7 +42,6 @@ def main(input):
     encoded_data = []
     attention_mask = []
     for model_input in model_inputs:
-        model_input = os.path.relpath(model_input, rootPath) # 将路径转换为相对路径
         encoded_code = tokenizer.tokenize(model_input)[:max_length-2]
         encoded_code =[tokenizer.cls_token]+encoded_code+[tokenizer.sep_token]
         encoded_code =  tokenizer.convert_tokens_to_ids(encoded_code)
@@ -77,13 +80,18 @@ def main(input):
     
     # 提取 prediction 为 1 的文件
     results = []
+    if len(predictions) != len(files):
+        raise Exception("The number of predictions is not equal to the number of files.")
     for i in range(len(predictions)):
         if predictions[i] == 1:
-            results.append(files[i])
+            results.append(files[i][0])
         elif files[i][0] == targetFilePath: # 如果是目标文件，也添加到结果中
-            results.append(files[i])
+            results.append(files[i][0])
     
+    # it seems that returning the content of the file would somehow cause the program to crash
+    # maybe related to json.dumps, so we only return the file path instead
     return json.dumps({"data": results})
+
 
 # 读取从 Node.js 传递的文本
 # 输入 Python 脚本的内容为字典格式: {   "rootPath": str, "rootPath",
