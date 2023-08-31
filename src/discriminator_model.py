@@ -24,7 +24,9 @@ def main(input):
 
     model_inputs = []
     relativeTargetFilePath = os.path.relpath(targetFilePath, rootPath) # 将路径转换为相对路径
-    for filePath, _ in files:
+    for idx, (filePath, _) in enumerate(files):
+        if filePath == targetFilePath:
+            targetFilePathIdx = idx
         filePath = os.path.relpath(filePath, rootPath) # 将路径转换为相对路径
         if filePath <= relativeTargetFilePath:
             model_inputs.append(filePath+" <s> "+relativeTargetFilePath)
@@ -70,24 +72,31 @@ def main(input):
 
     # 预测
     predictions = []
+    logits = [] # save all samples' logits
     with torch.no_grad():
         for batch in dataloader:
             batch = tuple(t.to(device) for t in batch)
             code_batch_tensor, attention_mask = batch
             outputs = model(code_batch_tensor, attention_mask=attention_mask).logits
+            logits.extend(outputs.detach().cpu().numpy())
             batch_predictions = torch.argmax(F.softmax(outputs, dim=1), dim=1)
             predictions.extend(batch_predictions.detach().cpu().numpy())
     
+    # 对 sample 进行排名
+    probs = F.softmax(torch.tensor(logits), dim=1)
+    class_1_probs = probs[:, 1] # 提取 prediction 为 1 的概率
+    sorted_indices = torch.argsort(class_1_probs, descending=True).numpy() # 从大到小排列
+    filtered_indices = [index for index in sorted_indices if predictions[index] == 1] # 提取 prediction 为 1 的 sample 的索引
+
     # 提取 prediction 为 1 的文件
     results = []
     if len(predictions) != len(files):
         raise Exception("The number of predictions is not equal to the number of files.")
-    for i in range(len(predictions)):
-        if predictions[i] == 1:
-            results.append(files[i][0])
-        elif files[i][0] == targetFilePath: # 如果是目标文件，也添加到结果中
-            results.append(files[i][0])
-    
+    for i in filtered_indices: 
+        results.append(files[i][0])
+    if targetFilePathIdx not in filtered_indices:
+        results.append(targetFilePath)
+
     # it seems that returning the content of the file would somehow cause the program to crash
     # maybe related to json.dumps, so we only return the file path instead
     return json.dumps({"data": results})
