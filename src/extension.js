@@ -100,25 +100,22 @@ function getFiles() {
     // 存储所有文件的文本和名称列表
     const filesList = [];
 
-	function readFiles(folderPath) {
-		const files = fs.readdirSync(folderPath);
-		files.forEach(file => {
-			let filePath = undefined;
-			filePath = path.join(folderPath, file);
-			const fileStat = fs.statSync(filePath);
-	
-			if (fileStat.isFile()) {
+    function readFiles(folderPath) {
+        const files = fs.readdirSync(folderPath, { withFileTypes: true });
+        for (const file of files) {
+            const filePath = path.join(folderPath, file.name);
+            if (file.isFile()) {
 				// 读取文件内容
-				const fileContent = fs.readFileSync(filePath, 'utf-8');
-				filesList.push([filePath,fileContent]);
-			} else if (fileStat.isDirectory()) {
+                const fileContent = fs.readFileSync(filePath, 'utf-8');
+                filesList.push([filePath, fileContent]);
+            } else if (file.isDirectory()) {
 				// 递归遍历子文件夹
-				readFiles(filePath);
-			}
-		});
-	}
-	
-    // 开始遍历当前工作区根文件夹
+                readFiles(filePath);
+            }
+        }
+    }
+
+	// 开始遍历当前工作区根文件夹
     readFiles(rootPath);
     return [rootPath, filesList];
 }
@@ -207,12 +204,17 @@ async function runPythonScript1(rootPath, files, prevEdits, editor) {
 		}
 		console.log('==> Files will be analyzed are:');
 		discriminatorOutput.data.forEach(file => {
-			console.log('\t*'+file[0]);
+			console.log('\t*'+file);
 		});
+		console.log('==> The no. of files in total:', files.length);
+		console.log('==> The no. of files to be analyzed:', discriminatorOutput.data.length);
 
         // 将被选中的文件送入 locator 进行定位
+		const filteredFiles = files.filter(([filename, _]) => discriminatorOutput.data.includes(filename));
+
 		input = {
-			files: discriminatorOutput.data,
+			files: filteredFiles,
+			// files: files,
 			targetFilePath: activeFilePath,
 			commitMessage: commitMessage,
 			prevEdits: prevEdits
@@ -536,9 +538,6 @@ function activate(context) {
 		console.log('==> Edit description input box is hidden');
 	});
 	/*----------------------- Edit description input box --------------------------------*/
-
-	/*----------------------- Webview of modification list ------------------------------*/
-	
 }
  
 function deactivate() {

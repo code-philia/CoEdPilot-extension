@@ -10,6 +10,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, TensorDataset
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
+logging.disable(logging.CRITICAL)
+warnings.filterwarnings("ignore")
 
 current_file_path = os.path.dirname(os.path.abspath(__file__))
 checkpoint_path = os.path.join(current_file_path, 'discriminator_pytorch_model.pth')
@@ -21,11 +23,15 @@ def main(input):
     targetFilePath = dict["targetFilePath"]
 
     model_inputs = []
-    for filePath, fileContent in files:
-        if filePath <= targetFilePath:
-            model_inputs.append(filePath+" </s> "+targetFilePath)
+    relativeTargetFilePath = os.path.relpath(targetFilePath, rootPath) # 将路径转换为相对路径
+    for idx, (filePath, _) in enumerate(files):
+        if filePath == targetFilePath:
+            targetFilePathIdx = idx
+        filePath = os.path.relpath(filePath, rootPath) # 将路径转换为相对路径
+        if filePath <= relativeTargetFilePath:
+            model_inputs.append(filePath+" <s> "+relativeTargetFilePath)
         else:
-            model_inputs.append(targetFilePath+" </s> "+filePath)
+            model_inputs.append(relativeTargetFilePath+" <s> "+filePath)
     
     # 初始化tokenizer和模型
     max_length = 128
@@ -38,7 +44,6 @@ def main(input):
     encoded_data = []
     attention_mask = []
     for model_input in model_inputs:
-        model_input = os.path.relpath(model_input, rootPath) # 将路径转换为相对路径
         encoded_code = tokenizer.tokenize(model_input)[:max_length-2]
         encoded_code =[tokenizer.cls_token]+encoded_code+[tokenizer.sep_token]
         encoded_code =  tokenizer.convert_tokens_to_ids(encoded_code)
@@ -67,23 +72,35 @@ def main(input):
 
     # 预测
     predictions = []
+    logits = [] # save all samples' logits
     with torch.no_grad():
         for batch in dataloader:
             batch = tuple(t.to(device) for t in batch)
             code_batch_tensor, attention_mask = batch
             outputs = model(code_batch_tensor, attention_mask=attention_mask).logits
+            logits.extend(outputs.detach().cpu().numpy())
             batch_predictions = torch.argmax(F.softmax(outputs, dim=1), dim=1)
             predictions.extend(batch_predictions.detach().cpu().numpy())
     
+    # 对 sample 进行排名
+    probs = F.softmax(torch.tensor(logits), dim=1)
+    class_1_probs = probs[:, 1] # 提取 prediction 为 1 的概率
+    sorted_indices = torch.argsort(class_1_probs, descending=True).numpy() # 从大到小排列
+    filtered_indices = [index for index in sorted_indices if predictions[index] == 1] # 提取 prediction 为 1 的 sample 的索引
+
     # 提取 prediction 为 1 的文件
     results = []
-    for i in range(len(predictions)):
-        if predictions[i] == 1:
-            results.append(files[i])
-        elif files[i][0] == targetFilePath: # 如果是目标文件，也添加到结果中
-            results.append(files[i])
-    
+    if len(predictions) != len(files):
+        raise Exception("The number of predictions is not equal to the number of files.")
+    for i in filtered_indices: 
+        results.append(files[i][0])
+    if targetFilePathIdx not in filtered_indices:
+        results.append(targetFilePath)
+
+    # it seems that returning the content of the file would somehow cause the program to crash
+    # maybe related to json.dumps, so we only return the file path instead
     return json.dumps({"data": results})
+
 
 # 读取从 Node.js 传递的文本
 # 输入 Python 脚本的内容为字典格式: {   "rootPath": str, "rootPath",
