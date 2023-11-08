@@ -254,7 +254,7 @@ def load_model():
     finetuned_model = pretrained_model.to(device)
     return finetuned_model, tokenizer, device
 
-def predict(example, model, tokenizer, device):
+def predict_with_model(example, model, tokenizer, device):
     model.eval()
     max_source_length=256
     source_tokens = tokenizer.tokenize(example)[:max_source_length]
@@ -303,9 +303,9 @@ def extract_indentation(str): # 提取出开头的缩进
             return indentation
     return indentation
 
-def main(input):
-    if run_real_model:
-        finetuned_model, tokenizer, device = load_model()
+def predict(input, finetuned_model, tokenizer, device):
+    # if run_real_model:
+    #     finetuned_model, tokenizer, device = load_model()
 
     # 提取从 JavaScript 传入的参数
     dict = json.loads(input)
@@ -371,7 +371,7 @@ def main(input):
         example = codeWindow + ' </s> '  + commitMessage + ' </s>'
         for prevEdit in prevEdits:
             example += 'Delete ' + prevEdit["beforeEdit"].strip() + ' Add ' + prevEdit["afterEdit"].strip() + ' </s>'
-        replacements = predict(example, finetuned_model, tokenizer, device)
+        replacements = predict_with_model(example, finetuned_model, tokenizer, device)
     else:
         replacements = ContentModel(codeWindow, commitMessage, prevEdits)
 
@@ -397,8 +397,9 @@ def main(input):
 #                                 "prevEdits": list, of previous edits, each in format: {"beforeEdit":"", "afterEdit":""},
 #                                 "startPos": int, start position,
 #                                 "endPos": int, end position}
-input = sys.stdin.read()
-output = main(input)
+# data = sys.stdin.buffer.read()
+# decoded_data = data.decode('utf-8')
+# output = predict(decoded_data)
 
 # 将修改字典作为输出发送给 Node.js
 # 输出 Python 脚本的内容为字典格式: {"data": 
@@ -410,5 +411,5 @@ output = main(input)
 #                                       },
 #                                 "input": string, the input of the model, make debugging easier       
 #                               }
-print(output)
-sys.stdout.flush()
+# print(output)
+# sys.stdout.flush()

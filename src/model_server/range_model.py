@@ -255,7 +255,7 @@ def load_model():
     finetuned_model = pretrained_model.to(device)
     return finetuned_model, tokenizer, device
 
-def predict(example, model, tokenizer, device):
+def predict_with_model(example, model, tokenizer, device):
     model.eval()
     max_source_length=256
     source_tokens = tokenizer.tokenize(example)[:max_source_length]
@@ -333,9 +333,9 @@ def merge_adjacent_removals(results):
 
     return merged_results
 
-def main(input):
-    if run_real_model:
-        finetuned_model, tokenizer, device = load_model()
+def predict(input, finetuned_model, tokenizer, device):
+    # if run_real_model:
+    #     finetuned_model, tokenizer, device = load_model()
 
     # 提取从 JavaScript 传入的参数
     dict = json.loads(input)
@@ -369,7 +369,7 @@ def main(input):
                     example +=' <s> Delete ' + prevEdit["beforeEdit"].strip() + ' Add ' + prevEdit["afterEdit"].strip() + ' </s>'
                 
                 # 用 大模型 模型预测，输出为：'<editType> <editType> ... <editType>'
-                predInCodeWindow = predict(example, finetuned_model, tokenizer, device).split(' ')
+                predInCodeWindow = predict_with_model(example, finetuned_model, tokenizer, device).split(' ')
             else:
                 # 若使用自制的 RangeModel 模型预测，使用以下代码
                 predInCodeWindow = RangeModel(codeWindow, commitMessage, prevEdits).split(' ')
@@ -425,8 +425,8 @@ def main(input):
 #                                   "targetFilePath": str, filePath,
 #                                   "commitMessage": str, commit message,
 #								    "prevEdits": list, of previous edits, each in format: {"beforeEdit":"", "afterEdit":""}}
-input = sys.stdin.read()
-output = main(input)
+# input = sys.stdin.read()
+# output = predict(input)
 
 # 将修改字典作为输出发送给 Node.js
 # 输出 Python 脚本的内容为字典格式: {"data": , [ { "targetFilePath": str, filePath,
@@ -437,5 +437,5 @@ output = main(input)
 #                                                "editType": str, the type of edit, add or remove，
 #                                                "lineBreak": str, '\n', '\r' or '\r\n',
 #                                                "atLine": list, of the lineInx of the to be replaced code }, ...]}
-print(output)
-sys.stdout.flush()
+# print(output)
+# sys.stdout.flush()

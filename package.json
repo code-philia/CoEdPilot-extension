@@ -19,7 +19,7 @@
   "main": "./src/extension.js",
   "contributes": {
     "commands": [
-      { 
+      {
         "command": "extension.commit_message",
         "title": "Enter edit description"
       }
@@ -27,8 +27,8 @@
     "menus": {
       "editor/context": [
         {
-          "when": "editorFocus", 
-          "command": "extension.commit_message", 
+          "when": "editorFocus",
+          "command": "extension.commit_message",
           "group": "code_suggestion@1"
         }
       ]
@@ -45,6 +45,7 @@
     "@types/node": "16.x",
     "@types/vscode": "^1.78.0",
     "@vscode/test-electron": "^2.3.0",
+    "axios": "^1.6.0",
     "eslint": "^8.39.0",
     "glob": "^8.1.0",
     "mocha": "^10.2.0",

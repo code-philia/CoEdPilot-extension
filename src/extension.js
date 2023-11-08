@@ -1,25 +1,22 @@
 const fs = require('fs');
 const path = require('path');
 const vscode = require('vscode');
-const { spawn } = require('child_process');
-
+const glob = require('glob')
 const { getWebviewContent }=require('./sidebar')
+
+const { query_discriminator, query_locator, query_editor } = require('./model_client')
+
 /**
  * @param {vscode.ExtensionContext} context
  */
 
 // ------------ Hyper-parameters ------------
 // 获取当前文件所在目录的绝对路径
-const extensionDirectory = __dirname;
 let fontcolor1 = '#000';
 let bgcolor1 = 'rgba(255,0,0,0.3)';
 let fontcolor2 = '#000';
 let bgcolor2 = 'rgba(0, 255, 0, 0.3)';
 let prevEditNum = 3;
-let pyPathEditRange = path.join(extensionDirectory, "range_model.py");
-let pyPathEditContent = path.join(extensionDirectory, "content_model.py");
-let pyPathDiscriminator = path.join(extensionDirectory, "discriminator_model.py");
-let PyInterpreter = "/home/chenyan/anaconda3/envs/nlp/bin/python";
 // ------------ Global variants -------------
 let modifications = [];
 let prevCursorAtLine = 0;
@@ -30,6 +27,14 @@ let currFile = undefined;
 let previousActiveEditor = undefined;
 let commitMessage = "";
 let prevEdits = []; // 堆栈，长度为 prevEditNum，记录历史修改
+
+function toPosixPath(path) {
+	return path.replace(/\\/g, '/');
+}
+
+function getActiveFile(editor) {
+	return toPosixPath(editor.document.fileName);
+}
 
 function cleanGlobalVariables(editor) {
 	if (previousActiveEditor && previousActiveEditor.document.isDirty) {
@@ -42,7 +47,7 @@ function cleanGlobalVariables(editor) {
 	currCursorAtLine = 0;
 	prevSnapshot = editor.document.getText();
 	currSnapshot = undefined;
-	currFile = editor.document.fileName;
+	currFile = getActiveFile(editor);
 	console.log('==> Active File:', currFile);
 	console.log('==> Global variables initialized');
 	highlightModifications(modifications, editor);
@@ -91,33 +96,67 @@ function highlightModifications(modifications, editor) {
 	editor.setDecorations(decorationTypeForAdd, decorationsForAdd);
 }
 
-function getFiles() {
+function globFiles(rootPath, globPatterns) {
+	
+	// 内置的 glob 样式
+	const defaultGlobPatterns = [
+		'!.git/**'
+	];
+	const allPatterns = defaultGlobPatterns.concat(globPatterns);
+
+	// 拼接 glob 样式
+	function concatRoot(pattern) {
+		const concat_path = pattern[0] == '!' ? '!' + path.join(rootPath, pattern.slice(1)) : path.join(rootPath, pattern);
+		return concat_path;
+	}
+	const allPatternsWithRoot = allPatterns.map(concatRoot).concat([path.join(rootPath,'**')]);
+	
+	const pathList = glob.sync('{' + allPatternsWithRoot.join(',') + '}', {windowsPathsNoEscape:true});
+	return pathList;
+}
+
+function replaceCurrentSnapshot(fileList) {
+	for (let file of fileList) {
+		if(file[0] === currFile) {
+			file[1] = currSnapshot; // 把未保存的文件内容作为实际文件内容
+			break;
+		} 
+	}
+}
+
+function getRootAndFiles(useSnapshot = true) {
 	/* 
 	* FilesList: Workspace 打开的文件夹内的所有文件及其内容 [[filePath, fileContent], ...]
 	*/
 	// 获取当前工作区的根文件夹路径
-	const rootPath = vscode.workspace.rootPath;
+	const rootPath = vscode.workspace.workspaceFolders[0].uri.fsPath;
     // 存储所有文件的文本和名称列表
-    const filesList = [];
+    const fileList = [];
 
-    function readFiles(folderPath) {
-        const files = fs.readdirSync(folderPath, { withFileTypes: true });
-        for (const file of files) {
-            const filePath = path.join(folderPath, file.name);
-            if (file.isFile()) {
-				// 读取文件内容
-                const fileContent = fs.readFileSync(filePath, 'utf-8');
-                filesList.push([filePath, fileContent]);
-            } else if (file.isDirectory()) {
-				// 递归遍历子文件夹
-                readFiles(filePath);
-            }
-        }
-    }
+	// 使用 glob 排除某些文件，返回一个包含全部有效文件的列表
+	const filePathList = globFiles(rootPath, []);
 
-	// 开始遍历当前工作区根文件夹
-    readFiles(rootPath);
-    return [rootPath, filesList];
+	function readFileFromPathList(pathList, contentList) {
+		for (const path of pathList) {
+			try {
+				const stat = fs.statSync(path);
+				if (stat.isFile()) {
+					const fileContent = fs.readFileSync(path,'utf-8');  // 考虑跳过不能正确解码的文件
+					contentList.push([path, fileContent]);
+				}
+			} catch (error) {
+				console.log("Some error occurs when reading file");
+			}
+		}
+	}
+
+	readFileFromPathList(filePathList, fileList);
+	// 直接在读取文件时替换，而不是后续再替换
+	if (useSnapshot) {
+		replaceCurrentSnapshot(fileList);
+	}
+
+    return [rootPath, fileList];
 }
 
 function showModificationsWebview(modificationsList) {
@@ -164,28 +203,9 @@ async function runPythonScript1(rootPath, files, prevEdits, editor) {
 	* 										   "editType": str, the type of edit, add or remove,
 	*										   "lineBreak": str, '\n', '\r' or '\r\n'}, ...]}
 	*/
-	const locatorProcess = spawn(PyInterpreter, [pyPathEditRange]);
-	const discrminiatorProcess = spawn(PyInterpreter, [pyPathDiscriminator]);
-    const activeFilePath = editor.document.fileName;
-
-    const executeProcess = (process, pyPath, inputData) => {
-        return new Promise((resolve, reject) => {
-            const spawnedProcess = spawn(PyInterpreter, [pyPath]);
-            spawnedProcess.stdin.setEncoding('utf-8');
-            spawnedProcess.stdin.write(inputData);
-            spawnedProcess.stdin.end();
-
-            spawnedProcess.stdout.on('data', (data) => {
-                const output = data.toString();
-                var parsedJSON = JSON.parse(output);
-                resolve(parsedJSON);
-            });
-
-            spawnedProcess.stderr.on('data', (data) => {
-                reject(data.toString());
-            });
-        });
-    };
+	// const locatorProcess = spawn(PyInterpreter, [pyPathEditRange]);
+	// const discrminiatorProcess = spawn(PyInterpreter, [pyPathDiscriminator]);
+    const activeFilePath = getActiveFile(editor);
 
     try {
         // 先送入 discriminator 进行判断
@@ -196,7 +216,7 @@ async function runPythonScript1(rootPath, files, prevEdits, editor) {
 		};
 		let strJSON = JSON.stringify(input);
         console.log('==> Sending to discriminator model');
-        const discriminatorOutput = await executeProcess(discrminiatorProcess, pyPathDiscriminator, strJSON);
+		const discriminatorOutput = await query_discriminator(strJSON);
         console.log('==> Discriminator model returned successfully');
 		if (discriminatorOutput.data.length == 0) {
 			console.log('==> No files will be analyzed');
@@ -212,6 +232,9 @@ async function runPythonScript1(rootPath, files, prevEdits, editor) {
         // 将被选中的文件送入 locator 进行定位
 		const filteredFiles = files.filter(([filename, _]) => discriminatorOutput.data.includes(filename));
 
+		console.log("==> filtered files:")
+		console.log(filteredFiles)
+
 		input = {
 			files: filteredFiles,
 			// files: files,
@@ -219,9 +242,11 @@ async function runPythonScript1(rootPath, files, prevEdits, editor) {
 			commitMessage: commitMessage,
 			prevEdits: prevEdits
 		};
+		// console.log("==> input to be send")
+		// console.log(input)
         strJSON = JSON.stringify(input);
         console.log('==> Sending to edit locator model');
-        const locatorOutput = await executeProcess(locatorProcess, pyPathEditRange, strJSON);
+		const locatorOutput = await query_locator(strJSON);
         console.log('==> Edit locator model returned successfully');
         
         // 处理 locator Python 脚本的输出
@@ -236,7 +261,7 @@ async function runPythonScript1(rootPath, files, prevEdits, editor) {
     }
 }
 
-function runPythonScript2(modification) {
+async function runPythonScript2(modification) {
 	/*
 	* 输入 Python 脚本的内容为字典格式: { "files": list, [[filePath, fileContent], ...],
 	* 								"targetFilePath": string filePath,
@@ -254,55 +279,28 @@ function runPythonScript2(modification) {
 	*                                       }
 	*                               }
 	*/
-	return new Promise((resolve, reject) => {
-		let files = getFiles()[1];
-		const pythonProcess = spawn(PyInterpreter, [pyPathEditContent]);
-		const editor = vscode.window.activeTextEditor;
+	let files = getRootAndFiles()[1];
+	const editor = vscode.window.activeTextEditor;
 
-		for (let file of files) {
-			if(file[0] === currFile) {
-				file[1]=currSnapshot; // 把未保存的文件内容作为实际文件内容
-				break;
-			} 
-		}
-
-		const input = {
-			files: files,
-			targetFilePath: modification.targetFilePath,
-			commitMessage: commitMessage,
-			editType: modification.editType,
-			prevEdits: modification.prevEdits,
-			startPos: modification.startPos,
-			endPos: modification.endPos,
-			atLine: modification.atLine
-		};
-		const strJSON = JSON.stringify(input);
+	const input = {
+		files: files,
+		targetFilePath: modification.targetFilePath,
+		commitMessage: commitMessage,
+		editType: modification.editType,
+		prevEdits: modification.prevEdits,
+		startPos: modification.startPos,
+		endPos: modification.endPos,
+		atLine: modification.atLine
+	};
+	const strJSON = JSON.stringify(input);
 	
-		// 将文本写入标准输入流
-		pythonProcess.stdin.setEncoding('utf-8');
-		pythonProcess.stdin.write(strJSON);
-		pythonProcess.stdin.end();
-		console.log('==> Sent to edit generator model');
-	
-		// 处理 Python 脚本的输出
-		pythonProcess.stdout.on('data', (data) => {
-			const output = data.toString();
-			// 解析 Python 脚本的输出为三元列表（文件名，修改起始位置，修改结束位置）
-			// var replacedString = output.replace(/'/g, '"');
-			var parsedJSON = JSON.parse(output);
-			let newmodification = parsedJSON.data;
-			console.log('==> Edit generator model returned successfully');
-			// 高亮显示修改的位置
-			highlightModifications([newmodification], editor);
-			resolve(newmodification); // 返回 newmodification
-		});
-	
-		// 处理 Python 脚本的错误
-		pythonProcess.stderr.on('data', (data) => {
-			console.error(data.toString());
-			reject(data.toString());
-		});
-	});
+	const output = await query_editor(strJSON);
+	var parsedJSON = output;
+	let newmodification = parsedJSON.data;
+	console.log('==> Edit generator model returned successfully');
+	// 高亮显示修改的位置
+	highlightModifications([newmodification], editor);
+	return newmodification; // 返回 newmodification
 }
 
 function detectEdit(prev, curr) {
@@ -356,15 +354,8 @@ function handleTextEditorSelectionEvent(event) {
 			console.log('==> After edit:\n', edition.afterEdit); 
 			prevSnapshot = currSnapshot;
 			console.log('==> Send to LLM (After cursor changed line)');
-			let [rootPath, files] = getFiles();
-			//因为fs方式只能拿到已保存的代码文本
-			for (let file of files) {
-				if(file[0] === currFile) {
-					file[1] = currSnapshot; // 把未保存的文件内容作为实际文件内容
-					runPythonScript1(rootPath, files, prevEdits, vscode.window.activeTextEditor);
-					break;
-				} 
-			}
+			let [rootPath, files] = getRootAndFiles();
+			runPythonScript1(rootPath, files, prevEdits, vscode.window.activeTextEditor);
 		}
 	}
 	prevCursorAtLine = currCursorAtLine; // 更新鼠标指针所在行数
@@ -383,14 +374,8 @@ function updateAfterApplyQuickFix(text) {
 		console.log('==> After edit:\n', edition.afterEdit);
 		prevSnapshot = currSnapshot;
 		console.log('==> Send to LLM (After apply QucikFix)');
-		let [rootPath, files] = getFiles();
-        for (let file of files) {
-            if(file[0] === currFile) {
-                file[1] = currSnapshot;
-                runPythonScript1(rootPath, files, prevEdits, vscode.window.activeTextEditor);
-                break;
-            } 
-        }
+		let [rootPath, files] = getRootAndFiles();
+		runPythonScript1(rootPath, files, prevEdits, vscode.window.activeTextEditor);
 	}
 	prevCursorAtLine = currCursorAtLine; // 更新鼠标指针所在行数
 }
@@ -409,7 +394,7 @@ function OriginEditorEvent() {
 }	
 
 async function getModification(doc, range) {
-	const filePath = doc.uri.fsPath;
+	const filePath = toPosixPath(doc.uri.fsPath);
 	const startPos = doc.offsetAt(range.start);
     const endPos = doc.offsetAt(range.end);
 	for(let modification of modifications) {
@@ -449,9 +434,11 @@ function activate(context) {
 	context.subscriptions.push(
 		vscode.window.onDidChangeActiveTextEditor(cleanGlobalVariables)
 	);
-
+	
 	// 注册一个事件监听器，监听光标位置的变化
-	vscode.window.onDidChangeTextEditorSelection(handleTextEditorSelectionEvent);
+	context.subscriptions.push(
+		vscode.window.onDidChangeTextEditorSelection(handleTextEditorSelectionEvent)
+	);
 	/*----------------------- Monitor edit behavior --------------------------------*/
 
 	/*----------------------- Provide QuickFix feature -----------------------------*/
@@ -523,14 +510,8 @@ function activate(context) {
 		const userInput = inputBox.value;
 		console.log('==> Edit description:', userInput);
 		commitMessage = userInput;
-		let [rootPath, files] = getFiles();
-		for (let file of files) {
-			if(file[0] === currFile) {
-				file[1] = currSnapshot;
-				runPythonScript1(rootPath, files, prevEdits, vscode.window.activeTextEditor);
-				break;
-			} 
-		}
+		let [rootPath, files] = getRootAndFiles();
+		runPythonScript1(rootPath, files, prevEdits, vscode.window.activeTextEditor);
 	});
 
 	inputBox.onDidHide(() => {

@@ -3,6 +3,7 @@ import os
 import sys
 import math
 import json
+from uu import decode
 import torch
 import logging
 import warnings
@@ -10,17 +11,58 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, TensorDataset
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
-logging.disable(logging.CRITICAL)
+
+# logging.disable(logging.CRITICAL)
 warnings.filterwarnings("ignore")
 
 current_file_path = os.path.dirname(os.path.abspath(__file__))
 checkpoint_path = os.path.join(current_file_path, 'discriminator_pytorch_model.pth')
 
-def main(input):
-    dict = json.loads(input)
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+max_length = 128
+
+
+def load_tokenizer():
+    """
+    Load the tokenzier.
+
+    Returns:
+        A discriminator tokenizer.
+    """
+    tokenizer = AutoTokenizer.from_pretrained("vishnun/codenlbert-sm")
+    return tokenizer
+
+def load_model():
+    """
+    Load the model.
+
+    Returns:
+        A discriminator core model.
+    """
+    model = AutoModelForSequenceClassification.from_pretrained("vishnun/codenlbert-sm")
+    model.to(device)
+    checkpoint = torch.load(checkpoint_path)
+    model.load_state_dict(checkpoint['model_state_dict'])
+    model.eval()
+    return model
+
+def predict(input, tokenizer, model):
+    """
+    Performs a prediction using load tokenizer and model.
+
+    Args:
+        `input` : Input as string, in JSON format.
+        `tokenizer` : Loaded tokenizer.
+        `model` : Loaded model.
+
+    Returns:
+        Output as string, in JSON format.
+    """
+    dict = json.loads(input, strict=False)
     rootPath = dict["rootPath"]
     files = dict["files"]
     targetFilePath = dict["targetFilePath"]
+    targetFilePathIdx = -1  # 防止未定义
 
     model_inputs = []
     relativeTargetFilePath = os.path.relpath(targetFilePath, rootPath) # 将路径转换为相对路径
@@ -33,13 +75,6 @@ def main(input):
         else:
             model_inputs.append(relativeTargetFilePath+" <s> "+filePath)
     
-    # 初始化tokenizer和模型
-    max_length = 128
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    tokenizer = AutoTokenizer.from_pretrained("vishnun/codenlbert-sm")
-    model = AutoModelForSequenceClassification.from_pretrained("vishnun/codenlbert-sm")
-    model.to(device)
-
     # 对输入进行编码
     encoded_data = []
     attention_mask = []
@@ -64,11 +99,6 @@ def main(input):
     batch_size = 128
     dataset = TensorDataset(code_batch_tensor, attention_mask)
     dataloader = DataLoader(dataset, batch_size=batch_size)
-
-    # 加载模型
-    checkpoint = torch.load(checkpoint_path)
-    model.load_state_dict(checkpoint['model_state_dict'])
-    model.eval()
 
     # 预测
     predictions = []
@@ -108,9 +138,11 @@ def main(input):
 #                                   "targetFilePath": str, filePath,
 #                                   "commitMessage": str, commit message,
 #								    "prevEdits": list, of previous edits, each in format: {"beforeEdit":"", "afterEdit":""}}
-input = sys.stdin.read()
-output = main(input)
+
+
+# data = sys.stdin.buffer.read()
+# decoded_data = data.decode('utf-8')
 
 # 输出 Python 脚本的内容为字典格式: {"data": list, [[filePath, fileContent], ...]}
-print(output)
-sys.stdout.flush()
+# print(output)
+# sys.stdout.flush()
