@@ -45,9 +45,14 @@ conda activate code-edit
 pip install transformers==4.13.0
 pip3 install torch torchvision torchaudio
 ```
-7. Open file *src/extension.js*, edit the path variable `PyInterpreter` with the absolute path of the interpreter. E.g.: */home/username/miniconda3/envs/codebert/bin/python*.
-8. Open the extension folder within VS Code, open *src/extension.js*, press `F5` to run the extension in debug mode. If a VS Code menu pop up, select "VS Code Extension".
-9. New VS Code window should appear and the extension is ready. 
+7. Switch to the extension directory, then install node modules.
+```
+cd /path/to/edit-pilot
+npm install
+```
+8. Open file *src/extension.js*, edit the path variable `PyInterpreter` with the absolute path of the interpreter. E.g.: */home/username/miniconda3/envs/codebert/bin/python*.
+9. Open the extension folder within VS Code, open *src/extension.js*, press `F5` to run the extension in debug mode. If a VS Code menu pop up, select "VS Code Extension".
+10. New VS Code window should appear and the extension is ready. 
 
 ## Issues
 
