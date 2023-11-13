@@ -1,3 +1,4 @@
+*.vsix
 *.bin
 *.pth
 test/test_cases/react/

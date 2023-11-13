@@ -14,7 +14,7 @@ class ModelServerProcess{
     constructor() {
         this.ip = 'localhost';
         this.port = '5000';
-        this.setup();
+        // this.setup();
     }
 
     setup() {

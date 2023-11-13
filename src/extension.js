@@ -129,7 +129,7 @@ function getRootAndFiles(useSnapshot = true) {
 	* FilesList: Workspace 打开的文件夹内的所有文件及其内容 [[filePath, fileContent], ...]
 	*/
 	// 获取当前工作区的根文件夹路径
-	const rootPath = vscode.workspace.workspaceFolders[0].uri.fsPath;
+	const rootPath = toPosixPath(vscode.workspace.workspaceFolders[0].uri.fsPath);
     // 存储所有文件的文本和名称列表
     const fileList = [];
 
@@ -213,6 +213,8 @@ async function runPythonScript1(rootPath, files, prevEdits, editor) {
 			rootPath: rootPath,
 			files: files,
 			targetFilePath: activeFilePath,
+			commitMessage: commitMessage,
+			prevEdits: prevEdits
 		};
 		let strJSON = JSON.stringify(input);
         console.log('==> Sending to discriminator model');
@@ -237,7 +239,6 @@ async function runPythonScript1(rootPath, files, prevEdits, editor) {
 
 		input = {
 			files: filteredFiles,
-			// files: files,
 			targetFilePath: activeFilePath,
 			commitMessage: commitMessage,
 			prevEdits: prevEdits
@@ -263,13 +264,17 @@ async function runPythonScript1(rootPath, files, prevEdits, editor) {
 
 async function runPythonScript2(modification) {
 	/*
-	* 输入 Python 脚本的内容为字典格式: { "files": list, [[filePath, fileContent], ...],
-	* 								"targetFilePath": string filePath,
-	*								"commitMessage": string, commit message,
-	*								"editType": string, edit type,
-	*								"prevEdits": list, of previous edits, each in format: {"beforeEdit":"", "afterEdit":""},
-	*								"startPos": int, start position,
-	*								"endPos": int, end position}
+	* 输入 Python 脚本的内容为字典格式: 
+		{ 
+			"files": list, [[filePath, fileContent], ...],
+	* 		"targetFilePath": string filePath,
+	*		"commitMessage": string, commit message,
+	*		"editType": string, edit type,
+	*		"prevEdits": list, of previous edits, each in format: {"beforeEdit":"", "afterEdit":""},
+	*		"startPos": int, start position,
+	*		"endPos": int, end position,
+ 			"atLine": list, of edit line indices
+		}
 	* 输出 Python 脚本的内容为字典格式: {"data": 
 	*                                       { "targetFilePath": string, filePath of target file,
 	* 										  "editType": string, 'remove', 'add'
@@ -396,11 +401,14 @@ function OriginEditorEvent() {
 async function getModification(doc, range) {
 	const filePath = toPosixPath(doc.uri.fsPath);
 	const startPos = doc.offsetAt(range.start);
-    const endPos = doc.offsetAt(range.end);
+	const endPos = doc.offsetAt(range.end);
+	console.log(`===> selected offset: ${startPos} to ${endPos}`)
 	for(let modification of modifications) {
 		if (filePath == modification.targetFilePath && modification.startPos <= startPos && modification.endPos >= endPos) {
 			let highlightedRange = new vscode.Range(doc.positionAt(modification.startPos), doc.positionAt(modification.endPos));
-			if (doc.getText(highlightedRange) == modification.toBeReplaced) { 
+			// console.log(`===> highlighted range: ${doc.getText(highlightedRange)}`);
+			// console.log(`===> to be replaced: ${modification.toBeReplaced}`);
+			if (true || (doc.getText(highlightedRange) == modification.toBeReplaced)) { 
 				// 当用户不按照推荐修改时，例如推荐修改单词 good，但用户删除了 good，此时会导致高亮位置对应的内容偏移，则无需进行修正内容推荐
 				return await runPythonScript2(modification);
 			} else {

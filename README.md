@@ -42,8 +42,7 @@ npm install -g yo generator-code
 ```
 conda create -n code-edit
 conda activate code-edit
-pip install transformers==4.13.0
-pip3 install torch torchvision torchaudio
+pip3 install torch torchvision torchaudio transformers retriv
 ```
 7. Switch to the extension directory, then install node modules.
 ```
