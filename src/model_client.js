@@ -2,18 +2,18 @@ const path = require('path');
 const axios = require('axios').default;
 const { spawn } = require('child_process');
 const { AxiosError } = require('axios');
+const fs = require('fs');
 
-// 考虑解耦到配置文件，即 VSCode 的 configuration
-const extensionDirectory = __dirname;
+const srcDir = __dirname;
 const PyInterpreter = "C:/Program Files/Python310/python.exe";
-const pyServerPath = path.join(extensionDirectory, 'model_server', "server.py");
+const pyServerPath = path.join(srcDir, 'model_server', "server.py");
 
 const regPortInfo = /PORT:[0-9]+/;
 
 class ModelServerProcess{
     constructor() {
         this.ip = 'localhost';
-        this.port = '5000';
+        this.port = '5001';
         // this.setup();
     }
 
@@ -26,10 +26,10 @@ class ModelServerProcess{
         this.process.stdout.on('data', (data) => {
             const output = data.toString();
             console.log(`[ModelServer] ${output}`);
-            if (regPortInfo.test(output)) {
-                this.port = output.slice(5);
-                console.log(`[ModelServer] Port number set to ${this.port}`) // 此处在后端还未实现
-            }
+            // if (regPortInfo.test(output)) {
+            //     this.port = output.slice(5);
+            //     console.log(`[ModelServer] Port number set to ${this.port}`) // Not Implemented Yet
+            // }
         });
 
         this.process.stderr.on('data', (data) => {
@@ -41,11 +41,11 @@ class ModelServerProcess{
         return `http://${this.ip}:${this.port}/${path}`;
     }
 
-    async sendPostRequest(path, json_str) {
+    async sendPostRequest(path, json_obj) {
         console.log(`[ModelServer] Sending to ${this.toURL(path)}`)
-        // console.log(`[ModelServer] Sending request:`);
-        // console.log(json_str);
-        const response = await axios.post(this.toURL(path), json_str, {
+        console.log(`[ModelServer] Sending request:`);
+        console.log(json_obj);
+        const response = await axios.post(this.toURL(path), json_obj, {
             headers: {
                 'Content-Type': 'application/json',
             },
@@ -53,7 +53,11 @@ class ModelServerProcess{
         });
         if (response.statusText === 'OK') {
             console.log(`[ModelServer] Received response:`);
-            console.log(response);
+            console.log(response.data);
+            fs.writeFileSync(
+                path.join(srcDir, '../mock/backend_response.json'),
+                JSON.stringify(response.data), { flag: 'a' }
+            );
             return response.data;
         } else {
             throw new AxiosError(JSON.stringify(response));
@@ -61,27 +65,57 @@ class ModelServerProcess{
     }
 }
 
-// 管理模型子进程
+const res_jsons = JSON.parse(fs.readFileSync(path.join(srcDir, '../mock/mock_json_res.json'), { encoding:'utf-8' }));
+
+class MockBackend {
+    static disc_res_json = res_jsons['disc'];
+    static loc_res_json = res_jsons['loc'];
+    static gen_res_json = res_jsons['gen'];
+
+    static async delayed_res(json_obj) {
+        await new Promise(resolve => {
+            setTimeout(resolve, 1000);
+        })
+        return json_obj;
+    }
+
+    static async disc_res() {
+        return await this.delayed_res(this.disc_res_json);
+    }
+
+    static async loc_res() {
+        return await this.delayed_res(this.loc_res_json);
+    }
+
+    static async gen_res() {
+        return await this.delayed_res(this.gen_res_json);
+    }
+}
+
 const modelServerProcess = new ModelServerProcess();
 
-async function basic_query(suffix, json_str) {
-    return await modelServerProcess.sendPostRequest(suffix, json_str);
+async function basic_query(suffix, json_obj) {
+    fs.writeFileSync('../backend_request.json', JSON.stringify(json_obj), {flag: 'a'});
+    return await modelServerProcess.sendPostRequest(suffix, json_obj);
 }
 
-async function query_discriminator(json_str) {
-    return await basic_query("discriminator", json_str);
+async function query_discriminator(json_obj) {
+    // return await basic_query("discriminator", json_obj);
+    return await MockBackend.disc_res();
 }
 
-async function query_locator(json_str) {
-    return await basic_query("range", json_str);
+async function query_locator(json_obj) {
+    // return await basic_query("range", json_obj);
+    return await MockBackend.loc_res();
 }
 
-async function query_editor(json_str) {
-    return await basic_query("content", json_str);
+async function query_generator(json_obj) {
+    // return await basic_query("content", json_obj);
+    return await MockBackend.gen_res();
 }
 
 module.exports = {
     query_discriminator,
     query_locator,
-    query_editor
+    query_generator
 }
