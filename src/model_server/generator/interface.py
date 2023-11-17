@@ -15,8 +15,8 @@ logging.disable(logging.CRITICAL)
 warnings.filterwarnings("ignore")
 
 contextLength = 5
-current_file_path = os.path.dirname(os.path.abspath(__file__))
-model_name = os.path.join(current_file_path, 'pytorch_model.bin')
+# current_file_path = os.path.dirname(os.path.abspath(__file__))
+# model_name = os.path.join(current_file_path, 'pytorch_model.bin')
 model_name = r"C:\Users\aaa\Desktop\models\generator\pytorch_model.bin"
 
 model = None

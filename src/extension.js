@@ -4,16 +4,18 @@
 const fs = require('fs');
 const path = require('path');
 const vscode = require('vscode');
-const glob = require('glob')
-const { getWebviewContent }=require('./sidebar')
+const glob = require('glob');
+const { getWebviewContent } = require('./sidebar');
+const { FileNodeProvider } = require('./activity-bar')
 
-const { query_discriminator, query_locator, query_generator } = require('./model_client')
+const { query_discriminator, query_locator, query_generator } = require('./model-client');
+// const { createModifiedDocumentAndShowDiff } = require('./compare-view');
 
 // ------------ Hyper-parameters ------------
-let fontcolor1 = '#000';
-let bgcolor1 = 'rgba(255,0,0,0.3)';
-let fontcolor2 = '#000';
-let bgcolor2 = 'rgba(0, 255, 0, 0.3)';
+let fgcolor1 = '#000';
+let bgcolor1 = 'rgba(255,0,0,0.2)';
+let fgcolor2 = '#000';
+let bgcolor2 = 'rgba(0,255,0,0.2)';
 let prevEditNum = 3;
 
 // ------------ Global variants -------------
@@ -26,11 +28,12 @@ let currFile = undefined;
 let previousActiveEditor = undefined;
 let commitMessage = "";
 let prevEdits = [];
-
+let editLock = false;
+let isDiffTabOpen = null;
 /**
  * Convert Windows-style path to POSIX-style path
  * @param {string} path - Windows-style path
- * @returns {string} - POSIX-style path
+ * @returns {string} POSIX-style path
  */
 function toPosixPath(path) {
 	return path.replace(/\\/g, '/');
@@ -39,7 +42,7 @@ function toPosixPath(path) {
 /**
  * Get the active file in the editor
  * @param {vscode.TextEditor} editor - The active editor
- * @returns {string} - The active file path
+ * @returns {string} The active file path
  */
 function getActiveFile(editor) {
 	return toPosixPath(editor.document.fileName);
@@ -66,12 +69,12 @@ function cleanGlobalVariables(editor) {
 }
 
 const decorationTypeForAlter = vscode.window.createTextEditorDecorationType({
-	color: fontcolor1,
+	color: fgcolor1,
 	backgroundColor: bgcolor1
 });
 
 const decorationTypeForAdd = vscode.window.createTextEditorDecorationType({
-	color: fontcolor2,
+	color: fgcolor2,
 	backgroundColor: bgcolor2
 });
 
@@ -81,8 +84,6 @@ const decorationTypeForAdd = vscode.window.createTextEditorDecorationType({
  * @param {vscode.TextEditor} editor - The active editor
  */
 function highlightModifications(modifications, editor) {
-
-
 	const decorationsForAlter = []; // Highlight for replace, delete
 	const decorationsForAdd = []; // Highlight for add
 	if (!editor) {
@@ -119,7 +120,7 @@ function highlightModifications(modifications, editor) {
  * Get a list of files in the workspace
  * @param {string} rootPath - The root folder path of the workspace
  * @param {Array} globPatterns - The glob patterns to exclude files
- * @returns {Array} - The list of files in the workspace
+ * @returns {Array} The list of files in the workspace
  */
 function globFiles(rootPath, globPatterns) {
 	// Built-in glob patterns
@@ -155,7 +156,7 @@ function replaceCurrentSnapshot(fileList) {
 /**
  * Get the root folder path and the list of files in the workspace
  * @param {boolean} useSnapshot - Whether to use the unsaved content of the active file as the actual file content
- * @returns {Array} - The root folder path and the list of files in the workspace
+ * @returns {Array} The root folder path and the list of files in the workspace
  */
 function getRootAndFiles(useSnapshot = true) {
 	// Get the root folder path of the workspace
@@ -191,18 +192,18 @@ function getRootAndFiles(useSnapshot = true) {
 
 /**
  * Show the modifications in a webview
- * @param {Array} modificationsList - The list of modifications to show
+ * @param {Array} modificationList - The list of modifications to show
  */
-function showModificationsWebview(modificationsList) {
+function showModificationWebview(modificationList) {
 	let panel = vscode.window.createWebviewPanel(
-		"modificationsWebview",
+		"modificationWebview",
 		"Modifications",
 		// Use vscode.ViewColumn.One to avoid overlapping with the editor window
 		vscode.ViewColumn.One, 
 		{ enableScripts: true }
 	);
 	const rootPath = vscode.workspace.rootPath;
-    panel.webview.html = getWebviewContent(modificationsList, rootPath);
+    panel.webview.html = getWebviewContent(modificationList, rootPath);
 	panel.webview.onDidReceiveMessage(message => {
         if (message.command === 'openFile') {
             const filePath = message.path;
@@ -214,6 +215,10 @@ function showModificationsWebview(modificationsList) {
     });
 }
 
+function showModsInActivityBar(modificationList) {
+	vscode.commands.executeCommand('editPilot.refreshEditPoints', modificationList);
+}
+
 /**
  * Predict the location of the edit
  * @param {string} rootPath - The root folder path of the workspace
@@ -222,29 +227,42 @@ function showModificationsWebview(modificationsList) {
  * @param {vscode.TextEditor} editor - The active editor
  */
 async function predictLocation(rootPath, files, prevEdits, editor) {
-	/*
-	* The input to the discriminator Python script is a dictionary in the following format:
-	* {"rootPath": str, rootPath,
-	*  "files": list, [[filePath, fileContent], ...],
-	*  "targetFilePath": str, filePath}
-	* The output of the discriminator Python script is a dictionary in the following format:
-	* {"data": list, [[filePath, fileContent], ...]}
-	*
-	* The input to the locator Python script is a dictionary in the following format:
-	* {"files": list, [[filePath, fileContent], ...],
-	*  "targetFilePath": str, filePath,
-	*  "commitMessage": str, commit message,
-	*  "prevEdits": list, of previous edits, each in format: {"beforeEdit":"", "afterEdit":""}}
-	* The output of the locator Python script is a dictionary in the following format:
-	* {"data": , [ { "targetFilePath": str, filePath,
-    *                "beforeEdit", str, the content before edit for previous edit,
-	*                "afterEdit", str, the content after edit for previous edit, 
-	*                "toBeReplaced": str, the content to be replaced, 
-	*                "startPos": int, start position of the word,
-	*                "endPos": int, end position of the word,
-	*                "editType": str, the type of edit, add or remove,
-	*                "lineBreak": str, '\n', '\r' or '\r\n'}, ...]}
-	*/
+	/* 
+		The input to the discriminator Python script is a dictionary in the following format:
+	 	{
+			"rootPath": str, rootPath,
+	  		"files": list, [[filePath, fileContent], ...],
+	  		"targetFilePath": str, filePath
+		}
+		The output of the discriminator Python script is a dictionary in the following format:
+	 	{
+			"data": list, [[filePath, fileContent], ...]
+		}
+	
+		The input to the locator Python script is a dictionary in the following format:
+	 	{
+			"files": list, [[filePath, fileContent], ...],
+	  		"targetFilePath": str, filePath,
+	  		"commitMessage": str, commit message,
+	  		"prevEdits": list, of previous edits, each in format: {"beforeEdit":"", "afterEdit":""}
+		}
+		The output of the locator Python script is a dictionary in the following format:
+	 	{
+			"data": 
+			[ 
+				{ 
+					"targetFilePath": str, filePath,
+                    "beforeEdit", str, the content before edit for previous edit,
+	                "afterEdit", str, the content after edit for previous edit, 
+	                "toBeReplaced": str, the content to be replaced, 
+	                "startPos": int, start position of the word,
+	                "endPos": int, end position of the word,
+	                "editType": str, the type of edit, add or remove,
+	                "lineBreak": str, '\n', '\r' or '\r\n'
+				}, ...
+			]
+		}
+	 */
 	const activeFilePath = toPosixPath(
 		path.relative(rootPath, getActiveFile(editor))
 	);
@@ -300,20 +318,21 @@ async function predictLocation(rootPath, files, prevEdits, editor) {
         if (modifications.length == 0) {
             console.log('==> No suggested edit location');
 		}
-		for (var mod of modifications) {
+		for (const mod of modifications) {
 			mod.targetFilePath = toPosixPath(path.join(rootPath, mod.targetFilePath));
 		}
         highlightModifications(modifications, editor);
-        showModificationsWebview(modifications);
+		// showModificationWebview(modifications);
+		showModsInActivityBar(modifications);
     } catch (error) {
         console.error(error);
     }
 }
 
 /**
- * Predict the edit to be made
+ * Predict the edits to be made
  * @param {Object} modification - The modification to be made
- * @returns {Promise<Object>} - The new modification to be made
+ * @returns {Promise<Object>} The new modification to be made
  */
 async function predictEdit(modification) {
 	/*
@@ -365,7 +384,7 @@ async function predictEdit(modification) {
  * Detect the edit made by comparing the previous snapshot and the current snapshot
  * @param {string} prev - The previous snapshot
  * @param {string} curr - The current snapshot
- * @returns {Object} - The line number where the edit was made
+ * @returns {Object} The line number where the edit was made
  */
 function detectEdit(prev, curr) {
 	// Split the strings into lists of strings by line
@@ -403,48 +422,75 @@ function pushToStack(item) {
 	}
 }
 
-function handleTextEditorSelectionEvent(event) {
-	const line = event.selections[0].active.line;
-	currCursorAtLine = line + 1; // VScode API starts counting lines from 0, while our line numbers start from 1, note the +- 1
-	console.log(`==> Cursor position: Line ${prevCursorAtLine} -> ${currCursorAtLine}`);
-	currSnapshot = vscode.window.activeTextEditor.document.getText(); // Read the current text in the editor
-	if (prevCursorAtLine != currCursorAtLine && prevCursorAtLine != 0) { // When the pointer changes position and is not at the first position in the editor
-		let edition = detectEdit(prevSnapshot, currSnapshot); // Detect changes compared to the previous snapshot
-
-		if (edition.beforeEdit != edition.afterEdit) {
-			// Add the modification to prevEdit
-			pushToStack(edition);
-			console.log('==> Before edit:\n', edition.beforeEdit);
-			console.log('==> After edit:\n', edition.afterEdit); 
-			prevSnapshot = currSnapshot;
-			console.log('==> Send to LLM (After cursor changed line)');
-			let [rootPath, files] = getRootAndFiles();
-			predictLocation(rootPath, files, prevEdits, vscode.window.activeTextEditor);
-		}
+async function handleEditEvent(event) {
+	if (!event) {
+		let [rootPath, files] = getRootAndFiles();
+		await predictLocation(rootPath, files, prevEdits, vscode.window.activeTextEditor);
+		vscode.workspace.onDidChangeTextDocument((e) => {
+			const newUri = vscode.Uri.file("c:/Users/aaa/Desktop/hello.txt");
+			if (e.document.uri.toString() === newUri.toString()) {
+				e.document.save();
+			} else {
+				console.log (`${e.document.uri.toString()} != ${newUri.toString()}`)
+			}
+		});
+		return;
 	}
-	prevCursorAtLine = currCursorAtLine; // Update the line number where the mouse pointer is located
+	if (editLock) return;
+	editLock = true;
+	try {
+		
+		const line = event.selections[0].active.line;
+		currCursorAtLine = line + 1; // VScode API starts counting lines from 0, while our line numbers start from 1, note the +- 1
+		console.log(`==> Cursor position: Line ${prevCursorAtLine} -> ${currCursorAtLine}`);
+		currSnapshot = vscode.window.activeTextEditor.document.getText(); // Read the current text in the editor
+		if (prevCursorAtLine != currCursorAtLine && prevCursorAtLine != 0) { // When the pointer changes position and is not at the first position in the editor
+			let edition = detectEdit(prevSnapshot, currSnapshot); // Detect changes compared to the previous snapshot
+	
+			if (edition.beforeEdit != edition.afterEdit) {
+				// Add the modification to prevEdit
+				pushToStack(edition);
+				console.log('==> Before edit:\n', edition.beforeEdit);
+				console.log('==> After edit:\n', edition.afterEdit); 
+				prevSnapshot = currSnapshot;
+				console.log('==> Send to LLM (After cursor changed line)');
+				let [rootPath, files] = getRootAndFiles();
+				await predictLocation(rootPath, files, prevEdits, vscode.window.activeTextEditor);
+			}
+		}
+		prevCursorAtLine = currCursorAtLine; // Update the line number where the mouse pointer is located
+	} finally {
+		editLock = false;
+	}
 }
 
-function updateAfterApplyQuickFix(text) {
+async function updateAfterApplyQuickFix(text) {
 	/*
 	* When the user adopts the suggestion of QuickFix, the modified version is sent to LLM to update modifications without waiting for the pointer to change lines
 	*/
-	let edition = detectEdit(prevSnapshot, text); // Detect changes compared to the previous snapshot
-	currSnapshot = text;
-	if (edition.beforeEdit != edition.afterEdit) {
-		// Add the modification to prevEdit
-		pushToStack(edition);
-		console.log('==> Before edit:\n', edition.beforeEdit); 
-		console.log('==> After edit:\n', edition.afterEdit);
-		prevSnapshot = currSnapshot;
-		console.log('==> Send to LLM (After apply QucikFix)');
-		let [rootPath, files] = getRootAndFiles();
-		predictLocation(rootPath, files, prevEdits, vscode.window.activeTextEditor);
+	if (editLock) return;
+	editLock = true;
+	try {
+		
+		let edition = detectEdit(prevSnapshot, text); // Detect changes compared to the previous snapshot
+		currSnapshot = text;
+		if (edition.beforeEdit != edition.afterEdit) {
+			// Add the modification to prevEdit
+			pushToStack(edition);
+			console.log('==> Before edit:\n', edition.beforeEdit); 
+			console.log('==> After edit:\n', edition.afterEdit);
+			prevSnapshot = currSnapshot;
+			console.log('==> Send to LLM (After apply QucikFix)');
+			let [rootPath, files] = getRootAndFiles();
+			await predictLocation(rootPath, files, prevEdits, vscode.window.activeTextEditor);
+		}
+		prevCursorAtLine = currCursorAtLine; // Update the line number where the mouse pointer is located
+	} finally {
+		editLock = false;
 	}
-	prevCursorAtLine = currCursorAtLine; // Update the line number where the mouse pointer is located
 }
 
-function OriginEditorEvent() {
+function startUpEditorEvent() {
 	// Get the current file name when starting up
 	let editor = vscode.window.activeTextEditor;
 	if (editor) {
@@ -463,11 +509,12 @@ async function getModification(doc, range) {
 	const endPos = doc.offsetAt(range.end);
 	console.log(`===> selected offset: ${startPos} to ${endPos}`)
 	for(let modification of modifications) {
-		if (filePath == modification.targetFilePath && modification.startPos <= startPos && modification.endPos >= endPos) {
+		if (filePath == modification.targetFilePath && modification.startPos <= startPos && endPos <= modification.endPos) {
 			let highlightedRange = new vscode.Range(doc.positionAt(modification.startPos), doc.positionAt(modification.endPos));
+			const currentToBeReplaced = doc.getText(highlightedRange).trim();
 			// console.log(`===> highlighted range: ${doc.getText(highlightedRange)}`);
 			// console.log(`===> to be replaced: ${modification.toBeReplaced}`);
-			if (true || (doc.getText(highlightedRange) == modification.toBeReplaced)) { 
+			if (true || currentToBeReplaced == modification.toBeReplaced) { 
 				// When the user does not follow the recommended modification, for example, the recommended modification is the word "good", but the user deletes "good", this will cause the content corresponding to the highlighted position to be offset, so there is no need to recommend modifying the content
 				return await predictEdit(modification);
 			} else {
@@ -476,6 +523,7 @@ async function getModification(doc, range) {
 				console.log('==> Current edit target:');
 				console.log(modification.toBeReplaced);
 				console.log('==> Highlighted range is not the suggested edit range');
+
 				// At this time, clear modifications and cancel all highlights
 				modifications = [];
 				highlightModifications(modifications, vscode.window.activeTextEditor);
@@ -486,16 +534,27 @@ async function getModification(doc, range) {
 	return undefined;
 }
 
+function clearUpModsAndHighlights(editor) {
+	modifications = []; // Clear modifications to avoid triggering runPythonScript2 while the pointer is still at the suggested modification position
+	highlightModifications(modifications, editor); // New suggested modification positions may take some time to highlight, during which time this modification position needs to avoid further highlighting
+}
+
+/**
+ * @param {vscode.ExtensionContext} context 
+ */
 function activate(context) {
 	console.log('==> Congratulations, your extension is now active!');
 
 	/*----------------------- Monitor edit behavior --------------------------------*/
-	OriginEditorEvent(); // Get the currently active editor and the file name and path opened in the editor
+	startUpEditorEvent(); // Get the currently active editor and the file name and path opened in the editor
 
 	previousActiveEditor = vscode.window.activeTextEditor;
 	// When there is a default activeTextEditor opened in VSCode, automatically read the current text content as prevSnapshot
 	prevSnapshot = vscode.window.activeTextEditor.document.getText();
 	currSnapshot = vscode.window.activeTextEditor.document.getText(); // Read the current text in the editor
+	
+	// DEBUGGING
+	// handleEditEvent();
 
 	// Register an event listener that triggers when the editor is switched and initializes global variables
 	context.subscriptions.push(
@@ -504,7 +563,7 @@ function activate(context) {
 	
 	// Register an event listener that listens for changes in cursor position
 	context.subscriptions.push(
-		vscode.window.onDidChangeTextEditorSelection(handleTextEditorSelectionEvent)
+		vscode.window.onDidChangeTextEditorSelection(handleEditEvent)
 	);
 	/*----------------------- Monitor edit behavior --------------------------------*/
 
@@ -535,6 +594,11 @@ function activate(context) {
 				edit.replace(document.uri, replaceRange, replacement);
 				codeAction.edit = edit;
 
+				// if (! isDiffTabOpen) {
+				// 	createModifiedDocumentAndShowDiff(document.uri);
+				// 	isDiffTabOpen = true;
+				// }
+
 				codeAction.command = {
 					command: 'extension.applyFix',
 					title: '',
@@ -555,9 +619,8 @@ function activate(context) {
 			console.log('==> applyFix');
 			const editor = vscode.window.activeTextEditor;
 			if (editor) {
-				modifications = []; // Clear modifications to avoid triggering runPythonScript2 while the pointer is still at the suggested modification position
-				highlightModifications(modifications, editor); // New suggested modification positions may take some time to highlight, during which time this modification position needs to avoid further highlighting
-				updateAfterApplyQuickFix(editor.document.getText());
+				clearUpModsAndHighlights(editor);
+				await updateAfterApplyQuickFix(editor.document.getText());
 			}
 		})
 	);
@@ -574,11 +637,17 @@ function activate(context) {
 	});
 
 	inputBox.onDidAccept(() => { // After the user presses Enter to confirm the commit message, recommend the edit range
+		if (editLock) return;
+		editLock = true;
 		const userInput = inputBox.value;
 		console.log('==> Edit description:', userInput);
 		commitMessage = userInput;
 		let [rootPath, files] = getRootAndFiles();
-		predictLocation(rootPath, files, prevEdits, vscode.window.activeTextEditor);
+		predictLocation(rootPath, files, prevEdits, vscode.window.activeTextEditor).then(() => {
+			editLock = false;
+		}, () => {
+			editLock = false;
+		});
 	});
 
 	inputBox.onDidHide(() => {
@@ -586,6 +655,38 @@ function activate(context) {
 		console.log('==> Edit description input box is hidden');
 	});
 	/*----------------------- Edit description input box --------------------------------*/
+
+	let openFileAtLineCmd = vscode.commands.registerCommand('editPilot.openFileAtLine', async (filePath, lineNum) => {
+		const uri = vscode.Uri.file(filePath); // Replace with dynamic file path
+	
+		try {
+			let document = await vscode.workspace.openTextDocument(uri);
+			let editor = await vscode.window.showTextDocument(document);
+			let range = editor.document.lineAt(lineNum).range;
+			editor.selection = new vscode.Selection(range.start, range.end);
+			editor.revealRange(range, vscode.TextEditorRevealType.InCenter);
+		} catch (error) {
+		  	console.error(error);
+		}
+	});
+	
+	context.subscriptions.push(openFileAtLineCmd);
+
+	const fileNodeProvider = new FileNodeProvider();
+	vscode.window.registerTreeDataProvider('editPoints', fileNodeProvider);
+	vscode.commands.registerCommand('editPilot.refreshEditPoints', modList => fileNodeProvider.refresh(modList));
+
+	vscode.window.onDidChangeVisibleTextEditors(editors => {
+		if (!editors.some(editor => editor.document.uri.scheme === 'diff')) {
+			isDiffTabOpen = false;
+		}
+	});
+
+	// vscode.workspace.onDidCloseTextDocument(document => {
+	// 	if (document.uri == currentCompareUri) {
+	// 		document.
+	// 	}
+	// })
 }
  
 function deactivate() {

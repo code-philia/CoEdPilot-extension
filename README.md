@@ -49,12 +49,13 @@ pip3 install torch torchvision torchaudio transformers retriv
 cd /path/to/edit-pilot
 npm install
 ```
-8. Open file *src/extension.js*, edit the path variable `PyInterpreter` with the absolute path of the interpreter. E.g.: */home/username/miniconda3/envs/codebert/bin/python*.
-9. Open the extension folder within VS Code, open *src/extension.js*, press `F5` to run the extension in debug mode. If a VS Code menu pop up, select "VS Code Extension".
-10. New VS Code window should appear and the extension is ready. 
+8. Open file `src/model_server/discriminator/interface.py`, `src/model_server/locator/interface.py` and `src/model_server/generator/interface.py`, change `model_name` in each file to the absolute path of the models. 
+9. Change `PyInterpreter` in `src/model-client.js` to your Python interpreter. Especially, it should be a Conda Python interpreter path if you created Conda environment in the previous paths. E.g.: */home/username/miniconda3/envs/codebert/bin/python*.
+10. Open the extension folder within VS Code, then press `F5` to run the extension in debug mode. If a VS Code menu pop up, select *Run Extension*.
+11. New VS Code window should appear and the extension is ready. 
 
 ## Issues
 
-* Currently, Python scripts must be located locally and use stdin and stdout for content exchange.
+This is still a beta version. Not fully tested on different platforms.
 
 **Enjoy!**

@@ -8,13 +8,13 @@ const srcDir = __dirname;
 const PyInterpreter = "C:/Program Files/Python310/python.exe";
 const pyServerPath = path.join(srcDir, 'model_server', "server.py");
 
-const regPortInfo = /PORT:[0-9]+/;
+// const regPortInfo = /PORT:[0-9]+/;
 
 class ModelServerProcess{
     constructor() {
         this.ip = 'localhost';
-        this.port = '5001';
-        // this.setup();
+        this.port = '5004';
+        this.setup();
     }
 
     setup() {
@@ -41,11 +41,11 @@ class ModelServerProcess{
         return `http://${this.ip}:${this.port}/${path}`;
     }
 
-    async sendPostRequest(path, json_obj) {
-        console.log(`[ModelServer] Sending to ${this.toURL(path)}`)
+    async sendPostRequest(urlPath, jsonObject) {
+        console.log(`[ModelServer] Sending to ${this.toURL(urlPath)}`)
         console.log(`[ModelServer] Sending request:`);
-        console.log(json_obj);
-        const response = await axios.post(this.toURL(path), json_obj, {
+        console.log(jsonObject);
+        const response = await axios.post(this.toURL(urlPath), jsonObject, {
             headers: {
                 'Content-Type': 'application/json',
             },
@@ -54,10 +54,11 @@ class ModelServerProcess{
         if (response.statusText === 'OK') {
             console.log(`[ModelServer] Received response:`);
             console.log(response.data);
-            fs.writeFileSync(
-                path.join(srcDir, '../mock/backend_response.json'),
-                JSON.stringify(response.data), { flag: 'a' }
-            );
+            // DEBUGGING
+            // fs.writeFileSync(
+            //     path.join(srcDir, '../mock/backend_response.json'),
+            //     JSON.stringify(response.data), { flag: 'a' }
+            // );
             return response.data;
         } else {
             throw new AxiosError(JSON.stringify(response));
@@ -76,7 +77,7 @@ class MockBackend {
         await new Promise(resolve => {
             setTimeout(resolve, 1000);
         })
-        return json_obj;
+        return JSON.parse(JSON.stringify(json_obj)); // shallow clone necessary here
     }
 
     static async disc_res() {
@@ -100,18 +101,18 @@ async function basic_query(suffix, json_obj) {
 }
 
 async function query_discriminator(json_obj) {
-    // return await basic_query("discriminator", json_obj);
-    return await MockBackend.disc_res();
+    return await basic_query("discriminator", json_obj);
+    // return await MockBackend.disc_res();
 }
 
 async function query_locator(json_obj) {
-    // return await basic_query("range", json_obj);
-    return await MockBackend.loc_res();
+    return await basic_query("range", json_obj);
+    // return await MockBackend.loc_res();
 }
 
 async function query_generator(json_obj) {
-    // return await basic_query("content", json_obj);
-    return await MockBackend.gen_res();
+    return await basic_query("content", json_obj);
+    // return await MockBackend.gen_res();
 }
 
 module.exports = {

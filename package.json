@@ -32,6 +32,29 @@
           "group": "code_suggestion@1"
         }
       ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "edit-pilot",
+          "title": "Edit Pilot",
+          "icon": "media/reset_wrench.svg"
+        }
+      ]
+    },
+    "views": {
+      "edit-pilot": [
+        {
+          "id": "editPoints",
+          "name": "Suggested Edits",
+          "contextualTitle": "Edit Pilot"
+        },
+        {
+          "id": "prevEdits",
+          "name": "Previous Edits",
+          "contextualTitle": "Edit Pilot"
+        }
+      ]
     }
   },
   "scripts": {
@@ -46,7 +69,6 @@
     "@types/vscode": "^1.78.0",
     "@vscode/test-electron": "^2.3.0",
     "axios": "^1.6.0",
-    "eslint": "^8.39.0",
     "glob": "^8.1.0",
     "mocha": "^10.2.0",
     "typescript": "^5.0.4"

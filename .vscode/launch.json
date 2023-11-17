@@ -6,6 +6,16 @@
 	"version": "0.2.0",
 	"configurations": [
 		{
+			"name": "Run Extension",
+			"type": "extensionHost",
+			"request": "launch",
+			"args": [
+				"--extensionDevelopmentPath=${workspaceFolder}",
+				// "--disable-extensions",
+				// "--remote=wsl+Ubuntu-22.04"
+			]
+		},
+		{
 			"name": "Python server debugging",
 			"type": "python",
 			"request": "launch",
@@ -15,16 +25,6 @@
 			"env": {
 				"PYTHONPATH": "${workspaceFolder}/src/model_server"
 			}
-		},
-		{
-			"name": "Run Extension",
-			"type": "extensionHost",
-			"request": "launch",
-			"args": [
-				"--extensionDevelopmentPath=${workspaceFolder}",
-				// "--disable-extensions",
-				// "--remote=wsl+Ubuntu-22.04"
-			]
 		},
 		{
 			"name": "Extension Tests",

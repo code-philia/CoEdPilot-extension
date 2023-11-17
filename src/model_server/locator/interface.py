@@ -9,8 +9,8 @@ from torch.utils.data import DataLoader, SequentialSampler, TensorDataset
 from transformers import (RobertaConfig, RobertaModel, RobertaTokenizer)
 
 codeWindowLength = 10
-current_file_path = os.path.dirname(os.path.abspath(__file__))
-model_name = os.path.join(current_file_path, 'pytorch_model.bin')
+# current_file_path = os.path.dirname(os.path.abspath(__file__))
+# model_name = os.path.join(current_file_path, 'pytorch_model.bin')
 model_name = r"C:\Users\aaa\Desktop\models\locator\pytorch_model.bin"
 
 model = None
