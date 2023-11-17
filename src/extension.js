@@ -504,34 +504,40 @@ function startUpEditorEvent() {
 }	
 
 async function getModification(doc, range) {
-	const filePath = toPosixPath(doc.uri.fsPath);
-	const startPos = doc.offsetAt(range.start);
-	const endPos = doc.offsetAt(range.end);
-	console.log(`===> selected offset: ${startPos} to ${endPos}`)
-	for(let modification of modifications) {
-		if (filePath == modification.targetFilePath && modification.startPos <= startPos && endPos <= modification.endPos) {
-			let highlightedRange = new vscode.Range(doc.positionAt(modification.startPos), doc.positionAt(modification.endPos));
-			const currentToBeReplaced = doc.getText(highlightedRange).trim();
-			// console.log(`===> highlighted range: ${doc.getText(highlightedRange)}`);
-			// console.log(`===> to be replaced: ${modification.toBeReplaced}`);
-			if (true || currentToBeReplaced == modification.toBeReplaced) { 
-				// When the user does not follow the recommended modification, for example, the recommended modification is the word "good", but the user deletes "good", this will cause the content corresponding to the highlighted position to be offset, so there is no need to recommend modifying the content
-				return await predictEdit(modification);
-			} else {
-				console.log('==> The suggested edit target:');
-				console.log(doc.getText(highlightedRange));
-				console.log('==> Current edit target:');
-				console.log(modification.toBeReplaced);
-				console.log('==> Highlighted range is not the suggested edit range');
-
-				// At this time, clear modifications and cancel all highlights
-				modifications = [];
-				highlightModifications(modifications, vscode.window.activeTextEditor);
-				return undefined;
+	if (editLock == true)
+		return;
+	editLock = true;
+	try {
+		const filePath = toPosixPath(doc.uri.fsPath);
+		const startPos = doc.offsetAt(range.start);
+		const endPos = doc.offsetAt(range.end);
+		console.log(`===> selected offset: ${startPos} to ${endPos}`)
+		for(let modification of modifications) {
+			if (filePath == modification.targetFilePath && modification.startPos <= startPos && endPos <= modification.endPos) {
+				let highlightedRange = new vscode.Range(doc.positionAt(modification.startPos), doc.positionAt(modification.endPos));
+				const currentToBeReplaced = doc.getText(highlightedRange).trim();
+				// console.log(`===> highlighted range: ${doc.getText(highlightedRange)}`);
+				// console.log(`===> to be replaced: ${modification.toBeReplaced}`);
+				if (true || currentToBeReplaced == modification.toBeReplaced) { 
+					// When the user does not follow the recommended modification, for example, the recommended modification is the word "good", but the user deletes "good", this will cause the content corresponding to the highlighted position to be offset, so there is no need to recommend modifying the content
+					return await predictEdit(modification);
+				} else {
+					console.log('==> The suggested edit target:');
+					console.log(doc.getText(highlightedRange));
+					console.log('==> Current edit target:');
+					console.log(modification.toBeReplaced);
+					console.log('==> Highlighted range is not the suggested edit range');
+	
+					// At this time, clear modifications and cancel all highlights
+					modifications = [];
+					highlightModifications(modifications, vscode.window.activeTextEditor);
+					return undefined;
+				}
 			}
 		}
+	} finally {
+		editLock = false;
 	}
-	return undefined;
 }
 
 function clearUpModsAndHighlights(editor) {
