@@ -20,7 +20,7 @@
   "contributes": {
     "commands": [
       {
-        "command": "extension.commit_message",
+        "command": "extension.inputMessage",
         "title": "Enter edit description"
       }
     ],
@@ -28,7 +28,7 @@
       "editor/context": [
         {
           "when": "editorFocus",
-          "command": "extension.commit_message",
+          "command": "extension.inputMessage",
           "group": "code_suggestion@1"
         }
       ]
