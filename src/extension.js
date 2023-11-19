@@ -5,11 +5,9 @@ const fs = require('fs');
 const path = require('path');
 const vscode = require('vscode');
 const glob = require('glob');
-const { getWebviewContent } = require('./CompPage');
 const { FileNodeProvider } = require('./ActivityBar')
 
 const { query_discriminator, query_locator, query_generator } = require('./ModelClient');
-// const { createModifiedDocumentAndShowDiff } = require('./compare-view');
 
 // ------------ Hyper-parameters ------------
 let fgcolor1 = '#000';
@@ -29,7 +27,7 @@ let previousActiveEditor = undefined;
 let commitMessage = "";
 let prevEdits = [];
 let editLock = false;
-let isDiffTabOpen = null;
+
 /**
  * Convert Windows-style path to POSIX-style path
  * @param {string} path - Windows-style path

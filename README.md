@@ -37,12 +37,18 @@ npm install -g yo generator-code
 ```
 3. Download extension [code](https://github.com/code-philia/Code-Edit).
 4. Download [backend models](https://drive.google.com/file/d/1MYn68MOJsUQLDwYNedINZtxgWcXDiLJG/view?usp=sharing).
-5. Download the [models](https://drive.google.com/file/d/1cKKE3X4_NiSMajH0_oY70B6y_yMDCws8/view). The `bin` files will be used as checkpoints.
-6. Create environment and install dependencies of the backend models. The backend model can also work with cuda.
+5. Rename the edit locator model as *locator_pytorch_model.bin*, and the edit generation model as *generator_pytorch_model.bin*, move them to folder *src/*.
+6. Create environment and install Python dependencies of the backend models. The backend model can also work with cuda.  
+If you use pip, you can run
+```
+pip install torch torchvision torchaudio transformers retriv flask tqdm bleu
+```
+If you use conda, you can run
 ```
 conda create -n code-edit
 conda activate code-edit
-pip3 install torch torchvision torchaudio transformers retriv
+conda install python=3.10.13
+python -m pip install torch torchvision torchaudio transformers retriv flask tqdm bleu
 ```
 7. Switch to the extension directory, then install node modules.
 ```

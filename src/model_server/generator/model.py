@@ -6,6 +6,9 @@ import torch.nn as nn
 import torch
 from torch.autograd import Variable
 import copy
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 class Seq2Seq(nn.Module):
     """
         Build Seqence-to-Sequence.
@@ -52,6 +55,7 @@ class Seq2Seq(nn.Module):
                                    self.encoder.embeddings.word_embeddings)  
                                    
     def forward(self, source_ids=None,source_mask=None,target_ids=None,target_mask=None,args=None):   
+        global device
         outputs = self.encoder(source_ids, attention_mask=source_mask)
         encoder_output = outputs[0].permute([1,0,2]).contiguous()
         if target_ids is not None:  
@@ -74,7 +78,7 @@ class Seq2Seq(nn.Module):
         else:
             #Predict 
             preds=[]       
-            zero=torch.cuda.LongTensor(1).fill_(0)     
+            zero=torch.cuda.LongTensor(1).fill_(0) if torch.cuda.is_available() else torch.LongTensor(1).fill_(0)   
             for i in range(source_ids.shape[0]):
                 context=encoder_output[:,i:i+1]
                 context_mask=source_mask[i:i+1,:]
@@ -107,7 +111,7 @@ class Seq2Seq(nn.Module):
 class Beam(object):
     def __init__(self, size,sos,eos):
         self.size = size
-        self.tt = torch.cuda
+        self.tt = torch.cuda if torch.cuda.is_available() else torch
         # The score for each translation on the beam.
         self.scores = self.tt.FloatTensor(size).zero_()
         # The backpointers at each time-step.
