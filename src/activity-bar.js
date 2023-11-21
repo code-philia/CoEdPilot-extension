@@ -22,41 +22,45 @@ class FileNodeProvider {
         return element;
     }
 
-    // Structure of modList should be like
-    // {
-    //     "atLine": [
-    //         11
-    //     ],
-    //     "editType": "add",
-    //     "endPos": 386,
-    //     "lineBreak": "\r\n",
-    //     "prevEdits": [
-    //         {
-    //             "afterEdit": "export { BaseComponent as Component } from './component';",
-    //             "beforeEdit": "export { Component } from './component';"
-    //         }
-    //     ],
-    //     "startPos": 334,
-    //     "targetFilePath": "c:/Users/aaa/Desktop/page.js/compat/src/PureComponent.js",
-    //     "toBeReplaced": "PureComponent.prototype.isPureReactComponent = true;"
-    // },
-    // Construct Mod Tree:
-    // {
-    //     "files": [
-    //         {
-    //             "fileName": "",
-    //             "filePath": "",
-    //             "mods": [
-    //                 {
-    //                     "atLine": 0,
-    //                     "start": 0,
-    //                     "end": 0,
-    //                     "toBeReplaced": ""
-    //                 }
-    //             ]
-    //         }, ...
-    //     ]
-    // }
+    /**
+     * Structure of modList should be like
+     * {
+     *     "atLine": [
+     *         11
+     *     ],
+     *     "editType": "add",
+     *     "endPos": 386,
+     *     "lineBreak": "\r\n",
+     *     "prevEdits": [
+     *         {
+     *             "afterEdit": "export { BaseComponent as Component } from './component';",
+     *             "beforeEdit": "export { Component } from './component';"
+     *         }
+     *     ],
+     *     "startPos": 334,
+     *     "targetFilePath": "c:/Users/aaa/Desktop/page.js/compat/src/PureComponent.js",
+     *     "toBeReplaced": "PureComponent.prototype.isPureReactComponent = true;"
+     * },
+     * 
+     * Construct Mod Tree:
+     * {
+     *     "files": [
+     *         {
+     *             "fileName": "",
+     *             "filePath": "",
+     *             "mods": [
+     *                 {
+     *                     "atLine": 0,
+     *                     "start": 0,
+     *                     "end": 0,
+     *                     "toBeReplaced": ""
+     *                 }
+     *             ]
+     *         }, ...
+     *     ]
+     * }
+     */
+    
     
     transformModTree(modList) {
         const categorizeByAttr = (arr, attr) => 

@@ -101,18 +101,18 @@ async function basic_query(suffix, json_obj) {
 }
 
 async function query_discriminator(json_obj) {
-    return await basic_query("discriminator", json_obj);
-    // return await MockBackend.disc_res();
+    // return await basic_query("discriminator", json_obj);
+    return await MockBackend.disc_res();
 }
 
 async function query_locator(json_obj) {
-    return await basic_query("range", json_obj);
-    // return await MockBackend.loc_res();
+    // return await basic_query("range", json_obj);
+    return await MockBackend.loc_res();
 }
 
 async function query_generator(json_obj) {
-    return await basic_query("content", json_obj);
-    // return await MockBackend.gen_res();
+    // return await basic_query("content", json_obj);
+    return await MockBackend.gen_res();
 }
 
 module.exports = {

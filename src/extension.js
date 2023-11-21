@@ -5,9 +5,9 @@ const fs = require('fs');
 const path = require('path');
 const vscode = require('vscode');
 const glob = require('glob');
-const { FileNodeProvider } = require('./ActivityBar')
 
-const { query_discriminator, query_locator, query_generator } = require('./ModelClient');
+const { FileNodeProvider } = require('./activity-bar')
+const { query_discriminator, query_locator, query_generator } = require('./model-client');
 
 // ------------ Hyper-parameters ------------
 let fgcolor1 = '#000';
