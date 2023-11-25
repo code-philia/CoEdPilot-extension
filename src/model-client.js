@@ -13,8 +13,8 @@ const pyServerPath = path.join(srcDir, 'model_server', "server.py");
 class ModelServerProcess{
     constructor() {
         this.ip = 'localhost';
-        this.port = '5004';
-        this.setup();
+        this.port = '5013';
+        // this.setup();
     }
 
     setup() {
@@ -69,50 +69,34 @@ class ModelServerProcess{
 const res_jsons = JSON.parse(fs.readFileSync(path.join(srcDir, '../mock/mock_json_res.json'), { encoding:'utf-8' }));
 
 class MockBackend {
-    static disc_res_json = res_jsons['disc'];
-    static loc_res_json = res_jsons['loc'];
-    static gen_res_json = res_jsons['gen'];
-
-    static async delayed_res(json_obj) {
+    static async delayed_res(res_type) {
         await new Promise(resolve => {
             setTimeout(resolve, 1000);
         })
-        return JSON.parse(JSON.stringify(json_obj)); // shallow clone necessary here
-    }
-
-    static async disc_res() {
-        return await this.delayed_res(this.disc_res_json);
-    }
-
-    static async loc_res() {
-        return await this.delayed_res(this.loc_res_json);
-    }
-
-    static async gen_res() {
-        return await this.delayed_res(this.gen_res_json);
+        return JSON.parse(JSON.stringify(res_jsons[res_type])); // deep clone necessary here
     }
 }
 
 const modelServerProcess = new ModelServerProcess();
 
 async function basic_query(suffix, json_obj) {
-    fs.writeFileSync('../backend_request.json', JSON.stringify(json_obj), {flag: 'a'});
+    // fs.writeFileSync('../backend_request.json', JSON.stringify(json_obj), {flag: 'a'});
     return await modelServerProcess.sendPostRequest(suffix, json_obj);
 }
 
 async function query_discriminator(json_obj) {
     // return await basic_query("discriminator", json_obj);
-    return await MockBackend.disc_res();
+    return await MockBackend.delayed_res('disc');
 }
 
 async function query_locator(json_obj) {
     // return await basic_query("range", json_obj);
-    return await MockBackend.loc_res();
+    return await MockBackend.delayed_res('loc');
 }
 
 async function query_generator(json_obj) {
     // return await basic_query("content", json_obj);
-    return await MockBackend.gen_res();
+    return await MockBackend.delayed_res('gen');
 }
 
 module.exports = {

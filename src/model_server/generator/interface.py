@@ -156,14 +156,30 @@ def predict(json_input):
     Function: interface between generator and VScode extension
     Args: input, dictionary
         { 
-            "files": list, [[filePath, fileContent], ...],
-            "targetFilePath": string filePath,
-            "commitMessage": string, commit message,
-            "editType": str, the type of edit,
-            "prevEdits": list, of previous edits, each in format: {"beforeEdit":"", "afterEdit":""},
-            "startPos": int, start position,
-            "endPos": int, end position,
-            "atLine": list, of edit line indices
+            "files":            list, [[filePath, fileContent], ...], used to extract target file
+            "targetFilePath":   string, absolute filePath, used to extract target file
+            "commitMessage":    string, commit message,
+            "editType":         str, the type of edit,
+            "prevEdits":        list, of previous edits, each in format: {"beforeEdit":"", "afterEdit":""},
+            "startPos":         int, start position, calculated from `atLine`
+            "endPos":           int, end position, calculated from `atLine`
+            "atLine":           list, of edit line indices
+        }
+    Return: dictionary
+        {
+            "data": 
+            {
+                "editType":     string, "replace", "add" or "delete",
+                "startPos":     int, starting position of the replacement,
+                "endPos":       int, ending position of the replacement,
+                "replacement":  [string], list of replacing candidates,
+                "targetFilePath":   string, absolute path of target file
+            }
+            "input":
+            [
+                string,     the whole file content
+                [string],   line marks, "keep", "replace", "add" or "delete"
+            ]    
         }
     '''
     global model, tokenizer, device

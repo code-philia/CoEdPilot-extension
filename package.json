@@ -22,6 +22,31 @@
       {
         "command": "extension.inputMessage",
         "title": "Enter edit description"
+      },
+      {
+        "title": "Last Suggestion",
+        "category": "Edit Pilot",
+        "command": "edit-pilot.last-suggestion",
+        "icon": "$(arrow-left)",
+        "enablement": "false"
+      },
+      {
+        "title": "Next Suggestion",
+        "category": "Edit Pilot",
+        "command": "edit-pilot.next-suggestion",
+        "icon": "$(arrow-right)"
+      },
+      {
+        "title": "Accept",
+        "category": "Edit Pilot",
+        "command": "edit-pilot.accept-edit",
+        "icon": "$(pass)"
+      },
+      {
+        "title": "Dismiss",
+        "category": "Edit Pilot",
+        "command": "edit-pilot.dismiss-edit",
+        "icon": "$(trash)"
       }
     ],
     "menus": {
@@ -30,6 +55,28 @@
           "when": "editorFocus",
           "command": "extension.inputMessage",
           "group": "code_suggestion@1"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "edit-pilot.last-suggestion",
+          "group": "navigation@-101",
+          "when": "isInDiffEditor"
+        },
+        {
+          "command": "edit-pilot.next-suggestion",
+          "group": "navigation@-101",
+          "when": "isInDiffEditor"
+        },
+        {
+          "command": "edit-pilot.accept-edit",
+          "group": "navigation@-101",
+          "when": "isInDiffEditor"
+        },
+        {
+          "command": "edit-pilot.dismiss-edit",
+          "group": "navigation@-101",
+          "when": "isInDiffEditor"
         }
       ]
     },
@@ -74,6 +121,7 @@
     "typescript": "^5.0.4"
   },
   "dependencies": {
+    "diff": "^5.1.0",
     "vscode-languageserver": "^8.1.0"
   }
 }

@@ -174,24 +174,29 @@ def predict(json_input):
     Function: interface between locator and VScode extension
     Args:
         input: dictionary
-        {
-            "files": list, [[filePath, fileContent], ...],
-            "targetFilePath": str, filePath,
-            "commitMessage": str, commit message,
-            "prevEdits": list, of previous edits, each in format: {"beforeEdit": string, "afterEdit":string}
-        }
+            {
+                "files": list, [[filePath, fileContent], ...],
+                "targetFilePath": str, filePath,
+                "commitMessage": str, commit message,
+                "prevEdits": list, of previous edits, each in format: {"beforeEdit": string, "afterEdit":string}
+            }
     Returns:
         output: dictionary
-        {
-            "data": , [ {   "targetFilePath": str, filePath,
-                            "prevEdits": list, of previous edits, each in format: {"beforeEdit":"", "afterEdit":""},
-                            "toBeReplaced": str, the content to be replaced,
-                            "startPos": int, start position of the word,
-                            "endPos": int, end position of the word,
-                            "editType": str, the type of edit, add or replace,
-                            "lineBreak": str, '\n', '\r' or '\r\n',
-                            "atLine": list, of the lineInx of the to be replaced code }, ...]
-        }
+            {
+                "data": [ 
+                    {   
+                        "targetFilePath": str, filePath,
+                        "prevEdits": list, of previous edits, each in format: {"beforeEdit":"", "afterEdit":""},
+                        "toBeReplaced": str, the content to be replaced,
+                        "startPos": int, start position of the word,
+                        "endPos": int, end position of the word,
+                        "editType": str, the type of edit, add or replace,
+                        "lineBreak": str, '\n', '\r' or '\r\n',
+                        "atLine": list, of the lineInx of the to be replaced code 
+                    }, 
+                    ...
+                ]
+            }
     '''
     global model, tokenizer, device
 
