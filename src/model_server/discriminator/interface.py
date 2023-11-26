@@ -6,6 +6,7 @@ from tqdm import tqdm
 from retriv import SearchEngine
 from torch.utils.data import DataLoader, TensorDataset
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from perf import Stopwatch
 
 current_file_path = os.path.dirname(os.path.abspath(__file__))
 # model_name = os.path.join(current_file_path, 'pytorch_model.bin')
@@ -14,8 +15,6 @@ model_name = r"C:\Users\aaa\Desktop\models\discriminator\pytorch_model.bin"
 model = None
 tokenizer = None
 device = None
-
-
 
 def is_model_cached():
     global tokenizer, model, device
@@ -113,11 +112,14 @@ def predict(json_input):
             }
     '''
     global model, tokenizer, device
+    stopwatch = Stopwatch()
 
+    stopwatch.start()
     # check model cache
     if not is_model_cached():
+        print('+++ loading generator model')
         load_model_cache()
-
+    stopwatch.lap('load model')
 
     # 0. remove targetFilePath from input["files"]
     for i in range(len(json_input["files"])):
@@ -131,7 +133,8 @@ def predict(json_input):
         d = {"id": filePath, "text": fileContent}
         collection.append(d)
     searchEngine = SearchEngine("new_index").index(collection)
-
+    stopwatch.lap('build code collection')
+    
     # 2. Detech which file contain similar content to previous edits
     # store files that exist code clone into codeCloneFilePaths
     queries = []
@@ -150,6 +153,7 @@ def predict(json_input):
         print("Traceback:")
         traceback.print_exc()
         codeCloneFilePaths = []
+    stopwatch.lap('find clone file paths')
 
     # 3. prepare input (string format)
     model_inputs = []
@@ -160,6 +164,7 @@ def predict(json_input):
             cloneBoolean = "False"
         model_input = ' </s> '.join([cloneBoolean, json_input["targetFilePath"], filePath, json_input["commitMessage"]])
         model_inputs.append(model_input)
+    stopwatch.lap('assemble input text')
 
     # 4. load model
 
@@ -167,6 +172,7 @@ def predict(json_input):
     batch_size = 128
     test_set = load_data(model_inputs, tokenizer)
     test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=False)
+    stopwatch.lap('prepare data loader')
 
     # 6. inference
     model.eval()
@@ -176,11 +182,15 @@ def predict(json_input):
         outputs = model(input_ids=batch_input, attention_mask=attention_mask)
         preds.append(outputs.detach().cpu())
     model_outputs = (torch.cat(preds, dim=0) >= 0.5).numpy()
+    stopwatch.lap('infer result')
 
     # 7. prepare output
     output = {"data": []}
     for idx, model_output in enumerate(model_outputs):
         if model_output == 1:
             output["data"].append(json_input["files"][idx][0])
+    stopwatch.lap('post-process result')
+    print("+++ Discriminator profiling:")
+    stopwatch.print_result()
 
     return output

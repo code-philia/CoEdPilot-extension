@@ -4,9 +4,6 @@
 import torch
 import torch.nn as nn
 import torch
-from torch.autograd import Variable
-import copy
-from transformers import AutoTokenizer, RobertaForSequenceClassification
 class Seq2Seq(nn.Module):
     """
         Build Seqence-to-Sequence.

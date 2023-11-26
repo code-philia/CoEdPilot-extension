@@ -18,10 +18,11 @@ def run_discriminator():
     json_str = request.data.decode('utf-8')
     input_json = json.loads(json_str)
 
-    print(f">>> Discriminator inferencing: \n${json.dumps(input_json, indent=4)}")
+    # print(f">>> Discriminator inferencing: \n${json.dumps(input_json, indent=4)}")
     result = disc_predict(input_json)
 
-    print(f">>> Discriminator sending output: \n${json.dumps(result, indent=4)}")
+    # print(f">>> Discriminator sending output: \n${json.dumps(result, indent=4)}")
+    print(f">>> Discriminator sending output")
     return make_plain_text_response(result)
 
 @app.route('/range', methods=['POST'])
@@ -30,22 +31,24 @@ def run_range():
     json_str = request.data.decode('utf-8')
     input_json = json.loads(json_str)
     
-    print(f">>> Locator inferencing: \n${json.dumps(input_json, indent=4)}")
+    # print(f">>> Locator inferencing: \n${json.dumps(input_json, indent=4)}")
     result = loc_predict(input_json)
 
-    print(f">>> Locator sending output: \n${json.dumps(result, indent=4)}")
+    # print(f">>> Locator sending output: \n${json.dumps(result, indent=4)}")
+    print(f">>> Locator sending output")
     return make_plain_text_response(result)
 
 @app.route('/content', methods=['POST'])
 def run_content():
-    print(">>> Running editor")
+    print(">>> Running generator")
     json_str = request.data.decode('utf-8')
     input_json = json.loads(json_str)
 
-    print(f">>> Editor inferencing: \n${json.dumps(input_json, indent=4)}")
+    # print(f">>> Editor inferencing: \n${json.dumps(input_json, indent=4)}")
     result = gen_predict(input_json)
     
-    print(f">>> Editor sending output: \n${json.dumps(result, indent=4)}")
+    # print(f">>> Editor sending output: \n${json.dumps(result, indent=4)}")
+    print(f">>> Generator sending output")
     return make_plain_text_response(result)
 
 if __name__ == '__main__':

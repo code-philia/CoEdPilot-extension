@@ -1,14 +1,13 @@
-import os
 import bleu
 import torch
 import logging
 import warnings
-from io import open
 import torch.nn as nn
 from .model import Seq2Seq
 from tqdm import tqdm
 from torch.utils.data import DataLoader, SequentialSampler, TensorDataset
 from transformers import (RobertaConfig, RobertaModel, RobertaTokenizer)
+from perf import Stopwatch
 
 MODEL_CLASSES = {'roberta': (RobertaConfig, RobertaModel, RobertaTokenizer)}
 logging.disable(logging.CRITICAL)
@@ -183,10 +182,14 @@ def predict(json_input):
         }
     '''
     global model, tokenizer, device
+    stopwatch = Stopwatch()
 
+    stopwatch.start()
     # check model cache
     if not is_model_cached():
+        print('+++ loading generator model')
         load_model_cache()
+    stopwatch.lap('load model')
 
     # 提取从 JavaScript 传入的参数
     files = json_input["files"]
@@ -218,7 +221,8 @@ def predict(json_input):
     # 获取 editRange 的上下文
     startLineIdx = max(0, editLineIdx[0]-contextLength)
     endLineIdx = min(targetFileLineNum, editLineIdx[-1]+contextLength+1)
-    
+    stopwatch.lap('pre-process arguments')
+
     # 把 editRange 的上下文和 editRange 的内容拼接成 codeWindow
     codeWindow = ''
     labels = []
@@ -232,6 +236,7 @@ def predict(json_input):
     model_input = codeWindow + ' </s> '  + commitMessage 
     for prevEdit in prevEdits:
         model_input += ' </s> remove ' + prevEdit["beforeEdit"] + ' add ' + prevEdit["afterEdit"]
+    stopwatch.lap('assemble input text')
 
     # prepare model input (tensor format)
     batch_size=1
@@ -243,12 +248,13 @@ def predict(json_input):
 
     eval_sampler = SequentialSampler(eval_data)
     eval_dataloader = DataLoader(eval_data, sampler=eval_sampler, batch_size=batch_size)
+    stopwatch.lap('prepare data loader')
 
     # run model
     replacements=[]
     for batch in tqdm(eval_dataloader,total=len(eval_dataloader)):
         batch = tuple(t.to(device) for t in batch)
-        source_ids,source_mask= batch                  
+        source_ids,source_mask = batch                  
         with torch.no_grad():
             preds = model(source_ids=source_ids,source_mask=source_mask)  
             for pred in preds[0]: # batch_size=1
@@ -258,9 +264,13 @@ def predict(json_input):
                     t=t[:t.index(0)]
                 text = tokenizer.decode(t,clean_up_tokenization_spaces=False)
                 replacements.append(text)
+    stopwatch.lap('infer result')
 
     if editType == 'add':
         replacements = [targetFileLines[editLineIdx[0]] + replacement for replacement in replacements]
 
     result["replacement"] = replacements
+    stopwatch.lap('post-process result')
+    print("+++ Generator profiling:")
+    stopwatch.print_result()
     return {"data": result, "input": (model_input, labels)}

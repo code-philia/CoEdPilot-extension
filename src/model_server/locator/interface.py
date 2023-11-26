@@ -1,12 +1,10 @@
-import os
 import torch
-import json
-from io import open
 import math
 from .model import Seq2Seq
 from tqdm import tqdm
 from torch.utils.data import DataLoader, SequentialSampler, TensorDataset
 from transformers import (RobertaConfig, RobertaModel, RobertaTokenizer)
+from perf import Stopwatch
 
 codeWindowLength = 10
 # current_file_path = os.path.dirname(os.path.abspath(__file__))
@@ -199,10 +197,14 @@ def predict(json_input):
             }
     '''
     global model, tokenizer, device
+    stopwatch = Stopwatch()
 
+    stopwatch.start()
     # check model cache
     if not is_model_cached():
+        print('+++ loading generator model')
         load_model_cache()
+    stopwatch.lap('load model')
 
     # 提取从 JavaScript 传入的参数
     files = json_input["files"]
@@ -234,7 +236,8 @@ def predict(json_input):
             for prevEdit in prevEdits:
                 model_input +=' </s> replace ' + prevEdit["beforeEdit"] + ' add ' + prevEdit["afterEdit"]
             model_inputs.append(model_input)
-            
+        stopwatch.lap_by_task('assemble input text')
+
         # prepare model input (tensor format)
         examples=read_examples(model_inputs)
         eval_features=convert_examples_to_features(examples, tokenizer, stage='test')
@@ -265,7 +268,9 @@ def predict(json_input):
 
         if len(preds) != targetFileLineNum:
             raise ValueError(f'The number of lines ({targetFileLineNum}) in the target file is not equal to the number of predictions ({len(preds)}).')
-        
+        stopwatch.lap_by_task('infer result')
+
+
         # get the edit range
         text = ''
         for i in range(targetFileLineNum):
@@ -291,6 +296,11 @@ def predict(json_input):
                 })
             
             text += targetFileLines[i]
+        stopwatch.lap_by_task('prepare result')
 
     results = merge_adjacent_removals(results)
+    stopwatch.lap('post-process result')
+    print("+++ Locator profiling:")
+    stopwatch.print_result()
+
     return {"data": results}
