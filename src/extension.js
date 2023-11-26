@@ -243,12 +243,12 @@ function refreshEditorState(editor) {
 	highlightModifications(modifications, editor);
 }
 
-const decorationTypeForAlter = vscode.window.createTextEditorDecorationType({
+const decorationStyleForAlter = vscode.window.createTextEditorDecorationType({
 	color: fgcolor1,
 	backgroundColor: bgcolor1
 });
 
-const decorationTypeForAdd = vscode.window.createTextEditorDecorationType({
+const decorationStyleForAdd = vscode.window.createTextEditorDecorationType({
 	color: fgcolor2,
 	backgroundColor: bgcolor2
 });
@@ -282,10 +282,10 @@ function highlightModifications(modifications, editor) {
 		}
 	}
 	// Apply decorations to editor
-	editor.setDecorations(decorationTypeForAlter, decorationsForAlter);
-	editor.setDecorations(decorationTypeForAdd, decorationsForAdd);
-	decorationTypeForAlter.dispose();
-	decorationTypeForAdd.dispose();
+	editor.setDecorations(decorationStyleForAlter, decorationsForAlter);
+	editor.setDecorations(decorationStyleForAdd, decorationsForAdd);
+	decorationStyleForAlter.dispose();
+	decorationStyleForAdd.dispose();
 }
 
 // glob files with specific patterns
@@ -352,28 +352,30 @@ function showModsInActivityBar(modificationList) {
 	vscode.commands.executeCommand('editPilot.refreshEditPoints', modificationList);
 }
 
-async function predictLocation(rootPath, files, prevEdits, editor) {
+async function predictLocation(rootPath, files, prevEdits) {
 	/* 
-		The input to the discriminator Python script is a dictionary in the following format:
-		  {
+		Discriminator:
+		input:
+		{
 			"rootPath": str, rootPath,
-				"files": list, [[filePath, fileContent], ...],
-				"targetFilePath": str, filePath
-			}
-		The output of the discriminator Python script is a dictionary in the following format:
-		  {
-			"data": list, [[filePath, fileContent], ...]
-			}
-	
-		The input to the locator Python script is a dictionary in the following format:
-		  {
 			"files": list, [[filePath, fileContent], ...],
-				"targetFilePath": str, filePath,
-				"commitMessage": str, commit message,
-				"prevEdits": list, of previous edits, each in format: {"beforeEdit":"", "afterEdit":""}
-			}
-		The output of the locator Python script is a dictionary in the following format:
-		  {
+			"targetFilePath": str, filePath
+		}
+		output:
+		{
+			"data": list, [[filePath, fileContent], ...]
+		}
+	
+		Locator:
+		input:
+		{
+			"files": list, [[filePath, fileContent], ...],
+			"targetFilePath": str, filePath,
+			"commitMessage": str, commit message,
+			"prevEdits": list, of previous edits, each in format: {"beforeEdit":"", "afterEdit":""}
+		}
+		output:
+		{
 			"data": 
 			[ 
 				{ 
@@ -390,7 +392,7 @@ async function predictLocation(rootPath, files, prevEdits, editor) {
 		}
 	 */
 	const activeFilePath = toPosixPath(
-		path.relative(rootPath, getActiveFile(editor))
+		path.relative(rootPath, getActiveFile(vscode.window.activeTextEditor))
 	);
 
 	for (var single_file of files) {
@@ -447,7 +449,7 @@ async function predictLocation(rootPath, files, prevEdits, editor) {
 		for (const mod of modifications) {
 			mod.targetFilePath = toPosixPath(path.join(rootPath, mod.targetFilePath));
 		}
-		highlightModifications(modifications, editor);
+		highlightModifications(modifications, vscode.window.activeTextEditor);
 		// showModificationWebview(modifications);
 		showModsInActivityBar(modifications);
 	} catch (error) {
@@ -456,28 +458,32 @@ async function predictLocation(rootPath, files, prevEdits, editor) {
 }
 
 async function predictEdit(modification) {
-	/*
-	* The input to the Python script is a dictionary in the following format:
-	* { 
-	*   "files": list, [[filePath, fileContent], ...],
-	*   "targetFilePath": string filePath,
-	*   "commitMessage": string, commit message,
-	*   "editType": string, edit type,
-	*   "prevEdits": list, of previous edits, each in format: {"beforeEdit":"", "afterEdit":""},
-	*   "startPos": int, start position,
-	*   "endPos": int, end position,
-	  *   "atLine": list, of edit line indices
-	* }
-	* The output of the Python script is a dictionary in the following format:
-	* {"data": 
-	*   { "targetFilePath": string, filePath of target file,
-	*     "editType": string, 'remove', 'add'
-	*     "startPos": int, start position,
-	*     "endPos": int, end position,
-	*     "replacement": list of strings, replacement content   
-	*   }
-	* }
+	/* 	
+		Generator:
+		input:
+		{ 
+			"files": list, [[filePath, fileContent], ...],
+			"targetFilePath": string filePath,
+			"commitMessage": string, commit message,
+			"editType": string, edit type,
+			"prevEdits": list, of previous edits, each in format: {"beforeEdit":"", "afterEdit":""},
+			"startPos": int, start position,
+			"endPos": int, end position,
+			"atLine": list, of edit line indices
+		}
+		output:
+		{
+			"data": 
+			{ 
+				"targetFilePath": string, filePath of target file,
+				"editType": string, 'remove', 'add'
+				"startPos": int, start position,
+				"endPos": int, end position,
+				"replacement": list of strings, replacement content   
+			}
+		} 
 	*/
+	
 	let files = getRootAndFiles()[1];
 	const editor = vscode.window.activeTextEditor;
 
@@ -536,30 +542,41 @@ function pushEdit(item) {
 	}
 }
 
+//	Try updating prevEdits
+// 	If there's new edits return prevEdits
+//  Else return null
+function getPrevEdits(event) {
+	const line = event.selections[0].active.line;
+	currCursorAtLine = line + 1; // VScode API starts counting lines from 0, while our line numbers start from 1, note the +- 1
+	console.log(`==> Cursor position: Line ${prevCursorAtLine} -> ${currCursorAtLine}`);
+	currSnapshot = vscode.window.activeTextEditor.document.getText(); // Read the current text in the editor
+	if (prevCursorAtLine != currCursorAtLine && prevCursorAtLine != 0) { // When the pointer changes position and is not at the first position in the editor
+		let edition = detectEdit(prevSnapshot, currSnapshot); // Detect changes compared to the previous snapshot
+
+		if (edition.beforeEdit != edition.afterEdit) {
+			// Add the modification to prevEdit
+			pushEdit(edition);
+			console.log('==> Before edit:\n', edition.beforeEdit);
+			console.log('==> After edit:\n', edition.afterEdit);
+			prevSnapshot = currSnapshot;		
+			return prevEdits;
+		}
+		prevCursorAtLine = currCursorAtLine; // Update the line number where the mouse pointer is located
+		return null;
+	}
+	return null;
+}
+
 async function handleEditEvent(event) {
 	if (editLock) return;
 	editLock = true;
 	try {
-
-		const line = event.selections[0].active.line;
-		currCursorAtLine = line + 1; // VScode API starts counting lines from 0, while our line numbers start from 1, note the +- 1
-		console.log(`==> Cursor position: Line ${prevCursorAtLine} -> ${currCursorAtLine}`);
-		currSnapshot = vscode.window.activeTextEditor.document.getText(); // Read the current text in the editor
-		if (prevCursorAtLine != currCursorAtLine && prevCursorAtLine != 0) { // When the pointer changes position and is not at the first position in the editor
-			let edition = detectEdit(prevSnapshot, currSnapshot); // Detect changes compared to the previous snapshot
-
-			if (edition.beforeEdit != edition.afterEdit) {
-				// Add the modification to prevEdit
-				pushEdit(edition);
-				console.log('==> Before edit:\n', edition.beforeEdit);
-				console.log('==> After edit:\n', edition.afterEdit);
-				prevSnapshot = currSnapshot;
-				console.log('==> Send to LLM (After cursor changed line)');
-				let [rootPath, files] = getRootAndFiles();
-				await predictLocation(rootPath, files, prevEdits, vscode.window.activeTextEditor);
-			}
+		console.log('==> Send to LLM (After cursor changed line)');
+		const [rootPath, files] = getRootAndFiles();
+		const currentPrevEdits = getPrevEdits(event);
+		if (currentPrevEdits) {
+			await predictLocation(rootPath, files, currentPrevEdits);
 		}
-		prevCursorAtLine = currCursorAtLine; // Update the line number where the mouse pointer is located
 	} finally {
 		editLock = false;
 	}
@@ -581,7 +598,7 @@ async function predictAfterQuickFix(text) {
 			prevSnapshot = currSnapshot;
 			console.log('==> Send to LLM (After apply QucikFix)');
 			let [rootPath, files] = getRootAndFiles();
-			await predictLocation(rootPath, files, prevEdits, vscode.window.activeTextEditor);
+			await predictLocation(rootPath, files, prevEdits);
 		}
 		prevCursorAtLine = currCursorAtLine; // Update the line number where the mouse pointer is located
 	} finally {
@@ -633,107 +650,112 @@ function clearUpModsAndHighlights(editor) {
 }
 
 function activate(context) {
-	console.log('==> Congratulations, your extension is now active!');
 	vscode.workspace.registerFileSystemProvider("temp", globalTempFileProvider, { isReadonly: true });
 
-	/*----------------------- Monitor edit behavior --------------------------------*/
+	function registerDisposables(...disposables) {
+		context.subscriptions.push(...disposables);
+	}
+	
+	function registerCommand(command, callback) {
+		context.subscriptions.push(
+			vscode.commands.registerCommand(command, callback)
+		);
+	}
+
 	// When there is a default activeTextEditor opened in VSCode, automatically read the current text content as prevSnapshot
 	prevSnapshot = vscode.window.activeTextEditor.document.getText();
 	currSnapshot = vscode.window.activeTextEditor.document.getText(); // Read the current text in the editor
+	
+	/*----------------------- Monitor edit behavior --------------------------------*/
 
-	// DEBUGGING
-	// handleEditEvent();
-
-	context.subscriptions.push(
+	registerDisposables(
 		vscode.window.onDidChangeActiveTextEditor(refreshEditorState),      	// Register an event listener that triggers when the editor is switched and initializes global variables
 		vscode.window.onDidChangeTextEditorSelection(handleEditEvent)			// Register an event listener that listens for changes in cursor position
 	);
 
 	/*----------------------- Provide QuickFix feature -----------------------------*/
 	// Register CodeAction Provider to provide QuickFix for the modification position returned by the Python script
-	const codeActionsProvider = vscode.languages.registerCodeActionsProvider({ scheme: 'file' }, {
-		async provideCodeActions(document, range) {
-			const newmodification = await predictEditAtRange(document, range);
+	registerDisposables(
+		vscode.languages.registerCodeActionsProvider({ scheme: 'file' }, {
+			async provideCodeActions(document, range) {
+				const newmodification = await predictEditAtRange(document, range);
 
-			if (!newmodification || newmodification.targetFilePath != currFile)
-				return [];
-			
-			newmodification
-			const diagnosticRange = new vscode.Range(document.positionAt(newmodification.startPos), document.positionAt(newmodification.endPos));
+				if (!newmodification || newmodification.targetFilePath != currFile)
+					return [];
+				
+				const diagnosticRange = new vscode.Range(document.positionAt(newmodification.startPos), document.positionAt(newmodification.endPos));
 
-			const codeActions = newmodification.replacement.map(replacement => {
-				// Create a diagnostic
-				const diagnostic = new vscode.Diagnostic(diagnosticRange, 'Replace with: ' + replacement, vscode.DiagnosticSeverity.Hint);
-				diagnostic.code = 'replaceCode';
+				const codeActions = newmodification.replacement.map(replacement => {
+					// Create a diagnostic
+					const diagnostic = new vscode.Diagnostic(diagnosticRange, 'Replace with: ' + replacement, vscode.DiagnosticSeverity.Hint);
+					diagnostic.code = 'replaceCode';
 
-				// Create a QuickFix
-				const codeAction = new vscode.CodeAction(replacement, vscode.CodeActionKind.QuickFix);
-				codeAction.diagnostics = [diagnostic];
-				codeAction.isPreferred = true;
+					// Create a QuickFix
+					const codeAction = new vscode.CodeAction(replacement, vscode.CodeActionKind.QuickFix);
+					codeAction.diagnostics = [diagnostic];
+					codeAction.isPreferred = true;
 
-				// Create WorkspaceEdit
-				const edit = new vscode.WorkspaceEdit();
-				const replaceRange = new vscode.Range(document.positionAt(newmodification.startPos), document.positionAt(newmodification.endPos));
-				edit.replace(document.uri, replaceRange, replacement);
-				codeAction.edit = edit;
+					// Create WorkspaceEdit
+					const edit = new vscode.WorkspaceEdit();
+					const replaceRange = new vscode.Range(document.positionAt(newmodification.startPos), document.positionAt(newmodification.endPos));
+					edit.replace(document.uri, replaceRange, replacement);
+					codeAction.edit = edit;
 
-				codeAction.command = {
-					command: 'extension.applyFix',
-					title: '',
-					arguments: [],
-				};
+					codeAction.command = {
+						command: 'extension.applyFix',
+						title: '',
+						arguments: [],
+					};
 
-				return codeAction;
-			})
+					return codeAction;
+				})
 
-			const selector = new EditSelector(currFile, newmodification.startPos, newmodification.endPos, newmodification.replacement);
-			await selector.init();
-			await selector.editedDocumentAndShowDiff();
+				const selector = new EditSelector(currFile, newmodification.startPos, newmodification.endPos, newmodification.replacement);
+				await selector.init();
+				await selector.editedDocumentAndShowDiff();
 
-			return codeActions;
-		}
-	});
+				return codeActions;
+			}
+		})
+	);
 
-	const applyFixCmd = vscode.commands.registerCommand('extension.applyFix', async () => {
+	registerCommand('extension.applyFix', async () => {
 		console.log('==> applyFix');
 		const editor = vscode.window.activeTextEditor;
 		if (editor) {
 			clearUpModsAndHighlights(editor);
 			await predictAfterQuickFix(editor.document.getText());
 		}
-	})
-
-	context.subscriptions.push(
-		codeActionsProvider,
-		applyFixCmd
-	);
+	});
 
 	/*----------------------- Edit description input box --------------------------------*/
 	const inputBox = vscode.window.createInputBox();
 	inputBox.prompt = 'Enter edit description';
 	inputBox.ignoreFocusOut = true; // The input box will not be hidden after losing focus
 
-	const inputMsgCmd = vscode.commands.registerCommand('extension.inputMessage', async function () {
+	registerCommand('extension.inputMessage', async function () {
 		console.log('==> Edit description input box is displayed')
 		inputBox.show();
 	});
 
-	const inputBoxAcceptEvent = inputBox.onDidAccept(() => { // After the user presses Enter to confirm the commit message, recommend the edit range
-		if (editLock) return;
-		editLock = true;
-		const userInput = inputBox.value;
-		console.log('==> Edit description:', userInput);
-		commitMessage = userInput;
-		let [rootPath, files] = getRootAndFiles();
-		predictLocation(rootPath, files, prevEdits, vscode.window.activeTextEditor).then(() => {
-			editLock = false;
-		}, () => {
-			editLock = false;
-		});
-		inputBox.hide();
-	});
+	registerDisposables(
+		inputBox.onDidAccept(async () => { // After the user presses Enter to confirm the commit message, recommend the edit range
+			if (editLock) return;
+			editLock = true;
+			const userInput = inputBox.value;
+			console.log('==> Edit description:', userInput);
+			commitMessage = userInput;
+			let [rootPath, files] = getRootAndFiles();
+			inputBox.hide();
+			try {
+				await predictLocation(rootPath, files, prevEdits);
+			} finally {
+				editLock = false;
+			}
+		})
+	);
 
-	const openFileAtLineCmd = vscode.commands.registerCommand('editPilot.openFileAtLine', async (filePath, lineNum) => {
+	registerCommand('editPilot.openFileAtLine', async (filePath, lineNum) => {
 		const uri = vscode.Uri.file(filePath); // Replace with dynamic file path
 
 		try {
@@ -747,41 +769,33 @@ function activate(context) {
 		}
 	});
 
-	context.subscriptions.push(
-		inputMsgCmd,
-		inputBoxAcceptEvent,
-		openFileAtLineCmd
-	);
-
 	/*----------------------- Activity Bar Container for Edit Points --------------------------------*/
 	const fileNodeProvider = new FileNodeProvider();
-	const editPointsProv = vscode.window.registerTreeDataProvider('editPoints', fileNodeProvider);
-	const refreshEditPointsCmd = vscode.commands.registerCommand('editPilot.refreshEditPoints', modList => fileNodeProvider.refresh(modList));
+	registerDisposables(
+		vscode.window.registerTreeDataProvider('editPoints', fileNodeProvider)
+	);
 
-	context.subscriptions.push(
-		editPointsProv,
-		refreshEditPointsCmd
-	)
+	registerCommand('editPilot.refreshEditPoints', modList => fileNodeProvider.refresh(modList));
 
-	const lastSuggestionCmd = vscode.commands.registerCommand("edit-pilot.last-suggestion", () => {
+	registerCommand("edit-pilot.last-suggestion", () => {
 		const currTab = vscode.window.tabGroups.activeTabGroup.activeTab;
 		const selector = globalDiffTabSelectors[currTab];
 		selector && selector.switchEdit(-1);
 	 });
-	const nextSuggestionCmd = vscode.commands.registerCommand("edit-pilot.next-suggestion", () => {
+	registerCommand("edit-pilot.next-suggestion", () => {
 		const currTab = vscode.window.tabGroups.activeTabGroup.activeTab;
 		const selector = globalDiffTabSelectors[currTab];
 		selector && selector.switchEdit(1);
 	 });
-	const acceptEditCmd = vscode.commands.registerCommand("edit-pilot.accept-edit", () => { });
-	const dismissEditCmd = vscode.commands.registerCommand("edit-pilot.dismiss-edit", () => { });
-
+	registerCommand("edit-pilot.accept-edit", () => { });
+	registerCommand("edit-pilot.dismiss-edit", () => { });
+	console.log('==> Congratulations, your extension is now active!');
 }
 
 function deactivate() {
 	// Clear the decorator
-	decorationTypeForAlter.dispose();
-	decorationTypeForAdd.dispose();
+	decorationStyleForAlter.dispose();
+	decorationStyleForAdd.dispose();
 }
 
 module.exports = {
