@@ -26,26 +26,26 @@
       {
         "title": "Last Suggestion",
         "category": "Edit Pilot",
-        "command": "edit-pilot.last-suggestion",
+        "command": "editPilot.last-suggestion",
         "icon": "$(arrow-left)",
         "enablement": "false"
       },
       {
         "title": "Next Suggestion",
         "category": "Edit Pilot",
-        "command": "edit-pilot.next-suggestion",
+        "command": "editPilot.next-suggestion",
         "icon": "$(arrow-right)"
       },
       {
         "title": "Accept",
         "category": "Edit Pilot",
-        "command": "edit-pilot.accept-edit",
+        "command": "editPilot.accept-edit",
         "icon": "$(pass)"
       },
       {
         "title": "Dismiss",
         "category": "Edit Pilot",
-        "command": "edit-pilot.dismiss-edit",
+        "command": "editPilot.dismiss-edit",
         "icon": "$(trash)"
       }
     ],
@@ -59,22 +59,22 @@
       ],
       "editor/title": [
         {
-          "command": "edit-pilot.last-suggestion",
+          "command": "editPilot.last-suggestion",
           "group": "navigation@-101",
           "when": "isInDiffEditor"
         },
         {
-          "command": "edit-pilot.next-suggestion",
+          "command": "editPilot.next-suggestion",
           "group": "navigation@-101",
           "when": "isInDiffEditor"
         },
         {
-          "command": "edit-pilot.accept-edit",
+          "command": "editPilot.accept-edit",
           "group": "navigation@-101",
           "when": "isInDiffEditor"
         },
         {
-          "command": "edit-pilot.dismiss-edit",
+          "command": "editPilot.dismiss-edit",
           "group": "navigation@-101",
           "when": "isInDiffEditor"
         }
@@ -83,14 +83,14 @@
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "edit-pilot",
+          "id": "editPilot",
           "title": "Edit Pilot",
           "icon": "media/reset_wrench.svg"
         }
       ]
     },
     "views": {
-      "edit-pilot": [
+      "editPilot": [
         {
           "id": "editPoints",
           "name": "Suggested Edits",

@@ -69,7 +69,7 @@ class ModelServerProcess{
 const res_jsons = JSON.parse(fs.readFileSync(path.join(srcDir, '../mock/mock_json_res.json'), { encoding:'utf-8' }));
 
 class MockBackend {
-    static async delayed_res(res_type) {
+    static async delayedResponse(res_type) {
         await new Promise(resolve => {
             setTimeout(resolve, 1000);
         })
@@ -79,28 +79,28 @@ class MockBackend {
 
 const modelServerProcess = new ModelServerProcess();
 
-async function basic_query(suffix, json_obj) {
+async function basicQuery(suffix, json_obj) {
     // fs.writeFileSync('../backend_request.json', JSON.stringify(json_obj), {flag: 'a'});
     return await modelServerProcess.sendPostRequest(suffix, json_obj);
 }
 
-async function query_discriminator(json_obj) {
-    // return await basic_query("discriminator", json_obj);
-    return await MockBackend.delayed_res('disc');
+async function queryDiscriminator(json_obj) {
+    // return await basicQuery("discriminator", json_obj);
+    return await MockBackend.delayedResponse('disc');
 }
 
-async function query_locator(json_obj) {
-    // return await basic_query("range", json_obj);
-    return await MockBackend.delayed_res('loc');
+async function queryLocator(json_obj) {
+    // return await basicQuery("range", json_obj);
+    return await MockBackend.delayedResponse('loc');
 }
 
-async function query_generator(json_obj) {
-    // return await basic_query("content", json_obj);
-    return await MockBackend.delayed_res('gen');
+async function queryGenerator(json_obj) {
+    // return await basicQuery("content", json_obj);
+    return await MockBackend.delayedResponse('gen');
 }
 
 module.exports = {
-    query_discriminator,
-    query_locator,
-    query_generator
+    queryDiscriminator,
+    queryLocator,
+    queryGenerator
 }

@@ -1,14 +1,12 @@
 const vscode = require('vscode');
-const path = require('path');
 const crypto = require('crypto')
 class CompareTempFileProvider { // impletements vscode.FileSystemProvider
-
     constructor(){
         this.tempFiles = new Map();
     }
 
     onDidChangeFile() {
-        // do nothing
+        return new vscode.EventEmitter();
     }
 
     storeTempFile(rel_path, content) {
@@ -42,8 +40,8 @@ class CompareTempFileProvider { // impletements vscode.FileSystemProvider
 
 
     readDirectory(uri) {
-        console.log(`Reading directory: ${uri}`);
         // do nothing
+        return new Promise(() => { });
     }
 
     createDirectory(uri) {
@@ -68,8 +66,9 @@ class CompareTempFileProvider { // impletements vscode.FileSystemProvider
 }
 
 const globalTempFileProvider = new CompareTempFileProvider();
-
 const globalDiffTabSelectors = {};
+Object.freeze(globalTempFileProvider);
+Object.freeze(globalDiffTabSelectors);
 
 /**
  * Use a series of suggested edits to generate a live editable diff view for the user to make the decision

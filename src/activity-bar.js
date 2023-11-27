@@ -1,11 +1,22 @@
 const vscode = require('vscode');
 const path = require('path');
+const { queryState } = require('./query');
 
-class FileNodeProvider {
+class LocationTreeProvider {
     constructor() {
         this._onDidChangeTreeData = new vscode.EventEmitter();
         this.onDidChangeTreeData = this._onDidChangeTreeData.event;
         this.modTree = [];
+
+        this.disposable = vscode.Disposable.from(
+            queryState.onDidQuery(this.refresh, this),
+            vscode.window.registerTreeDataProvider('editPoints', this),
+            vscode.commands.registerCommand('editPilot.refreshEditPoints', (modList) => this.refresh(modList))
+        );
+    }
+
+    dispose() {
+        this.disposable.dispose();
     }
 
     empty() {
@@ -193,5 +204,5 @@ class ModItem extends vscode.TreeItem {
 }
 
 module.exports = {
-    FileNodeProvider,
+    LocationTreeProvider
 };
