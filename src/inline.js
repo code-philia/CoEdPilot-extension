@@ -1,8 +1,9 @@
 const vscode = require('vscode');
-const { toPosixPath, getActiveFile } = require('./file');
+const { toPosixPath, getActiveFilePath } = require('./file');
 const { queryState } = require('./query');
 const { predictEditAtRange } = require('./task');
-const { EditSelector } = require('./comp-view');
+const { EditSelector, globalTempWrite } = require('./compare-view');
+const { BaseComponent } = require('./base-component');
 
 const fgcolor1 = '#000';
 const bgcolor1 = 'rgba(255,0,0,0.2)';
@@ -59,8 +60,9 @@ function clearHighlights(editor) {
 	highlightLocations([], editor);
 }
 
-class LocationDecoration {
+class LocationDecoration extends BaseComponent {
 	constructor() {
+		super();
 		this.replaceDecorationType = vscode.window.createTextEditorDecorationType({
 			color: fgcolor1,
 			backgroundColor: bgcolor1
@@ -72,14 +74,14 @@ class LocationDecoration {
 		
 		this.disposable = vscode.Disposable.from(
 			vscode.window.onDidChangeActiveTextEditor(this.setLocationDecorations, this),
-			queryState.onDidQuery(this.setLocationDecorations, this)
+			queryState.onDidQuery(() => this.setLocationDecorations(vscode.window.activeTextEditor), this)
 		);
 	}
 
 	setLocationDecorations(editor) {
-		if (!(editor?.document?.uri)) return undefined;
+		const uri = editor?.document?.uri;
+		if (!uri) return;
 
-		const uri = editor.document.uri;
 		const filePath = toPosixPath(uri.path);
 		if (uri.scheme != 'file' || !queryState.locatedFilePaths.includes(filePath)) return undefined;
 
@@ -109,25 +111,18 @@ class LocationDecoration {
 				editor.setDecorations(this.addDecorationType, decorationsForAdd);			
 			})
 	}
-
-	dispose() {
-		this.disposable.dispose();
-	}
 }
 
-class InlineFixProvider {
+class InlineFixProvider extends BaseComponent{
 	constructor() {
-		this.disposable = vscode.Disposable.from(
+		super();
+		this.register(
 			vscode.languages.registerCodeActionsProvider({ scheme: 'file' }, this)
 		);
 	}
 
-	dispose() {
-		this.disposable.dispose;
-	}
-
 	async provideCodeActions(document, range) {
-		const currFile = getActiveFile();
+		const currFile = toPosixPath(document?.fileName);
 		const newEdits = await predictEditAtRange(document, range);
 
 		if (!newEdits || newEdits.targetFilePath != currFile)
@@ -152,7 +147,7 @@ class InlineFixProvider {
 			codeAction.edit = edit;
 
 			codeAction.command = {
-				command: 'extension.applyFix',
+				command: 'editPilot.applyFix',
 				title: '',
 				arguments: [],
 			};
@@ -164,7 +159,8 @@ class InlineFixProvider {
 			currFile,
 			newEdits.startPos,
 			newEdits.endPos,
-			newEdits.replacement
+			newEdits.replacement,
+			globalTempWrite
 		);
 		await selector.init();
 		await selector.editedDocumentAndShowDiff();

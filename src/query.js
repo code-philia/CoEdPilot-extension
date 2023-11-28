@@ -1,6 +1,7 @@
 const vscode = require('vscode');
-const { toRelPath, getActiveFile, toAbsPath } = require('./file');
+const { toRelPath, getActiveFilePath, toAbsPath } = require('./file');
 const { queryDiscriminator, queryLocator, queryGenerator } = require('./model-client');
+const { BaseComponent } = require('./base-component');
 
 class QueryState {
     constructor() {
@@ -16,7 +17,7 @@ class QueryState {
         if (this.locations.length) {
             this.locatedFilePaths = [...new Set(locations.map((loc) => loc.targetFilePath))];
         }
-        this._onDidQuery.fire();
+        this._onDidQuery.fire(this);
     }
 
     clearLocations() {
@@ -29,7 +30,6 @@ class QueryState {
 }
 
 const queryState = new QueryState();
-Object.freeze(queryState);
 
 // ------------ Extension States -------------
 async function queryLocationFromModel(rootPath, files, prevEdits, commitMessage) {
@@ -73,7 +73,7 @@ async function queryLocationFromModel(rootPath, files, prevEdits, commitMessage)
      */
     const activeFilePath = toRelPath(
         rootPath,
-        getActiveFile(vscode.window.activeTextEditor)
+        getActiveFilePath()
     );
 
     // convert all paths to relative paths
@@ -183,8 +183,35 @@ async function queryEditFromModel(rootPath, files, location, commitMessage) {
     return edits; // Return newmodification
 }
 
+class CommitMessageInput extends BaseComponent{
+    constructor() {
+        super();
+        this.inputBox = vscode.window.createInputBox();
+        this.inputBox.prompt = 'Enter edit description';
+        this.inputBox.ignoreFocusOut = true; // The input box will not be hidden after losing focus
+        
+        this.register(
+            this.showInputBox,
+            this.acceptInputBox
+        );
+    }
+
+    showInputBox() {
+        console.log('==> Edit description input box is displayed')
+        this.inputBox.show();
+    }
+
+    acceptInputBox() {
+        const userInput = this.inputBox.value;
+        console.log('==> Edit description:', userInput);
+        queryState.commitMessage = userInput;
+        this.inputBox.hide();
+    }
+}
+
 module.exports = {
     queryLocationFromModel,
     queryEditFromModel,
-    queryState
+    queryState,
+    CommitMessageInput
 }

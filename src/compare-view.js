@@ -1,29 +1,19 @@
 const vscode = require('vscode');
-const crypto = require('crypto')
-class CompareTempFileProvider { // impletements vscode.FileSystemProvider
-    constructor(){
-        this.tempFiles = new Map();
+const crypto = require('crypto');
+const { BaseComponent } = require('./base-component');
+
+class BaseTempFileProvider extends BaseComponent {
+    constructor() {
+        super();
+        this._onDidChangeFile = new vscode.EventEmitter();
+        this.onDidChangeFile = this._onDidChangeFile.event;
     }
 
-    onDidChangeFile() {
-        return new vscode.EventEmitter();
-    }
-
-    storeTempFile(rel_path, content) {
-        const encoder = new TextEncoder();
-        this.tempFiles[rel_path] = encoder.encode(content);
-    }
-
-    readFile(uri) {
-        console.log(`Temp file reading: ${uri.path}`);
-        return this.tempFiles[uri.path];
-    }
+    async readFile(uri) { return new Uint8Array(); }
 
     // The following member functions are to complement the vscode.FileSystemProvider interface
 
-    stat(uri) {
-        // do nothing
-        console.log(`Looking up stat: ${uri}`);
+    async stat(uri) {
         return {
             type: vscode.FileType.File,
             ctime: Date.now(),
@@ -33,52 +23,62 @@ class CompareTempFileProvider { // impletements vscode.FileSystemProvider
         }
     }
 
-    watch(uri, options) {
-        // do nothing
-        return new vscode.Disposable(() => { });
+    watch(uri, options) { return { dispose: () => { } }; }
+
+    async readDirectory(uri) { return []; }
+
+    async createDirectory(uri) { }
+
+    async writeFile(uri, content, options) { }
+
+    async delete(uri, options) { }
+
+    async rename(oldUri, newUri, options) { }
+
+    async copy(source, destination, options) { }
+
+}
+
+class CompareTempFileProvider extends BaseTempFileProvider { // impletements vscode.FileSystemProvider
+    constructor() {
+        super();
+        this.tempFiles = new Map();
+
+        this.register(
+            vscode.workspace.registerFileSystemProvider("temp", this, { isReadonly: true })
+        );
     }
 
-
-    readDirectory(uri) {
-        // do nothing
-        return new Promise(() => { });
+    async writeFile(uri, content, options) {
+        this.tempFiles[uri.path] = content;
     }
 
-    createDirectory(uri) {
-        // do nothing
+    async readFile(uri) {
+        return this.tempFiles[uri.path];
     }
 
-    writeFile(uri, content, options) {
-        // do nothing
-    }
-
-    delete(uri, options) {
-        // do nothing
-    }
-
-    rename(oldUri, newUri, options) {
-        // do nothing
-    }
-
-    copy(source, destination, options) {
-        // do nothing
+    getAsyncWriter() {
+        return (async (path, str) => {
+            const encoder = new TextEncoder();
+            return this.writeFile(vscode.Uri.parse(`temp:${path}`), encoder.encode(str));
+        }).bind(this);
     }
 }
 
-const globalTempFileProvider = new CompareTempFileProvider();
+const globalCompareTempFileProvider = new CompareTempFileProvider();
+const globalTempWrite = globalCompareTempFileProvider.getAsyncWriter();
 const globalDiffTabSelectors = {};
-Object.freeze(globalTempFileProvider);
-Object.freeze(globalDiffTabSelectors);
 
 /**
  * Use a series of suggested edits to generate a live editable diff view for the user to make the decision
  */
 class EditSelector {
-    constructor(path, startPos, endPos, edits) {
+    constructor(path, startPos, endPos, edits, tempWrite) {
         this.path = path;
         this.startPos = startPos;
         this.endPos = endPos;
         this.edits = edits;
+        this.tempWrite = tempWrite;
 
         this.originalContent = "";
         this.modAt = 0;
@@ -91,7 +91,10 @@ class EditSelector {
 
         // Store the originalContent in a temporary readonly file system
         this.id = this._getPathId();
-        globalTempFileProvider.storeTempFile(`/${this.id}`, this.originalContent);
+        this.tempWrite(
+            `/${this.id}`,
+            this.originalContent
+        );
     }
 
     /**
@@ -118,8 +121,8 @@ class EditSelector {
 
     async _showDiffView() {
         // Open a diff view to compare the original and the modified document
-        await vscode.commands.executeCommand('vscode.diff', 
-            vscode.Uri.parse(`temp:/${this.id}`), 
+        await vscode.commands.executeCommand('vscode.diff',
+            vscode.Uri.parse(`temp:/${this.id}`),
             vscode.Uri.file(this.path),
             "Original vs. Modified"
         );
@@ -147,10 +150,10 @@ class EditSelector {
     }
 }
 
-
-
 module.exports = {
     EditSelector,
-    globalTempFileProvider,
-    globalDiffTabSelectors
+    CompareTempFileProvider,
+    globalDiffTabSelectors,
+    globalCompareTempFileProvider,
+    globalTempWrite
 };

@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const glob = require('glob');
 const os = require('os');
+const { BaseComponent } = require('./base-component');
 
 const prevEditNum = 3;
 
@@ -18,16 +19,11 @@ class FileState {
 }
 
 const fileState = new FileState();
-Object.freeze(fileState);
 
-let osType = os.type();
-if (
-    !(osType in [
-        'Windows_NT',
-        'Darwin',
-        'Linux'
-    ])
-) {
+const osType = os.type();
+const supportedOSTypes = ['Windows_NT', 'Darwin', 'Linux'];
+
+if (!supportedOSTypes.includes(osType)) {
     throw RangeError(`Operating system (node detected: ${osType}) is not supported yet.`);
 }
 
@@ -227,27 +223,61 @@ class EditDetector {
 }
 
 const globalEditDetector = EditDetector;
-Object.freeze(globalEditDetector);
 
 // BASIC FUNCTIONS
 
 // Convert any-style path to POSIX-style path
-function toPosixPath(path) {
+function toPosixPath(filePath) {
     return osType == 'Windows_NT' ?
-        path.replace(/\\/g, '/')
-        : path;
+        filePath.replace(/\\/g, '/')
+        : filePath;
 }
 
-function toAbsPath(rootPath, path) {
-    return toPosixPath(path.join(rootPath, path));
+function toAbsPath(rootPath, filePath) {
+    return toPosixPath(path.join(rootPath, filePath));
 }
 
-function toRelPath(rootPath, path) {
-    return toPosixPath(path.relative(rootPath, path));
+function toRelPath(rootPath, filePath) {
+    return toPosixPath(path.relative(rootPath, filePath));
 }
 
-function getActiveFile(editor) {
-    return toPosixPath(editor.document.fileName);
+function getActiveFilePath() {
+    const filePath = vscode.window.activeTextEditor?.document?.fileName;
+    return filePath ?? toPosixPath(filePath);
+}
+
+function getRootPath() {
+    return toPosixPath(vscode.workspace.workspaceFolders[0].uri.fsPath);
+}
+
+function getFiles(useSnapshot = true) {
+    const rootPath = getRootPath();
+    const fileList = [];
+
+    // Use glob to exclude certain files and return a list of all valid files
+    const filePathList = globFiles(rootPath, []);
+
+    function readFileFromPathList(filePathList, contentList) {
+        for (const filePath of filePathList) {
+            try {
+                const stat = fs.statSync(filePath);
+                if (stat.isFile()) {
+                    const fileContent = fs.readFileSync(filePath, 'utf-8');  // Skip files that cannot be correctly decoded
+                    contentList.push([filePath, fileContent]);
+                }
+            } catch (error) {
+                console.log("Some error occurs when reading file");
+            }
+        }
+    }
+
+    readFileFromPathList(filePathList, fileList);
+    // Replace directly when reading files, instead of replacing later
+    if (useSnapshot) {
+        replaceCurrentSnapshot(fileList);
+    }
+
+    return fileList;
 }
 
 // ABOUT EDIT
@@ -288,7 +318,7 @@ function pushEdit(item) {
     }
 }
 
-function getEditAtRange(edits, document, range) {
+function getLocationAtRange(edits, document, range) {
     const filePath = toPosixPath(document.uri.fsPath);
     const startPos = document.offsetAt(range.start);
     const endPos = document.offsetAt(range.end);
@@ -324,9 +354,9 @@ function updatePrevEdits(lineNo) {
             fileState.prevSnapshot = fileState.currSnapshot;
             return true;
         }
-        fileState.prevCursorAtLine = fileState.currCursorAtLine; // Update the line number where the mouse pointer is located
         return false;
     }
+    fileState.prevCursorAtLine = fileState.currCursorAtLine; // Update the line number where the mouse pointer is located
     return false;
 }
 
@@ -354,44 +384,10 @@ function globFiles(rootPath, globPatterns) {
 }
 
 function replaceCurrentSnapshot(fileList) {
-    const currentFile = fileList.find((file) => file[0] === getActiveFile);
+    const currentFile = fileList.find((file) => file[0] === getActiveFilePath);
     if (currentFile) {
         currentFile[1] = fileState.currSnapshot; // Use the unsaved content as the actual file content
     }
-}
-
-function getRootPath() {
-    return toPosixPath(vscode.workspace.workspaceFolders[0].uri.fsPath);
-}
-
-function getFiles(useSnapshot = true) {
-    const rootPath = getRootPath();
-    const fileList = [];
-
-    // Use glob to exclude certain files and return a list of all valid files
-    const filePathList = globFiles(rootPath, []);
-
-    function readFileFromPathList(filePathList, contentList) {
-        for (const filePath of filePathList) {
-            try {
-                const stat = fs.statSync(filePath);
-                if (stat.isFile()) {
-                    const fileContent = fs.readFileSync(filePath, 'utf-8');  // Skip files that cannot be correctly decoded
-                    contentList.push([filePath, fileContent]);
-                }
-            } catch (error) {
-                console.log("Some error occurs when reading file");
-            }
-        }
-    }
-
-    readFileFromPathList(filePathList, fileList);
-    // Replace directly when reading files, instead of replacing later
-    if (useSnapshot) {
-        replaceCurrentSnapshot(fileList);
-    }
-
-    return [rootPath, fileList];
 }
 
 function initFileState(editor) {
@@ -400,9 +396,16 @@ function initFileState(editor) {
     fileState.currCursorAtLine = 0;
     fileState.prevSnapshot = editor.document.getText();
     fileState.currSnapshot = editor.document.getText();
-    console.log('==> Active File:', getActiveFile());
+    console.log('==> Active File:', getActiveFilePath());
     console.log('==> Global variables initialized');
     // highlightModifications(modifications, editor);
+}
+
+class FileStateMonitor extends BaseComponent{
+    constructor() {
+        super();
+        this.register(vscode.window.onDidChangeActiveTextEditor(initFileState));
+    }
 }
 
 module.exports = {
@@ -410,16 +413,17 @@ module.exports = {
     toPosixPath,
     toAbsPath,
     toRelPath,
-    getActiveFile,
+    getActiveFilePath,
     detectEdit,
     pushEdit,
-    getEditAtRange,
+    getLocationAtRange,
     updatePrevEdits,
     getPrevEdits,
     globFiles,
     replaceCurrentSnapshot,
     getRootPath,
     getFiles,
+    fileState,
     initFileState,
-    fileState
+    FileStateMonitor
 }

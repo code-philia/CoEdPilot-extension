@@ -5,4 +5,3 @@ test/test_cases/react/
 test/test_cases/tributary/
 node_modules/
 **/__pycache__/
-mock/
