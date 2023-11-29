@@ -1,7 +1,7 @@
-const vscode = require('vscode');
-const { toRelPath, getActiveFilePath, toAbsPath } = require('./file');
-const { queryDiscriminator, queryLocator, queryGenerator } = require('./model-client');
-const { BaseComponent } = require('./base-component');
+import vscode from 'vscode';
+import { toRelPath, getActiveFilePath, toAbsPath } from './file';
+import { queryDiscriminator, queryLocator, queryGenerator } from './model-client';
+import { BaseComponent } from './base-component';
 
 class QueryState {
     constructor() {
@@ -209,9 +209,9 @@ class CommitMessageInput extends BaseComponent{
     }
 }
 
-module.exports = {
+export {
     queryLocationFromModel,
     queryEditFromModel,
     queryState,
     CommitMessageInput
-}
+};

@@ -1,4 +1,4 @@
-const vscode = require('vscode');
+import vscode from 'vscode';
 
 class BaseComponent {
     constructor() {
@@ -16,6 +16,6 @@ class BaseComponent {
     }
 }
 
-module.exports = {
+export {
     BaseComponent
 };

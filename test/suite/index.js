@@ -1,6 +1,6 @@
-const path = require('path');
-const Mocha = require('mocha');
-const glob = require('glob');
+import path from 'path';
+import Mocha from 'mocha';
+import glob from 'glob';
 
 function run() {
 	// Create the mocha test
@@ -37,6 +37,6 @@ function run() {
 	});
 }
 
-module.exports = {
+export {
 	run
 };

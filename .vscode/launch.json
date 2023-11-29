@@ -13,7 +13,11 @@
 				"--extensionDevelopmentPath=${workspaceFolder}",
 				"--disable-extensions",
 				// "--remote=wsl+Ubuntu-22.04"
-			]
+			],
+			"outFiles": [
+				"${workspaceFolder}/out/**/*.js"
+			],
+			"preLaunchTask": "npm: watch"
 		},
 		{
 			"name": "Python server debugging",

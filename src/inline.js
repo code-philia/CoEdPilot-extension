@@ -1,9 +1,9 @@
-const vscode = require('vscode');
-const { toPosixPath, getActiveFilePath } = require('./file');
-const { queryState } = require('./query');
-const { predictEditAtRange } = require('./task');
-const { EditSelector, globalTempWrite } = require('./compare-view');
-const { BaseComponent } = require('./base-component');
+import vscode from 'vscode';
+import { toPosixPath, getActiveFilePath } from './file';
+import { queryState } from './query';
+import { predictEditAtRange } from './task';
+import { EditSelector, globalTempWrite } from './compare-view';
+import { BaseComponent } from './base-component';
 
 const fgcolor1 = '#000';
 const bgcolor1 = 'rgba(255,0,0,0.2)';
@@ -117,62 +117,68 @@ class InlineFixProvider extends BaseComponent{
 	constructor() {
 		super();
 		this.register(
-			vscode.languages.registerCodeActionsProvider({ scheme: 'file' }, this)
+			// vscode.languages.registerCodeActionsProvider({ scheme: 'file' }, this),
+			// vscode.commands.registerCommand('editPilot.suggestEdits', )
 		);
 	}
 
-	async provideCodeActions(document, range) {
-		const currFile = toPosixPath(document?.fileName);
-		const newEdits = await predictEditAtRange(document, range);
-
-		if (!newEdits || newEdits.targetFilePath != currFile)
-			return [];
+	// async provideEditSuggestion(document, range) {
+	// 	const newEdits = await predictEditAtRange(document, range);
 		
-		const diagnosticRange = new vscode.Range(document.positionAt(newEdits.startPos), document.positionAt(newEdits.endPos));
+	// }
 
-		const codeActions = newEdits.replacement.map(replacement => {
-			// Create a diagnostic
-			const diagnostic = new vscode.Diagnostic(diagnosticRange, 'Replace with: ' + replacement, vscode.DiagnosticSeverity.Hint);
-			diagnostic.code = 'replaceCode';
+	// async provideCodeActions(document, range) {
+	// 	const currFile = toPosixPath(document?.fileName);
+	// 	const newEdits = await predictEditAtRange(document, range);
 
-			// Create a QuickFix
-			const codeAction = new vscode.CodeAction(replacement, vscode.CodeActionKind.QuickFix);
-			codeAction.diagnostics = [diagnostic];
-			codeAction.isPreferred = true;
+	// 	if (!newEdits || newEdits.targetFilePath != currFile)
+	// 		return [];
+		
+	// 	const diagnosticRange = new vscode.Range(document.positionAt(newEdits.startPos), document.positionAt(newEdits.endPos));
 
-			// Create WorkspaceEdit
-			const edit = new vscode.WorkspaceEdit();
-			const replaceRange = new vscode.Range(document.positionAt(newEdits.startPos), document.positionAt(newEdits.endPos));
-			edit.replace(document.uri, replaceRange, replacement);
-			codeAction.edit = edit;
+	// 	const codeActions = newEdits.replacement.map(replacement => {
+	// 		// Create a diagnostic
+	// 		const diagnostic = new vscode.Diagnostic(diagnosticRange, 'Replace with: ' + replacement, vscode.DiagnosticSeverity.Hint);
+	// 		diagnostic.code = 'replaceCode';
 
-			codeAction.command = {
-				command: 'editPilot.applyFix',
-				title: '',
-				arguments: [],
-			};
+	// 		// Create a QuickFix
+	// 		const codeAction = new vscode.CodeAction(replacement, vscode.CodeActionKind.QuickFix);
+	// 		codeAction.diagnostics = [diagnostic];
+	// 		codeAction.isPreferred = true;
 
-			return codeAction;
-		})
+	// 		// Create WorkspaceEdit
+	// 		const edit = new vscode.WorkspaceEdit();
+	// 		const replaceRange = new vscode.Range(document.positionAt(newEdits.startPos), document.positionAt(newEdits.endPos));
+	// 		edit.replace(document.uri, replaceRange, replacement);
+	// 		codeAction.edit = edit;
 
-		const selector = new EditSelector(
-			currFile,
-			newEdits.startPos,
-			newEdits.endPos,
-			newEdits.replacement,
-			globalTempWrite
-		);
-		await selector.init();
-		await selector.editedDocumentAndShowDiff();
+	// 		codeAction.command = {
+	// 			command: 'editPilot.applyFix',
+	// 			title: '',
+	// 			arguments: [],
+	// 		};
 
-		return codeActions;
-	}	
+	// 		return codeAction;
+	// 	})
+
+	// 	const selector = new EditSelector(
+	// 		currFile,
+	// 		newEdits.startPos,
+	// 		newEdits.endPos,
+	// 		newEdits.replacement,
+	// 		globalTempWrite
+	// 	);
+	// 	await selector.init();
+	// 	await selector.editedDocumentAndShowDiff();
+
+	// 	return codeActions;
+	// }	
 
 }
 
-module.exports = {
+export {
     // highlightLocations,
 	// clearHighlights,
 	LocationDecoration,
 	InlineFixProvider
-}
+};
