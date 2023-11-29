@@ -173,24 +173,20 @@ def predict(json_input):
     Args:
         input: dictionary
             {
-                "files": list, [[filePath, fileContent], ...],
-                "targetFilePath": str, filePath,
-                "commitMessage": str, commit message,
-                "prevEdits": list, of previous edits, each in format: {"beforeEdit": string, "afterEdit":string}
+                "files":            list, [[filePath, fileContent], ...],
+                "targetFilePath":   str, filePath,
+                "commitMessage":    str, commit message,
+                "prevEdits":        list, of previous edits, each in format: {"beforeEdit": string, "afterEdit":string}
             }
     Returns:
         output: dictionary
             {
                 "data": [ 
                     {   
-                        "targetFilePath": str, filePath,
-                        "prevEdits": list, of previous edits, each in format: {"beforeEdit":"", "afterEdit":""},
-                        "toBeReplaced": str, the content to be replaced,
-                        "startPos": int, start position of the word,
-                        "endPos": int, end position of the word,
-                        "editType": str, the type of edit, add or replace,
-                        "lineBreak": str, '\n', '\r' or '\r\n',
-                        "atLine": list, of the lineInx of the to be replaced code 
+                        "targetFilePath":   str, filePath,
+                        "editType":         str, the type of edit, add or replace,
+                        "lineBreak":        str, '\n', '\r' or '\r\n',
+                        "atLine":           list, of the lineInx of the to be replaced code 
                     }, 
                     ...
                 ]
@@ -286,13 +282,13 @@ def predict(json_input):
                 
                 results.append({
                     "targetFilePath": targetFilePath,
-                    "prevEdits": prevEdits,
-                    "toBeReplaced": normalize_string(targetFileLines[i].rstrip("\n\r")), # 高亮的部分不包括行尾的换行符
-                    "startPos": len(text),
-                    "endPos": len(text)+len(targetFileLines[i].rstrip("\n\r")), # 高亮的部分不包括行尾的换行符
+                    # "prevEdits": prevEdits,
+                    # "toBeReplaced": normalize_string(targetFileLines[i].rstrip("\n\r")), # 高亮的部分不包括行尾的换行符
+                    # "startPos": len(text),
+                    # "endPos": len(text)+len(targetFileLines[i].rstrip("\n\r")), # 高亮的部分不包括行尾的换行符
                     "editType": preds[i],
                     "lineBreak": lineBreak,
-                    "atLine": [i] # 行数从 0 开始
+                    "atLine": [i+1] # 行数从 1 开始
                 })
             
             text += targetFileLines[i]
