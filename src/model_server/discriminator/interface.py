@@ -87,15 +87,28 @@ def predict(json_input):
     Args:
         input: dictionary
             {
-                "files":            list, [[relativeFilePath, fileContent], ...]
-                "targetFilePath":   string, the relative path of the file to be edited
+                "rootPath":         string, root path of the project
+                "files":            list, [[filePath, fileContent], ...]
+                "targetFilePath":   string, the path of the file to be edited
                 "commitMessage":    string, the commit message
                 "prevEdits":        list, [{"beforeEdit": string, "afterEdit": string}, ...]
             }
     Return:
         output: dictionary, contains chosen files' path and content
             {
-                "data": [string], relative file paths that are probably related to target file
+                "data": [
+                    {
+                        "atLine":           [int], list of lines included in hunk,
+                        "editType":         string, "replace", "add" or "delete",
+                        "startPos":         int, starting character position of edit,
+                        "endPos":           int, ending character position of edit,
+                        "lineBreak":        string, line break type, "\n", "\r" or "\r\n",
+                        "prevEdits":        list, same as in input
+                        "targetFilePath":   list, relative path of the file
+                        "toBeReplaced":     string, text to be replaced
+                    },
+                    ...
+                ]
             }
     '''
     global model, tokenizer, device

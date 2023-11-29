@@ -155,19 +155,30 @@ def predict(json_input):
     Function: interface between generator and VScode extension
     Args: input, dictionary
         { 
-            "targetFileContent":    string, the whole content fo target file
-            "commitMessage":        string, commit message,
-            "editType":             str, the type of edit,
-            "prevEdits":            list, of previous edits, each in format: {"beforeEdit":"", "afterEdit":""},
-            "atLine":               list, of edit line indices
+            "files":            list, [[filePath, fileContent], ...], used to extract target file
+            "targetFilePath":   string, absolute filePath, used to extract target file
+            "commitMessage":    string, commit message,
+            "editType":         str, the type of edit,
+            "prevEdits":        list, of previous edits, each in format: {"beforeEdit":"", "afterEdit":""},
+            "startPos":         int, start position, calculated from `atLine`
+            "endPos":           int, end position, calculated from `atLine`
+            "atLine":           list, of edit line indices
         }
     Return: dictionary
         {
             "data": 
             {
                 "editType":     string, "replace", "add" or "delete",
+                "startPos":     int, starting position of the replacement,
+                "endPos":       int, ending position of the replacement,
                 "replacement":  [string], list of replacing candidates,
+                "targetFilePath":   string, absolute path of target file
             }
+            "input":
+            [
+                string,     the whole file content
+                [string],   line marks, "keep", "replace", "add" or "delete"
+            ]    
         }
     '''
     global model, tokenizer, device
@@ -181,15 +192,27 @@ def predict(json_input):
     stopwatch.lap('load model')
 
     # 提取从 JavaScript 传入的参数
-    targetFileContent = json_input["targetFileContent"]
+    files = json_input["files"]
+    targetFilePath = json_input["targetFilePath"]
     commitMessage = json_input["commitMessage"]
     editType = json_input["editType"]
     prevEdits = json_input["prevEdits"]
+    startPos = json_input["startPos"]
+    endPos = json_input["endPos"]
     editLineIdx = json_input["atLine"]
     
     result = { # 提前记录返回的部分参数
+        "targetFilePath": targetFilePath,
         "editType": editType,
+        "startPos": startPos,
+        "endPos": endPos
     }
+
+    # 获得 targetFile 的文本内容
+    for file in files:
+        if file[0] == targetFilePath:
+            targetFileContent = file[1]
+            break
 
     # 获取文本的行数
     targetFileLines = targetFileContent.splitlines(True) # 保留每行的换行符
@@ -250,4 +273,4 @@ def predict(json_input):
     stopwatch.lap('post-process result')
     print("+++ Generator profiling:")
     stopwatch.print_result()
-    return {"data": result}
+    return {"data": result, "input": (model_input, labels)}
