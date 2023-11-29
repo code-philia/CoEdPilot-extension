@@ -20,7 +20,7 @@ class BaseTempFileProvider extends BaseComponent {
             ctime: Date.now(),
             mtime: Date.now(),
             size: 0,
-            name: uri.path
+            name: uri.fsPath
         }
     }
 
@@ -74,10 +74,10 @@ const globalDiffTabSelectors = {};
  * Use a series of suggested edits to generate a live editable diff view for the user to make the decision
  */
 class EditSelector {
-    constructor(path, startPos, endPos, edits, tempWrite) {
+    constructor(path, fromLine, toLine, edits, tempWrite) {
         this.path = path;
-        this.startPos = startPos;
-        this.endPos = endPos;
+        this.fromLine = fromLine;
+        this.toLine = toLine;  // toLine is exclusive
         this.edits = edits;
         this.tempWrite = tempWrite;
 
@@ -111,9 +111,17 @@ class EditSelector {
             this.document.positionAt(0),
             this.document.positionAt(this.document.getText().length)
         );
-        const modifiedText = this.originalContent.substring(0, this.startPos) +
-            replacement +
-            this.originalContent.substring(this.endPos);
+
+        const lines = this.originalContent.split('\n');
+        const numLines = lines.length + 1;
+        const fromLine = Math.max(0, this.fromLine);
+        const toLine = Math.min(this.toLine, numLines);
+        
+        const modifiedText = (lines.slice(0, fromLine)).join('\n')
+            + (fromLine > 0 ? '\n' : '')
+            + replacement
+            + (toLine < numLines ? '\n' : '')
+            + (lines.slice(toLine, numLines)).join('\n');
 
         await editor.edit(editBuilder => {
             editBuilder.replace(fullRange, modifiedText)
@@ -140,7 +148,7 @@ class EditSelector {
     }
 
     async switchEdit(offset = 1) {
-        this.modAt = (this.modAt + offset) % this.edits.length;
+        this.modAt = (this.modAt + offset + this.edits.length) % this.edits.length;
         await this._performMod(this.edits[this.modAt]);
         await this._showDiffView();
     }

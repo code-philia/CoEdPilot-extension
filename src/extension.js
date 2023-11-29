@@ -4,7 +4,7 @@ import { FileStateMonitor, initFileState } from './file';
 import { LocationTreeProvider } from './activity-bar';
 import { queryState, CommitMessageInput } from './query';
 import { predictLocation, predictLocationIfHasEditAtSelectedLine } from './task';
-import { InlineFixProvider, LocationDecoration } from './inline';
+import { GenerateEditCommand, InlineFixProvider, LocationDecoration, PredictLocationCommand } from './inline';
 
 
 function activate(context) {
@@ -24,7 +24,8 @@ function activate(context) {
 	initFileState(vscode.window.activeTextEditor);
 
 	registerDisposable(new FileStateMonitor());
-	registerDisposable(vscode.window.onDidChangeTextEditorSelection(predictLocationIfHasEditAtSelectedLine));
+	registerDisposable(new PredictLocationCommand());
+	// registerDisposable(vscode.window.onDidChangeTextEditorSelection(predictLocationIfHasEditAtSelectedLine));
 
 	/*----------------------- Provide QuickFix feature -----------------------------*/
 
@@ -59,6 +60,10 @@ function activate(context) {
 	/*----------------------- Activity Bar Container for Edit Points --------------------------------*/
 	
 	registerDisposable(new LocationTreeProvider());
+
+	/*------------------- Command to show suggested edits --------------*/
+
+	registerDisposable(new GenerateEditCommand());
 
 	/*----------------------- Compare View ------------------------------*/
 

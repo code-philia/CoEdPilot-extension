@@ -2,6 +2,7 @@ import vscode from 'vscode';
 import path from 'path';
 import { queryState } from './query';
 import { BaseComponent } from './base-component';
+import { getLineInfoInDocument } from './file';
 
 
 class LocationTreeProvider extends BaseComponent {
@@ -110,17 +111,15 @@ class LocationTreeProvider extends BaseComponent {
             []
         )
 
-        for (const mod of modListOnPath) {
+        for (const loc of modListOnPath) {
             fileItem.mods.push(
                 new ModItem(
-                    `Line ${mod.atLine[0]}`,
+                    `Line ${loc.atLines[0]}`,
                     vscode.TreeItemCollapsibleState.None,
                     fileItem,
-                    mod.atLine[0],
-                    mod.startPos,
-                    mod.endPos,
-                    `    ${mod.toBeReplaced.trim()}`,
-                    mod.editType
+                    loc.atLines[0],
+                    loc.lineInfo.text,
+                    loc.editType
                 )
             )
         }
@@ -151,18 +150,17 @@ class FileItem extends vscode.TreeItem {
 }
 
 class ModItem extends vscode.TreeItem {
-    constructor(label, collapsibleState, fileItem, atLine, start, end, toBeReplaced, editType) {
+    constructor(label, collapsibleState, fileItem, atLine, lineContent, editType) {
         super(label, collapsibleState);
         this.collapsibleState = collapsibleState;
         this.fileItem = fileItem;
         this.atLine = atLine;
-        this.start = start;
-        this.end = end;
-        this.toBeReplaced = toBeReplaced;
         this.editType = editType;
-        
+        this.lineContent = lineContent
+        this.text = `    ${this.lineContent.trim()}`;
+
         this.tooltip = `Line ${this.atLine}`;
-        this.description = this.toBeReplaced;
+        this.description = this.text;
         this.command = {
             command: 'editPilot.openFileAtLine',
             title: '',
@@ -175,6 +173,8 @@ class ModItem extends vscode.TreeItem {
         }
         this.label = this.getLabel();
     }
+
+
 
     getIconFileName() {
         switch (this.editType) {

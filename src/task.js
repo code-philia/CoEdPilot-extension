@@ -1,5 +1,5 @@
 import vscode from 'vscode';
-import { getRootPath, getFiles, updatePrevEdits, getPrevEdits, getLocationAtRange } from './file';
+import { getRootPath, getFiles, updatePrevEdits, getPrevEdits, getLocationAtRange, fileState } from './file';
 import { queryLocationFromModel, queryEditFromModel, queryState } from './query';
 
 
@@ -41,9 +41,13 @@ async function predictLocation() {
     return await globalEditLock.tryWithLockAsync(async () => {
         console.log('==> Send to LLM (After cursor changed line)');
         const rootPath = getRootPath();
-        const files = getFiles();
+        const files = await getFiles();
         const currentPrevEdits = getPrevEdits();
-        await queryLocationFromModel(rootPath, files, currentPrevEdits, queryState.commitMessage);
+        try {
+            await queryLocationFromModel(rootPath, files, currentPrevEdits, queryState.commitMessage);
+        } catch (err) {
+            console.log(err);
+        }
     });
 }
 
@@ -58,7 +62,9 @@ async function predictEdit(document, location) {
     return await globalEditLock.tryWithLockAsync(async () => {
         const predictResult = await queryEditFromModel(
             document.getText(),
-            location,
+            location.editType,
+            location.atLines,
+            fileState.prevEdits,
             queryState.commitMessage
         );
         const replacedRange = new vscode.Range(document.positionAt(location.startPos), document.positionAt(location.endPos));

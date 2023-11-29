@@ -1,7 +1,7 @@
 import vscode from 'vscode';
-import { toPosixPath, getActiveFilePath } from './file';
-import { queryState } from './query';
-import { predictEditAtRange } from './task';
+import { toPosixPath, getActiveFilePath, fileState } from './file';
+import { queryEditFromModel, queryState } from './query';
+import { predictEditAtRange, predictLocation } from './task';
 import { EditSelector, globalTempWrite } from './compare-view';
 import { BaseComponent } from './base-component';
 
@@ -82,17 +82,18 @@ class LocationDecoration extends BaseComponent {
 		const uri = editor?.document?.uri;
 		if (!uri) return;
 
-		const filePath = toPosixPath(uri.path);
-		if (uri.scheme != 'file' || !queryState.locatedFilePaths.includes(filePath)) return undefined;
+		const filePath = toPosixPath(uri.fsPath);
+		console.log(queryState.locatedFilePaths);
+		if (uri.scheme !== 'file' || !queryState.locatedFilePaths.includes(filePath)) return undefined;
 
 		const decorationsForAlter = [];
 		const decorationsForAdd = [];
 	
 		queryState.locations
-			.filter((loc) => loc.targetFilePath == filePath)
+			.filter((loc) => loc.targetFilePath === filePath)
 			.map((loc) => {
-				const startPos = editor.document.positionAt(loc.startPos);
-				const endPos = editor.document.positionAt(loc.endPos);
+				const startPos = editor.document.lineAt(loc.atLines[0]).range.start;
+				const endPos = editor.document.lineAt(loc.atLines[loc.atLines.length-1]).range.end;
 				const range = new vscode.Range(startPos, endPos);
 		
 				// Create decoration
@@ -161,24 +162,81 @@ class InlineFixProvider extends BaseComponent{
 	// 		return codeAction;
 	// 	})
 
-	// 	const selector = new EditSelector(
-	// 		currFile,
-	// 		newEdits.startPos,
-	// 		newEdits.endPos,
-	// 		newEdits.replacement,
-	// 		globalTempWrite
-	// 	);
-	// 	await selector.init();
-	// 	await selector.editedDocumentAndShowDiff();
+		// const selector = new EditSelector(
+		// 	currFile,
+		// 	newEdits.startPos,
+		// 	newEdits.endPos,
+		// 	newEdits.replacement,
+		// 	globalTempWrite
+		// );
+		// await selector.init();
+		// await selector.editedDocumentAndShowDiff();
 
 	// 	return codeActions;
 	// }	
 
 }
 
+class PredictLocationCommand extends BaseComponent{
+	constructor() {
+		super();
+		this.register(
+			vscode.commands.registerCommand("editPilot.predictLocations", () => { predictLocation(); })
+		);
+	}
+}
+
+class GenerateEditCommand extends BaseComponent{
+	constructor() {
+		super();
+		this.register(
+			vscode.commands.registerCommand("editPilot.generateEdits", async (...args) => {
+				if (args.length != 1 || !(args[0] instanceof vscode.Uri)) return;
+				
+				const uri = args[0];
+				const activeEditor = vscode.window.activeTextEditor;
+				const activeDocument = activeEditor.document;
+				if (activeDocument.uri.toString() !== uri.toString()) return;
+				const atLine = activeEditor.selection.active.line;
+				const targetFileContent = activeDocument.lineAt(atLine).text;
+				const editType = "replace";
+
+				const queryResult = await queryEditFromModel(
+					targetFileContent,
+					editType,
+					[atLine],
+					fileState.prevEdits,
+					queryState.commitMessage
+				)
+
+				const replacedRange = activeDocument.lineAt(atLine).range;
+				const replacedContent = activeEditor.document.getText(replacedRange).trim();
+				queryResult.replacement = queryResult.replacement.filter((snippet) => snippet.trim() !== replacedContent);
+		
+
+				try {
+					const selector = new EditSelector(
+						toPosixPath(uri.fsPath),
+						atLine,
+						atLine + 1,
+						queryResult.replacement,
+						globalTempWrite
+					);
+					await selector.init();
+					await selector.editedDocumentAndShowDiff();
+				} catch (err) {
+					console.log(err);
+				}
+			})
+		);
+	}
+}
+
 export {
     // highlightLocations,
 	// clearHighlights,
 	LocationDecoration,
-	InlineFixProvider
+	InlineFixProvider,
+	PredictLocationCommand,
+	GenerateEditCommand
 };

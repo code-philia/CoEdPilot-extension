@@ -21,14 +21,14 @@
     "commands": [
       {
         "command": "extension.inputMessage",
-        "title": "Enter edit description"
+        "category": "Edit Pilot",
+        "title": "Change Commit Message"
       },
       {
         "title": "Last Suggestion",
         "category": "Edit Pilot",
         "command": "editPilot.last-suggestion",
-        "icon": "$(arrow-left)",
-        "enablement": "false"
+        "icon": "$(arrow-left)"
       },
       {
         "title": "Next Suggestion",
@@ -47,14 +47,34 @@
         "category": "Edit Pilot",
         "command": "editPilot.dismiss-edit",
         "icon": "$(trash)"
+      },
+      {
+        "title": "Predict Locations",
+        "category": "Edit Pilot",
+        "command": "editPilot.predictLocations"
+      },
+      {
+        "title": "Generate Edits",
+        "category": "Edit Pilot",
+        "command": "editPilot.generateEdits"
       }
     ],
     "menus": {
       "editor/context": [
         {
-          "when": "editorFocus",
           "command": "extension.inputMessage",
-          "group": "code_suggestion@1"
+          "group": "editPilot@3",
+          "when": "editorFocus"
+        },
+        {
+          "command": "editPilot.predictLocations",
+          "group": "editPilot@1",
+          "when": "editorFocus"
+        },
+        {
+          "command": "editPilot.generateEdits",
+          "group": "editPilot@2",
+          "when": "editorFocus"
         }
       ],
       "editor/title": [

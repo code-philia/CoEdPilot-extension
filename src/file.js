@@ -246,23 +246,32 @@ function getActiveFilePath() {
     return filePath ?? toPosixPath(filePath);
 }
 
+async function getLineInfoInDocument(path, lineNo) {
+    const doc = await vscode.workspace.openTextDocument(path);
+    const textLine = doc.lineAt(lineNo);
+    return {
+        range: textLine.range,
+        text: textLine.text
+    }
+}
+
 function getRootPath() {
     return toPosixPath(vscode.workspace.workspaceFolders[0].uri.fsPath);
 }
 
-function getFiles(useSnapshot = true) {
+async function getFiles(useSnapshot = true) {
     const rootPath = getRootPath();
     const fileList = [];
 
     // Use glob to exclude certain files and return a list of all valid files
     const filePathList = globFiles(rootPath, []);
 
-    function readFileFromPathList(filePathList, contentList) {
+    async function readFileFromPathList(filePathList, contentList) {
         for (const filePath of filePathList) {
             try {
                 const stat = fs.statSync(filePath);
                 if (stat.isFile()) {
-                    const fileContent = fs.readFileSync(filePath, 'utf-8');  // Skip files that cannot be correctly decoded
+                    const fileContent = await fs.promises.readFile(filePath, 'utf-8');  // Skip files that cannot be correctly decoded
                     contentList.push([filePath, fileContent]);
                 }
             } catch (error) {
@@ -271,7 +280,7 @@ function getFiles(useSnapshot = true) {
         }
     }
 
-    readFileFromPathList(filePathList, fileList);
+    await readFileFromPathList(filePathList, fileList);
     // Replace directly when reading files, instead of replacing later
     if (useSnapshot) {
         replaceCurrentSnapshot(fileList);
@@ -414,6 +423,7 @@ export {
     toAbsPath,
     toRelPath,
     getActiveFilePath,
+    getLineInfoInDocument,
     detectEdit,
     pushEdit,
     getLocationAtRange,

@@ -54,10 +54,10 @@ class ModelServerProcess{
             console.log(`[ModelServer] Received response:`);
             console.log(response.data);
             // DEBUGGING
-            // fs.writeFileSync(
-            //     path.join(srcDir, '../mock/backend_response.json'),
-            //     JSON.stringify(response.data), { flag: 'a' }
-            // );
+            fs.writeFileSync(
+                path.join(srcDir, '../mock/backend_response.json'),
+                JSON.stringify(response.data), { flag: 'a' }
+            );
             return response.data;
         } else {
             throw new axios.AxiosError(JSON.stringify(response));
@@ -84,18 +84,18 @@ async function basicQuery(suffix, json_obj) {
 }
 
 async function queryDiscriminator(json_obj) {
-    // return await basicQuery("discriminator", json_obj);
-    return await MockBackend.delayedResponse('disc');
+    return await basicQuery("discriminator", json_obj);
+    // return await MockBackend.delayedResponse('disc');
 }
 
 async function queryLocator(json_obj) {
-    // return await basicQuery("range", json_obj);
-    return await MockBackend.delayedResponse('loc');
+    return await basicQuery("range", json_obj);
+    // return await MockBackend.delayedResponse('loc');
 }
 
 async function queryGenerator(json_obj) {
-    // return await basicQuery("content", json_obj);
-    return await MockBackend.delayedResponse('gen');
+    return await basicQuery("content", json_obj);
+    // return await MockBackend.delayedResponse('gen');
 }
 
 export {

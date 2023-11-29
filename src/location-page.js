@@ -9,13 +9,13 @@ function getWebviewContent(modifications, rootPath) {
         const absoluteTargetFilePath = modification.targetFilePath.replace(/\\/g, '\\\\');
         const relativeTargetFilePath = modification.targetFilePath.replace(rootPath, ".");
         const toBeReplaced = modification.toBeReplaced;
-        const atLine = modification.atLine.map(element => element + 1); // atLine 从 0 开始，但是显示的行数从 1 开始
+        const atLines = modification.atLines.map(element => element + 1); // atLines 从 0 开始，但是显示的行数从 1 开始
         const element = `
             <div style="margin-bottom: 20px; padding: 10px; border: 1px solid #ccc; border-radius: 5px;">
             <p style="font-weight: bold; color: #222;">Target File Path:</p>
             <pre style="background-color: #f4f4f4; padding: 5px; margin: 0; font-family: Consolas, monospace; color: #222; font-weight: 600; overflow-x: auto;"><a href="#" onclick="openFile('${absoluteTargetFilePath}'); return false;">${relativeTargetFilePath}</a></pre>
             <p style="font-weight: bold; color: #222;">Code to be edited:</p>
-            <pre style="background-color: #f4f4f4; padding: 5px; margin: 0; font-family: Consolas, monospace; color: #222; font-weight: 600; overflow-x: auto;">Line ${atLine}:\n${escapeHtmlTags(toBeReplaced)}</pre>
+            <pre style="background-color: #f4f4f4; padding: 5px; margin: 0; font-family: Consolas, monospace; color: #222; font-weight: 600; overflow-x: auto;">Line ${atLines}:\n${escapeHtmlTags(toBeReplaced)}</pre>
             </div>
         `;
 	    elements += element; 

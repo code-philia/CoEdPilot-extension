@@ -138,32 +138,19 @@ def normalize_string(s):
     return s
 
 def merge_adjacent_removals(results):
-    sorted_results = sorted(results, key=lambda x: (x["targetFilePath"], x["startPos"]))  # 按照目标文件路径和起始位置对元素进行排序
+    sorted_results = sorted(results, key=lambda x: (x["targetFilePath"], x["atLines"][0]))  # 按照目标文件路径和起始位置对元素进行排序
     merged_results = []
 
-    for modification in sorted_results:
-        if merged_results and \
-        modification["editType"] == "replace" and merged_results[-1]["editType"] == "replace" and \
-        merged_results[-1]["targetFilePath"] == modification["targetFilePath"]:
-            # 如果存在前一个修改，且当前修改和前一个修改都是 replace 操作，且前一个修改和当前修改都是对同一个文件的修改
-            if (merged_results[-1]["lineBreak"] == "\n" or merged_results[-1]["lineBreak"] == "\r") and \
-            merged_results[-1]["endPos"] + 1 == modification["startPos"]:
-                # 当 当前修改 和 前一个修改 之间间隔的是 \n 或 \r，且前一个修改的 endPos 和当前修改的 startPos 相差 1 时，将两个修改合并
-                merged_results[-1]["endPos"] = modification["endPos"]
-                merged_results[-1]["toBeReplaced"] += merged_results[-1]["lineBreak"] + modification["toBeReplaced"] # 合并两个修改的 toBeReplaced
-                merged_results[-1]["lineBreak"] = modification["lineBreak"] # 更新 lineBreak 为 当前修改的 lineBreak
-                merged_results[-1]["atLine"].extend(modification["atLine"]) # 更新高亮所在行
-            elif merged_results[-1]["lineBreak"] == "\r\n" and \
-            merged_results[-1]["endPos"] + 2 == modification["startPos"]:
-                # 当 当前修改 和 前一个修改 之间间隔的是 \r\n，且前一个修改的 endPos 和当前修改的 startPos 相差 2 时，将两个修改合并
-                merged_results[-1]["endPos"] = modification["endPos"]
-                merged_results[-1]["toBeReplaced"] += merged_results[-1]["lineBreak"] + modification["toBeReplaced"] # 合并两个修改的 toBeReplaced
-                merged_results[-1]["lineBreak"] = modification["lineBreak"] # 更新 lineBreak 为 当前修改的 lineBreak
-                merged_results[-1]["atLine"].extend(modification["atLine"]) # 更新高亮所在行
-            else:
-                merged_results.append(modification)
+    def can_merge(last_result, this_result):
+        return last_result and \
+            last_result["atLines"][-1] == this_result["atLines"][0] - 1 and \
+            last_result["editType"] == this_result["editType"]
+
+    for mod in sorted_results:
+        if len(merged_results) > 0 and can_merge(merged_results[-1], mod):
+            merged_results[-1]["atLines"].append(mod["atLines"][0])
         else:
-            merged_results.append(modification)
+            merged_results.append(mod)
 
     return merged_results
 
@@ -186,7 +173,7 @@ def predict(json_input):
                         "targetFilePath":   str, filePath,
                         "editType":         str, the type of edit, add or replace,
                         "lineBreak":        str, '\n', '\r' or '\r\n',
-                        "atLine":           list, of the lineInx of the to be replaced code 
+                        "atLines":           list, numbers of the line indices of to be replaced code 
                     }, 
                     ...
                 ]
@@ -198,7 +185,7 @@ def predict(json_input):
     stopwatch.start()
     # check model cache
     if not is_model_cached():
-        print('+++ loading generator model')
+        print('+++ loading locator model')
         load_model_cache()
     stopwatch.lap('load model')
 
@@ -268,7 +255,7 @@ def predict(json_input):
 
 
         # get the edit range
-        text = ''
+        # text = ''
         for i in range(targetFileLineNum):
             if preds[i] != 'keep': # 如果模型输出的 editType 不是 keep，则该行需要被修改
                 if targetFileLines[i].endswith('\r\n'):
@@ -288,10 +275,10 @@ def predict(json_input):
                     # "endPos": len(text)+len(targetFileLines[i].rstrip("\n\r")), # 高亮的部分不包括行尾的换行符
                     "editType": preds[i],
                     "lineBreak": lineBreak,
-                    "atLine": [i+1] # 行数从 1 开始
+                    "atLines": [i] # 行数从 0 开始
                 })
             
-            text += targetFileLines[i]
+            # text += targetFileLines[i]
         stopwatch.lap_by_task('prepare result')
 
     results = merge_adjacent_removals(results)

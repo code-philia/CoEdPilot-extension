@@ -1,5 +1,5 @@
 import vscode from 'vscode';
-import { toRelPath, getActiveFilePath, toAbsPath } from './file';
+import { toRelPath, getActiveFilePath, toAbsPath, getLineInfoInDocument, getRootPath } from './file';
 import { queryDiscriminator, queryLocator, queryGenerator } from './model-client';
 import { BaseComponent } from './base-component';
 
@@ -12,15 +12,18 @@ class QueryState {
         this.onDidQuery = this._onDidQuery.event;
     }
 
-    updateLocations(locations) {
+    async updateLocations(locations) {
         this.locations = locations;
         if (this.locations.length) {
             this.locatedFilePaths = [...new Set(locations.map((loc) => loc.targetFilePath))];
         }
+        for (const loc of this.locations) {
+            loc.lineInfo = await getLineInfoInDocument(loc.targetFilePath, loc.atLines[0]);
+        }
         this._onDidQuery.fire(this);
     }
 
-    clearLocations() {
+    async clearLocations() {
         this.updateLocations([]);
     }
 
@@ -63,7 +66,7 @@ async function queryLocationFromModel(rootPath, files, prevEdits, commitMessage)
                     "toBeReplaced":     str, the content to be replaced, 
                     "editType":         str, the type of edit, add or remove,
                     "lineBreak":        str, '\n', '\r' or '\r\n',
-                    "atLine":           number, line number (beginning from 1) of the location
+                    "atLines":           number, line number (beginning from 1) of the location
                 }, ...
             ]
         }
@@ -129,7 +132,7 @@ async function queryLocationFromModel(rootPath, files, prevEdits, commitMessage)
 }
 
 
-async function queryEditFromModel(fileContent, location, commitMessage) {
+async function queryEditFromModel(fileContent, editType, atLines, prevEdits, commitMessage) {
     /* 	
         Generator:
         input:
@@ -138,7 +141,7 @@ async function queryEditFromModel(fileContent, location, commitMessage) {
             "commitMessage":        string, commit message,
             "editType":             string, edit type,
             "prevEdits":            list, of previous edits, each in format: {"beforeEdit":"", "afterEdit":""},
-            "atLine":               list, of edit line indices
+            "atLines":               list, of edit line indices
         }
         output:
         {
@@ -153,9 +156,9 @@ async function queryEditFromModel(fileContent, location, commitMessage) {
     const input = {
         targetFileContent: fileContent,
         commitMessage: commitMessage,
-        editType: location.editType,
-        prevEdits: location.prevEdits,
-        atLine: location.atLine
+        editType: editType,
+        prevEdits: prevEdits,
+        atLines: atLines
     };
 
     const output = await queryGenerator(input);

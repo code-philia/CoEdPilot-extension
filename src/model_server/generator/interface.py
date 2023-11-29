@@ -159,13 +159,13 @@ def predict(json_input):
             "commitMessage":        string, commit message,
             "editType":             str, the type of edit,
             "prevEdits":            list, of previous edits, each in format: {"beforeEdit":"", "afterEdit":""},
-            "atLine":               list, of edit line indices
+            "atLines":               list, of edit line indices
         }
     Return: dictionary
         {
             "data": 
             {
-                "editType":     string, "replace", "add" or "delete",
+                "editType":     string, "replace" or "add",
                 "replacement":  [string], list of replacing candidates,
             }
         }
@@ -185,7 +185,7 @@ def predict(json_input):
     commitMessage = json_input["commitMessage"]
     editType = json_input["editType"]
     prevEdits = json_input["prevEdits"]
-    editLineIdx = json_input["atLine"]
+    editLineIdx = json_input["atLines"]
     
     result = { # 提前记录返回的部分参数
         "editType": editType,

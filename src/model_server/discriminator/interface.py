@@ -2,6 +2,7 @@ import os
 import traceback
 import torch
 import torch.nn as nn
+import re
 from tqdm import tqdm
 from retriv import SearchEngine
 from torch.utils.data import DataLoader, TensorDataset
@@ -104,7 +105,7 @@ def predict(json_input):
     stopwatch.start()
     # check model cache
     if not is_model_cached():
-        print('+++ loading generator model')
+        print('+++ loading discriminator model')
         load_model_cache()
     stopwatch.lap('load model')
 
@@ -115,31 +116,23 @@ def predict(json_input):
             break
 
     # 1. make code database
-    collection = []
-    for filePath, fileContent in json_input["files"]:
-        d = {"id": filePath, "text": fileContent}
-        collection.append(d)
-    searchEngine = SearchEngine("new_index").index(collection)
     stopwatch.lap('build code collection')
     
     # 2. Detech which file contain similar content to previous edits
     # store files that exist code clone into codeCloneFilePaths
-    queries = []
+    codeCloneFilePaths = set()
+    edits = []
     for edit in json_input["prevEdits"]:
-        queries.append({"id": len(queries), "text": edit["beforeEdit"]})
-        queries.append({"id": len(queries), "text": edit["afterEdit"]})
-    try:
-        search_results = searchEngine.msearch(queries, cutoff=100)
-        codeCloneFilePaths = []
-        for q, r in search_results.items():
-            codeCloneFilePaths = list(set(codeCloneFilePaths).union(set(r.keys())))
-    except Exception as e:
-        print(f"===> An exception occured when detect files with clone:")
-        print(f"Exception type: {type(e).__name__}")
-        print(f"Exception message: {e}")
-        print("Traceback:")
-        traceback.print_exc()
-        codeCloneFilePaths = []
+        edits.extend([edit["beforeEdit"], edit["afterEdit"]])
+
+    search_re = re.compile('|'.join(map(lambda x: re.escape(x), edits)))
+    for filePath, fileContent in json_input["files"]:
+        found = False
+        for x in search_re.finditer(fileContent):
+            found = True
+            break
+        if found:
+            codeCloneFilePaths.add(filePath)
     stopwatch.lap('find clone file paths')
 
     # 3. prepare input (string format)
