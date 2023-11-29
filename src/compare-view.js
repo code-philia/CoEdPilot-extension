@@ -1,6 +1,7 @@
-const vscode = require('vscode');
-const crypto = require('crypto');
-const { BaseComponent } = require('./base-component');
+import vscode from 'vscode';
+import crypto from 'crypto';
+import util from 'util';
+import { BaseComponent } from './base-component';
 
 class BaseTempFileProvider extends BaseComponent {
     constructor() {
@@ -59,7 +60,7 @@ class CompareTempFileProvider extends BaseTempFileProvider { // impletements vsc
 
     getAsyncWriter() {
         return (async (path, str) => {
-            const encoder = new TextEncoder();
+            const encoder = new util.TextEncoder();
             return this.writeFile(vscode.Uri.parse(`temp:${path}`), encoder.encode(str));
         }).bind(this);
     }
@@ -140,9 +141,8 @@ class EditSelector {
 
     async switchEdit(offset = 1) {
         this.modAt = (this.modAt + offset) % this.edits.length;
-
         await this._performMod(this.edits[this.modAt]);
-        // await this._showDiffView();
+        await this._showDiffView();
     }
 
     _getPathId() {
@@ -150,7 +150,7 @@ class EditSelector {
     }
 }
 
-module.exports = {
+export {
     EditSelector,
     CompareTempFileProvider,
     globalDiffTabSelectors,

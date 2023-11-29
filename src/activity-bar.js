@@ -1,7 +1,7 @@
-const vscode = require('vscode');
-const path = require('path');
-const { queryState } = require('./query');
-const { BaseComponent } = require('./base-component');
+import vscode from 'vscode';
+import path from 'path';
+import { queryState } from './query';
+import { BaseComponent } from './base-component';
 
 
 class LocationTreeProvider extends BaseComponent {
@@ -202,6 +202,6 @@ class ModItem extends vscode.TreeItem {
     contextValue = 'mod';
 }
 
-module.exports = {
+export {
     LocationTreeProvider
-};
+};;

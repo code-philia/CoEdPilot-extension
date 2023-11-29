@@ -107,7 +107,8 @@
   "scripts": {
     "lint": "eslint .",
     "pretest": "npm run lint",
-    "test": "node ./test/runTest.js"
+    "test": "node ./test/runTest.js",
+    "watch": "tsc --watch --allowJs -p ./jsconfig.json"
   },
   "devDependencies": {
     "@types/glob": "^8.1.0",
@@ -121,6 +122,7 @@
     "typescript": "^5.0.4"
   },
   "dependencies": {
+    "@types/diff": "^5.0.8",
     "diff": "^5.1.0",
     "vscode-languageserver": "^8.1.0"
   }
