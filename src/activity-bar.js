@@ -204,4 +204,4 @@ class ModItem extends vscode.TreeItem {
 
 export {
     LocationTreeProvider
-};;
+};
