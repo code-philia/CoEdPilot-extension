@@ -1,10 +1,10 @@
-import * as vscode from 'vscode';
-import { globalDiffTabSelectors, CompareTempFileProvider, globalCompareTempFileProvider } from './compare-view';
-import { FileStateMonitor, initFileState } from './file';
-import { LocationTreeProvider } from './activity-bar';
-import { queryState, CommitMessageInput } from './query';
-import { predictLocation, predictLocationIfHasEditAtSelectedLine } from './task';
-import { InlineFixProvider, LocationDecoration } from './inline';
+const vscode = require('vscode');
+const { globalDiffTabSelectors, CompareTempFileProvider, globalCompareTempFileProvider } = require('./compare-view')
+const { FileStateMonitor, initFileState } = require('./file');
+const { LocationTreeProvider } = require('./activity-bar');
+const { queryState, CommitMessageInput } = require('./query');
+const { predictLocation, predictLocationIfHasEditAtSelectedLine } = require('./task');
+const { InlineFixProvider, LocationDecoration } = require('./inline');
 
 
 function activate(context) {
@@ -83,7 +83,7 @@ function activate(context) {
 function deactivate() {
 }
 
-export {
+module.exports = {
 	activate,
 	deactivate
-};
+}

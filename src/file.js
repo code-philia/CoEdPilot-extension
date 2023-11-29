@@ -1,10 +1,10 @@
-import vscode from 'vscode';
-import { diffTrimmedLines } from 'diff';
-import fs from 'fs';
-import path from 'path';
-import glob from 'glob';
-import os from 'os';
-import { BaseComponent } from './base-component';
+const vscode = require('vscode');
+const diff = require('diff');
+const fs = require('fs');
+const path = require('path');
+const glob = require('glob');
+const os = require('os');
+const { BaseComponent } = require('./base-component');
 
 const prevEditNum = 3;
 
@@ -78,7 +78,7 @@ class EditDetector {
         // Merge "-" (removed) diff into an overlapped old edit
         // Merge "+" (added) diff into an old edit only if its precedented "-" hunk (a zero-line "-" hunk if there's no) wraps the old edit's "-" hunk
         // By default, there could only be zero or one "+" hunk following a "-" hunk
-        const newDiffs = diffTrimmedLines(
+        const newDiffs = diff.diffTrimmedLines(
             this.textBaseSnapshots[path],
             text
         )
@@ -408,7 +408,7 @@ class FileStateMonitor extends BaseComponent{
     }
 }
 
-export {
+module.exports = {
     globalEditDetector,
     toPosixPath,
     toAbsPath,
@@ -426,4 +426,4 @@ export {
     fileState,
     initFileState,
     FileStateMonitor
-};
+}

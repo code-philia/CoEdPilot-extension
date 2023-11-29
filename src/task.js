@@ -1,6 +1,6 @@
-import vscode from 'vscode';
-import { getRootPath, getFiles, updatePrevEdits, getPrevEdits, getLocationAtRange } from './file';
-import { queryLocationFromModel, queryEditFromModel, queryState } from './query';
+const vscode = require('vscode');
+const { getRootPath, getFiles, updatePrevEdits, getPrevEdits, getLocationAtRange } = require('./file');
+const { queryLocationFromModel, queryEditFromModel, queryState } = require('./query');
 
 
 class EditLock {
@@ -57,7 +57,8 @@ async function predictLocationIfHasEditAtSelectedLine(event) {
 async function predictEdit(document, location) {
     return await globalEditLock.tryWithLockAsync(async () => {
         const predictResult = await queryEditFromModel(
-            document.getText(),
+            getRootPath(),
+            getFiles(),
             location,
             queryState.commitMessage
         );
@@ -76,9 +77,9 @@ async function predictEditAtRange(document, range) {
     return undefined;
 }
 
-export {
+module.exports = {
     predictLocation,
     predictLocationIfHasEditAtSelectedLine,
     predictEdit,
     predictEditAtRange
-};
+}

@@ -111,6 +111,6 @@ function getWebviewContent(modifications, rootPath) {
 	`;
 }
 
-export {
+module.exports = {
     getWebviewContent
 };

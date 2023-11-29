@@ -1,7 +1,8 @@
-import path from 'path';
-import axios from 'axios';
-import { spawn } from 'child_process';
-import fs from 'fs';
+const path = require('path');
+const axios = require('axios').default;
+const { spawn } = require('child_process');
+const { AxiosError } = require('axios');
+const fs = require('fs');
 
 const srcDir = __dirname;
 const PyInterpreter = "C:/Program Files/Python310/python.exe";
@@ -60,7 +61,7 @@ class ModelServerProcess{
             // );
             return response.data;
         } else {
-            throw new axios.AxiosError(JSON.stringify(response));
+            throw new AxiosError(JSON.stringify(response));
         }
     }
 }
@@ -98,8 +99,8 @@ async function queryGenerator(json_obj) {
     return await MockBackend.delayedResponse('gen');
 }
 
-export {
+module.exports = {
     queryDiscriminator,
     queryLocator,
     queryGenerator
-};
+}

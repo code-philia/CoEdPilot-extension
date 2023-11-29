@@ -2,7 +2,7 @@
  * Copyright (C) Microsoft Corporation. All rights reserved.
  *--------------------------------------------------------*/
 
-import vscode from 'vscode';
+const vscode = require('vscode');
 
 const COMMAND = 'code-actions-sample.command';
 
@@ -61,6 +61,6 @@ class Emojizer {
 }
 
 
-export {
+module.exports = {
 	Emojizer
 };
