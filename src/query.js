@@ -37,9 +37,9 @@ async function queryLocationFromModel(rootPath, files, prevEdits, commitMessage)
         Discriminator:
         input:
         {
-            "rootPath": str, rootPath,
-            "files": list, [[filePath, fileContent], ...],
-            "targetFilePath": str, filePath
+            "rootPath":         str, rootPath,
+            "files":            list, [[filePath, fileContent], ...],
+            "targetFilePath":   str, filePath
         }
         output:
         {
@@ -49,24 +49,21 @@ async function queryLocationFromModel(rootPath, files, prevEdits, commitMessage)
         Locator:
         input:
         {
-            "files": list, [[filePath, fileContent], ...],
-            "targetFilePath": str, filePath,
-            "commitMessage": str, commit message,
-            "prevEdits": list, of previous edits, each in format: {"beforeEdit":"", "afterEdit":""}
+            "files":            list, [[filePath, fileContent], ...],
+            "targetFilePath":   str, filePath,
+            "commitMessage":    str, commit message,
+            "prevEdits":        list, of previous edits, each in format: {"beforeEdit":"", "afterEdit":""}
         }
         output:
         {
             "data": 
             [ 
                 { 
-                    "targetFilePath": str, filePath,
-                    "beforeEdit", str, the content before edit for previous edit,
-                    "afterEdit", str, the content after edit for previous edit, 
-                    "toBeReplaced": str, the content to be replaced, 
-                    "startPos": int, start position of the word,
-                    "endPos": int, end position of the word,
-                    "editType": str, the type of edit, add or remove,
-                    "lineBreak": str, '\n', '\r' or '\r\n'
+                    "targetFilePath":   str, filePath,
+                    "toBeReplaced":     str, the content to be replaced, 
+                    "editType":         str, the type of edit, add or remove,
+                    "lineBreak":        str, '\n', '\r' or '\r\n',
+                    "atLine":           number, line number (beginning from 1) of the location
                 }, ...
             ]
         }
@@ -132,48 +129,32 @@ async function queryLocationFromModel(rootPath, files, prevEdits, commitMessage)
 }
 
 
-async function queryEditFromModel(rootPath, files, location, commitMessage) {
+async function queryEditFromModel(fileContent, location, commitMessage) {
     /* 	
         Generator:
         input:
         { 
-            "files": list, [[filePath, fileContent], ...],
-            "targetFilePath": string filePath,
-            "commitMessage": string, commit message,
-            "editType": string, edit type,
-            "prevEdits": list, of previous edits, each in format: {"beforeEdit":"", "afterEdit":""},
-            "startPos": int, start position,
-            "endPos": int, end position,
-            "atLine": list, of edit line indices
+            "targetFileContent":    string
+            "commitMessage":        string, commit message,
+            "editType":             string, edit type,
+            "prevEdits":            list, of previous edits, each in format: {"beforeEdit":"", "afterEdit":""},
+            "atLine":               list, of edit line indices
         }
         output:
         {
             "data": 
             { 
-                "targetFilePath": string, filePath of target file,
-                "editType": string, 'remove', 'add'
-                "startPos": int, start position,
-                "endPos": int, end position,
-                "replacement": list of strings, replacement content   
+                "editType":         string, 'remove', 'add'
+                "replacement":      list of strings, replacement content   
             }
         } 
     */
 
-    for (const file_info of files) {
-        file_info[0] = toRelPath(
-            rootPath,
-            file_info[0]
-        );
-    }
-
     const input = {
-        files: files,
-        targetFilePath: location.targetFilePath,
+        targetFileContent: fileContent,
         commitMessage: commitMessage,
         editType: location.editType,
         prevEdits: location.prevEdits,
-        startPos: location.startPos,
-        endPos: location.endPos,
         atLine: location.atLine
     };
 
