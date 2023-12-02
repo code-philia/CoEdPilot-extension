@@ -413,8 +413,15 @@ function initFileState(editor) {
 class FileStateMonitor extends BaseComponent{
     constructor() {
         super();
-        this.register(vscode.window.onDidChangeActiveTextEditor(initFileState));
+        this.register(
+            vscode.window.onDidChangeActiveTextEditor(initFileState),
+            vscode.window.onDidChangeTextEditorSelection((event) => {
+                updatePrevEdits(event.selections[0].active.line);
+            })
+        );
     }
+
+    
 }
 
 export {

@@ -1,3 +1,4 @@
+import os
 import bleu
 import torch
 import logging
@@ -14,9 +15,7 @@ logging.disable(logging.CRITICAL)
 warnings.filterwarnings("ignore")
 
 contextLength = 5
-# current_file_path = os.path.dirname(os.path.abspath(__file__))
-# model_name = os.path.join(current_file_path, 'pytorch_model.bin')
-model_name = r"C:\Users\aaa\Desktop\models\generator\pytorch_model.bin"
+model_path = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'models', 'generator_model.bin')
 
 model = None
 tokenizer = None
@@ -131,7 +130,7 @@ def convert_examples_to_features(examples, tokenizer, prev_preds=None, stage=Non
     return features
 
 def load_model():
-    global model_name
+    global model_path
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     config_class, model_class, tokenizer_class = MODEL_CLASSES['roberta']
     config = config_class.from_pretrained("microsoft/codebert-base")
@@ -142,7 +141,7 @@ def load_model():
     model = Seq2Seq(encoder=encoder,decoder=decoder,config=config,
                     beam_size=10,max_length=128,
                     sos_id=tokenizer.cls_token_id,eos_id=tokenizer.sep_token_id)
-    model.load_state_dict(torch.load(model_name))
+    model.load_state_dict(torch.load(model_path))
     model.to(device)
     return model, tokenizer, device
 

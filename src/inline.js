@@ -1,8 +1,8 @@
 import vscode from 'vscode';
-import { toPosixPath, getActiveFilePath, fileState } from './file';
-import { queryEditFromModel, queryState } from './query';
-import { predictEditAtRange, predictLocation } from './task';
-import { EditSelector, globalTempWrite } from './compare-view';
+import { toPosixPath } from './file';
+import { queryState } from './queries';
+import { predictEditAtRange } from './query-tasks';
+import { EditSelector, tempWrite } from './compare-view';
 import { BaseComponent } from './base-component';
 
 const fgcolor1 = '#000';
@@ -114,121 +114,59 @@ class LocationDecoration extends BaseComponent {
 	}
 }
 
-class InlineFixProvider extends BaseComponent{
+class InlineFixProvider extends BaseComponent {
 	constructor() {
 		super();
 		this.register(
-			// vscode.languages.registerCodeActionsProvider({ scheme: 'file' }, this),
-			// vscode.commands.registerCommand('editPilot.suggestEdits', )
+			vscode.languages.registerCodeActionsProvider({ scheme: 'file' }, this),
 		);
 	}
 
-	// async provideEditSuggestion(document, range) {
-	// 	const newEdits = await predictEditAtRange(document, range);
+	async provideCodeActions(document, range) {
+		const currFile = toPosixPath(document?.fileName);
+		const newEdits = await predictEditAtRange(document, range);
+
+		if (!newEdits || newEdits.targetFilePath != currFile)
+			return [];
 		
-	// }
+		const diagnosticRange = new vscode.Range(document.positionAt(newEdits.startPos), document.positionAt(newEdits.endPos));
 
-	// async provideCodeActions(document, range) {
-	// 	const currFile = toPosixPath(document?.fileName);
-	// 	const newEdits = await predictEditAtRange(document, range);
+		const codeActions = newEdits.replacement.map(replacement => {
+			// Create a diagnostic
+			const diagnostic = new vscode.Diagnostic(diagnosticRange, 'Replace with: ' + replacement, vscode.DiagnosticSeverity.Hint);
+			diagnostic.code = 'replaceCode';
 
-	// 	if (!newEdits || newEdits.targetFilePath != currFile)
-	// 		return [];
-		
-	// 	const diagnosticRange = new vscode.Range(document.positionAt(newEdits.startPos), document.positionAt(newEdits.endPos));
+			// Create a QuickFix
+			const codeAction = new vscode.CodeAction(replacement, vscode.CodeActionKind.QuickFix);
+			codeAction.diagnostics = [diagnostic];
+			codeAction.isPreferred = true;
 
-	// 	const codeActions = newEdits.replacement.map(replacement => {
-	// 		// Create a diagnostic
-	// 		const diagnostic = new vscode.Diagnostic(diagnosticRange, 'Replace with: ' + replacement, vscode.DiagnosticSeverity.Hint);
-	// 		diagnostic.code = 'replaceCode';
+			// Create WorkspaceEdit
+			const edit = new vscode.WorkspaceEdit();
+			const replaceRange = new vscode.Range(document.positionAt(newEdits.startPos), document.positionAt(newEdits.endPos));
+			edit.replace(document.uri, replaceRange, replacement);
+			codeAction.edit = edit;
 
-	// 		// Create a QuickFix
-	// 		const codeAction = new vscode.CodeAction(replacement, vscode.CodeActionKind.QuickFix);
-	// 		codeAction.diagnostics = [diagnostic];
-	// 		codeAction.isPreferred = true;
+			codeAction.command = {
+				command: 'editPilot.applyFix',
+				title: '',
+				arguments: [],
+			};
 
-	// 		// Create WorkspaceEdit
-	// 		const edit = new vscode.WorkspaceEdit();
-	// 		const replaceRange = new vscode.Range(document.positionAt(newEdits.startPos), document.positionAt(newEdits.endPos));
-	// 		edit.replace(document.uri, replaceRange, replacement);
-	// 		codeAction.edit = edit;
+			return codeAction;
+		})
 
-	// 		codeAction.command = {
-	// 			command: 'editPilot.applyFix',
-	// 			title: '',
-	// 			arguments: [],
-	// 		};
-
-	// 		return codeAction;
-	// 	})
-
-		// const selector = new EditSelector(
-		// 	currFile,
-		// 	newEdits.startPos,
-		// 	newEdits.endPos,
-		// 	newEdits.replacement,
-		// 	globalTempWrite
-		// );
-		// await selector.init();
-		// await selector.editedDocumentAndShowDiff();
-
-	// 	return codeActions;
-	// }	
-
-}
-
-class PredictLocationCommand extends BaseComponent{
-	constructor() {
-		super();
-		this.register(
-			vscode.commands.registerCommand("editPilot.predictLocations", () => { predictLocation(); })
+		const selector = new EditSelector(
+			currFile,
+			newEdits.startPos,
+			newEdits.endPos,
+			newEdits.replacement,
+			tempWrite
 		);
-	}
-}
+		await selector.init();
+		await selector.editedDocumentAndShowDiff();
 
-class GenerateEditCommand extends BaseComponent{
-	constructor() {
-		super();
-		this.register(
-			vscode.commands.registerCommand("editPilot.generateEdits", async (...args) => {
-				if (args.length != 1 || !(args[0] instanceof vscode.Uri)) return;
-				
-				const uri = args[0];
-				const activeEditor = vscode.window.activeTextEditor;
-				const activeDocument = activeEditor.document;
-				if (activeDocument.uri.toString() !== uri.toString()) return;
-				const atLine = activeEditor.selection.active.line;
-				const targetFileContent = activeDocument.lineAt(atLine).text;
-				const editType = "replace";
-
-				const queryResult = await queryEditFromModel(
-					targetFileContent,
-					editType,
-					[atLine],
-					fileState.prevEdits,
-					queryState.commitMessage
-				)
-
-				const replacedRange = activeDocument.lineAt(atLine).range;
-				const replacedContent = activeEditor.document.getText(replacedRange).trim();
-				queryResult.replacement = queryResult.replacement.filter((snippet) => snippet.trim() !== replacedContent);
-		
-
-				try {
-					const selector = new EditSelector(
-						toPosixPath(uri.fsPath),
-						atLine,
-						atLine + 1,
-						queryResult.replacement,
-						globalTempWrite
-					);
-					await selector.init();
-					await selector.editedDocumentAndShowDiff();
-				} catch (err) {
-					console.log(err);
-				}
-			})
-		);
+		return codeActions;	
 	}
 }
 
@@ -236,7 +174,5 @@ export {
     // highlightLocations,
 	// clearHighlights,
 	LocationDecoration,
-	InlineFixProvider,
-	PredictLocationCommand,
-	GenerateEditCommand
+	InlineFixProvider
 };

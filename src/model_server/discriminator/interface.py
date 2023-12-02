@@ -1,5 +1,4 @@
 import os
-import traceback
 import torch
 import torch.nn as nn
 import re
@@ -10,8 +9,7 @@ from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from perf import Stopwatch
 
 current_file_path = os.path.dirname(os.path.abspath(__file__))
-# model_name = os.path.join(current_file_path, 'pytorch_model.bin')
-model_name = r"C:\Users\aaa\Desktop\models\discriminator\pytorch_model.bin"
+model_path = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'models', 'discriminator_model.bin')
 
 model = None
 tokenizer = None
@@ -69,12 +67,12 @@ def load_data(inputs, tokenizer, max_length=128):
     return dataset
 
 def load_model():
-    global model_name
+    global model_path
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     tokenizer = AutoTokenizer.from_pretrained('vishnun/codenlbert-sm', model_max_length=512)
     model = CombinedModel('vishnun/codenlbert-sm')
     model.to(device)
-    checkpoint = torch.load(model_name)
+    checkpoint = torch.load(model_path)
     model.load_state_dict(checkpoint['model_state_dict'])
     return model, tokenizer, device
 

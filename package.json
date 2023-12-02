@@ -16,7 +16,7 @@
     "onLanguage:json",
     "onLanguage:markdown"
   ],
-  "main": "./out/extension.js",
+  "main": "./out/extension",
   "contributes": {
     "commands": [
       {

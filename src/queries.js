@@ -2,6 +2,7 @@ import vscode from 'vscode';
 import { toRelPath, getActiveFilePath, toAbsPath, getLineInfoInDocument, getRootPath } from './file';
 import { queryDiscriminator, queryLocator, queryGenerator } from './model-client';
 import { BaseComponent } from './base-component';
+import { registerCommand } from './extension-register';
 
 class QueryState {
     constructor() {
@@ -175,8 +176,8 @@ class CommitMessageInput extends BaseComponent{
         this.inputBox.ignoreFocusOut = true; // The input box will not be hidden after losing focus
         
         this.register(
-            this.showInputBox,
-            this.acceptInputBox
+            registerCommand('extension.inputMessage', this.showInputBox, this),
+            this.inputBox.onDidAccept(this.acceptInputBox, this)
         );
     }
 

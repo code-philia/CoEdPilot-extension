@@ -1,7 +1,9 @@
 import vscode from 'vscode';
 import crypto from 'crypto';
 import util from 'util';
+import path from 'path';
 import { BaseComponent } from './base-component';
+import { toPosixPath } from './file';
 
 class BaseTempFileProvider extends BaseComponent {
     constructor() {
@@ -51,11 +53,11 @@ class CompareTempFileProvider extends BaseTempFileProvider { // impletements vsc
     }
 
     async writeFile(uri, content, options) {
-        this.tempFiles[uri.path] = content;
+        this.tempFiles.set(uri.path, content);
     }
 
     async readFile(uri) {
-        return this.tempFiles[uri.path];
+        return this.tempFiles.get(uri.path);
     }
 
     getAsyncWriter() {
@@ -66,20 +68,21 @@ class CompareTempFileProvider extends BaseTempFileProvider { // impletements vsc
     }
 }
 
-const globalCompareTempFileProvider = new CompareTempFileProvider();
-const globalTempWrite = globalCompareTempFileProvider.getAsyncWriter();
-const globalDiffTabSelectors = {};
+const compareTempFileSystemProvider = new CompareTempFileProvider();
+const tempWrite = compareTempFileSystemProvider.getAsyncWriter();
+const diffTabSelectors = new Map();
 
 /**
  * Use a series of suggested edits to generate a live editable diff view for the user to make the decision
  */
 class EditSelector {
-    constructor(path, fromLine, toLine, edits, tempWrite) {
+    constructor(path, fromLine, toLine, edits, srcWrite, isAdd = false) {
         this.path = path;
         this.fromLine = fromLine;
         this.toLine = toLine;  // toLine is exclusive
         this.edits = edits;
-        this.tempWrite = tempWrite;
+        this.tempWrite = srcWrite ?? tempWrite;
+        this.isAdd = isAdd;
 
         this.originalContent = "";
         this.modAt = 0;
@@ -103,6 +106,24 @@ class EditSelector {
      * @param {*} replacement 
      */
     async _performMod(replacement) {
+        const lines = this.originalContent.split('\n');
+        const numLines = lines.length + 1;
+        const fromLine = Math.max(0, this.fromLine);
+        // If change type is "add", simply insert replacement content at the first line 
+        const toLine = this.isAdd ? fromLine : Math.min(this.toLine, numLines);
+        
+        const modifiedText = (lines.slice(0, fromLine)).join('\n')
+            + (fromLine > 0 ? '\n' : '')
+            + replacement
+            + (toLine < numLines ? '\n' : '')
+            + (lines.slice(toLine, numLines)).join('\n');
+        
+        this._replaceDocument(modifiedText);
+    }
+
+    async _replaceDocument(fullText) {
+        vscode.commands.executeCommand('vscode.undo')
+
         const editor = vscode.window.visibleTextEditors.find(
             (editor) => editor.document === this.document
         );
@@ -111,21 +132,10 @@ class EditSelector {
             this.document.positionAt(0),
             this.document.positionAt(this.document.getText().length)
         );
-
-        const lines = this.originalContent.split('\n');
-        const numLines = lines.length + 1;
-        const fromLine = Math.max(0, this.fromLine);
-        const toLine = Math.min(this.toLine, numLines);
         
-        const modifiedText = (lines.slice(0, fromLine)).join('\n')
-            + (fromLine > 0 ? '\n' : '')
-            + replacement
-            + (toLine < numLines ? '\n' : '')
-            + (lines.slice(toLine, numLines)).join('\n');
-
         await editor.edit(editBuilder => {
-            editBuilder.replace(fullRange, modifiedText)
-        });
+            editBuilder.replace(fullRange, fullText)
+        }, { undoStopAfter: false });
     }
 
     async _showDiffView() {
@@ -135,7 +145,7 @@ class EditSelector {
             vscode.Uri.file(this.path),
             "Original vs. Modified"
         );
-        globalDiffTabSelectors[vscode.window.tabGroups.activeTabGroup.activeTab] = this;
+        diffTabSelectors[vscode.window.tabGroups.activeTabGroup.activeTab] = this;
         // await vscode.commands.executeCommand('moveActiveEditor', {
         //     to: 'right',
         //     by: 'group'
@@ -153,15 +163,67 @@ class EditSelector {
         await this._showDiffView();
     }
 
+    async clearEdit() {
+        await this._replaceDocument(this.originalContent);
+    }
+
     _getPathId() {
-        return crypto.createHash('sha256').update(this.path).digest('hex');
+        this.pathId = crypto.createHash('sha256').update(this.path).digest('hex') + path.extname(this.path);
+        return this.pathId;
+    }
+}
+
+class DiffTabCodelensProvider extends BaseComponent {
+    constructor() {
+        super();
+        this.originalContentLabel = "Original";
+        this.modifiedContentLabel = "Modified";
+        this._onDidChangeCodeLenses = new vscode.EventEmitter();
+	    this.onDidChangeCodeLenses = this._onDidChangeCodeLenses.event;
+        this.register(
+            // vscode.languages.registerCodeLensProvider("*", this),
+            vscode.window.onDidChangeActiveTextEditor(() => {
+                console.log("+++ firing code lenses");
+                this._onDidChangeCodeLenses.fire();
+            })
+        );
+    }
+    
+    provideCodeLenses(document, token) {
+        this.codelenses = [];
+        if (document.uri.scheme === 'temp') {
+            this.codelenses.push(this.codelenseAtTop(this.originalContentLabel));
+        }
+        else if (document.uri.scheme === 'file') {
+            for (const [tab, selector] of diffTabSelectors) {
+                if (selector.path == toPosixPath(document.path)) {
+                    this.codelenses.push(this.codelenseAtTop(this.modifiedContentLabel));
+                    break;
+                }
+            }
+        }
+        return this.codelenses;
+    }
+
+    resolveCodeLens(codeLens, token) {
+        return codeLens;
+    }
+
+    codelenseAtTop(title) {
+        return new vscode.CodeLens(
+            new vscode.Range(0, 0, 0, 0),
+            {
+                title: title
+            }
+        )
     }
 }
 
 export {
     EditSelector,
     CompareTempFileProvider,
-    globalDiffTabSelectors,
-    globalCompareTempFileProvider,
-    globalTempWrite
+    diffTabSelectors,
+    compareTempFileSystemProvider,
+    tempWrite,
+    DiffTabCodelensProvider
 };

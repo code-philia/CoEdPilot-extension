@@ -1,6 +1,6 @@
 import vscode from 'vscode';
 import path from 'path';
-import { queryState } from './query';
+import { queryState } from './queries';
 import { BaseComponent } from './base-component';
 import { getLineInfoInDocument } from './file';
 

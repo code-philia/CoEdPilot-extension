@@ -12,7 +12,7 @@ const pyServerPath = path.join(srcDir, 'model_server', "server.py");
 class ModelServerProcess{
     constructor() {
         this.ip = 'localhost';
-        this.port = '5013';
+        this.port = '5001';
         // this.setup();
     }
 
