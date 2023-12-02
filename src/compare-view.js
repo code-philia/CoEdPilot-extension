@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import util from 'util';
 import path from 'path';
 import { BaseComponent } from './base-component';
-import { toPosixPath } from './file';
+import { defaultLineBreak, toPosixPath } from './file';
 
 class BaseTempFileProvider extends BaseComponent {
     constructor() {
@@ -106,24 +106,23 @@ class EditSelector {
      * @param {*} replacement 
      */
     async _performMod(replacement) {
-        const lines = this.originalContent.split('\n');
+        const lines = this.originalContent.split(defaultLineBreak);
+        console.log(JSON.stringify({'linebreak': defaultLineBreak }))
         const numLines = lines.length + 1;
         const fromLine = Math.max(0, this.fromLine);
         // If change type is "add", simply insert replacement content at the first line 
         const toLine = this.isAdd ? fromLine : Math.min(this.toLine, numLines);
         
-        const modifiedText = (lines.slice(0, fromLine)).join('\n')
-            + (fromLine > 0 ? '\n' : '')
+        const modifiedText = (lines.slice(0, fromLine)).join(defaultLineBreak)
+            + (fromLine > 0 ? defaultLineBreak : '')
             + replacement
-            + (toLine < numLines ? '\n' : '')
-            + (lines.slice(toLine, numLines)).join('\n');
+            + (toLine < numLines ? defaultLineBreak : '')
+            + (lines.slice(toLine, numLines)).join(defaultLineBreak);
         
         this._replaceDocument(modifiedText);
     }
 
     async _replaceDocument(fullText) {
-        vscode.commands.executeCommand('vscode.undo')
-
         const editor = vscode.window.visibleTextEditors.find(
             (editor) => editor.document === this.document
         );
@@ -135,7 +134,7 @@ class EditSelector {
         
         await editor.edit(editBuilder => {
             editBuilder.replace(fullRange, fullText)
-        }, { undoStopAfter: false });
+        }, { undoStopBefore: false, undoStopAfter: false });
     }
 
     async _showDiffView() {
@@ -164,6 +163,7 @@ class EditSelector {
     }
 
     async clearEdit() {
+        // await vscode.commands.executeCommand('undo');
         await this._replaceDocument(this.originalContent);
     }
 

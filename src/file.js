@@ -27,6 +27,13 @@ if (!supportedOSTypes.includes(osType)) {
     throw RangeError(`Operating system (node detected: ${osType}) is not supported yet.`);
 }
 
+const defaultLineBreaks = {
+    'Windows_NT': '\r\n',
+    'Darwin': '\r',
+    'Linux': '\n'
+};
+const defaultLineBreak = defaultLineBreaks[osType] ?? '\n';
+
 class EditDetector {
     constructor() {
         this.editLimit = 10;
@@ -442,5 +449,6 @@ export {
     getFiles,
     fileState,
     initFileState,
-    FileStateMonitor
+    FileStateMonitor,
+    defaultLineBreak
 };
