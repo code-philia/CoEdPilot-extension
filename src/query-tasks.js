@@ -97,7 +97,7 @@ class GenerateEditCommand extends BaseComponent{
 	constructor() {
 		super();
         this.register(
-            this.registerSelectionCommands(),
+            this.registerEditSelectionCommands(),
 			vscode.commands.registerCommand("editPilot.generateEdits", async (...args) => {
 				if (args.length != 1 || !(args[0] instanceof vscode.Uri)) return;
 				
@@ -162,7 +162,7 @@ class GenerateEditCommand extends BaseComponent{
 		);
     }
     
-    registerSelectionCommands() {
+    registerEditSelectionCommands() {
         function getSelectorOfCurrentTab() {
             const currTab = vscode.window.tabGroups.activeTabGroup.activeTab;
             const selector = diffTabSelectors[currTab];

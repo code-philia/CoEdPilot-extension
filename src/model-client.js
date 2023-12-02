@@ -65,16 +65,16 @@ class ModelServerProcess{
     }
 }
 
-const res_jsons = JSON.parse(fs.readFileSync(path.join(srcDir, '../mock/mock_json_res.json'), { encoding:'utf-8' }));
+// const res_jsons = JSON.parse(fs.readFileSync(path.join(srcDir, '../mock/mock_json_res.json'), { encoding:'utf-8' }));
 
-class MockBackend {
-    static async delayedResponse(res_type) {
-        await new Promise(resolve => {
-            setTimeout(resolve, 1000);
-        })
-        return JSON.parse(JSON.stringify(res_jsons[res_type])); // deep clone necessary here
-    }
-}
+// class MockBackend {
+//     static async delayedResponse(res_type) {
+//         await new Promise(resolve => {
+//             setTimeout(resolve, 1000);
+//         })
+//         return JSON.parse(JSON.stringify(res_jsons[res_type])); // deep clone necessary here
+//     }
+// }
 
 const modelServerProcess = new ModelServerProcess();
 
