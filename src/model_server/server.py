@@ -2,6 +2,7 @@ from flask import Flask, request, make_response
 from discriminator.interface import predict as disc_predict
 from locator.interface import predict as loc_predict
 from generator.interface import predict as gen_predict
+import time
 import json
 
 app = Flask(__name__)
@@ -13,6 +14,7 @@ def make_plain_text_response(result):
     return response
 
 @app.route('/discriminator', methods=['POST'])
+
 def run_discriminator():
     print(">>> Running discriminator")
     json_str = request.data.decode('utf-8')

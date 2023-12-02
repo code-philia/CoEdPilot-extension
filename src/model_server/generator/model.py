@@ -54,6 +54,7 @@ class Seq2Seq(nn.Module):
                                    
     def forward(self, source_ids=None,source_mask=None,target_ids=None,target_mask=None,args=None):   
         global device
+        global device
         outputs = self.encoder(source_ids, attention_mask=source_mask)
         encoder_output = outputs[0].permute([1,0,2]).contiguous()
         if target_ids is not None:  
@@ -76,6 +77,7 @@ class Seq2Seq(nn.Module):
         else:
             #Predict 
             preds=[]       
+            zero=torch.cuda.LongTensor(1).fill_(0) if torch.cuda.is_available() else torch.LongTensor(1).fill_(0)   
             zero=torch.cuda.LongTensor(1).fill_(0) if torch.cuda.is_available() else torch.LongTensor(1).fill_(0)   
             for i in range(source_ids.shape[0]):
                 context=encoder_output[:,i:i+1]
@@ -109,6 +111,7 @@ class Seq2Seq(nn.Module):
 class Beam(object):
     def __init__(self, size,sos,eos):
         self.size = size
+        self.tt = torch.cuda if torch.cuda.is_available() else torch
         self.tt = torch.cuda if torch.cuda.is_available() else torch
         # The score for each translation on the beam.
         self.scores = self.tt.FloatTensor(size).zero_()
