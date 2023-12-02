@@ -54,7 +54,7 @@ python -m pip install torch torchvision torchaudio transformers retriv flask tqd
 
 #### Step 2: Download models into the project directory
 
-Download `models.zip` from here, unzip it, then put the `models` folder into the project root directory.
+Download `models.zip` from [here](https://drive.google.com/file/d/1nW1NCeelOUZfqebrncKvlB7FVZutjQsT/view?usp=sharing), unzip it, then put the `models` folder into the project root directory.
 
 #### Step 3: Start the 
 
