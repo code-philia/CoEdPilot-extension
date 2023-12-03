@@ -1,5 +1,5 @@
 import vscode from 'vscode';
-import { toPosixPath } from './file';
+import { fileState, toPosixPath } from './file';
 import { queryState } from './queries';
 import { predictEditAtRange } from './query-tasks';
 import { EditSelector, tempWrite } from './compare-view';
@@ -79,6 +79,8 @@ class LocationDecoration extends BaseComponent {
 	}
 
 	setLocationDecorations(editor) {
+		if (fileState.inDiffEditor) return;
+
 		const uri = editor?.document?.uri;
 		if (!uri) return;
 

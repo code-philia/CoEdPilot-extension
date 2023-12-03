@@ -15,6 +15,7 @@ class FileState {
         this.prevSnapshot = undefined;
         this.currSnapshot = undefined;
         this.prevEdits = [];
+        this.inDiffEditor = false;
     }
 }
 
@@ -412,6 +413,7 @@ function initFileState(editor) {
     fileState.currCursorAtLine = 0;
     fileState.prevSnapshot = editor.document.getText();
     fileState.currSnapshot = editor.document.getText();
+    fileState.inDiffEditor = (vscode.window.tabGroups.activeTabGroup.activeTab.input instanceof vscode.TabInputTextDiff);
     console.log('==> Active File:', getActiveFilePath());
     console.log('==> Global variables initialized');
     // highlightModifications(modifications, editor);
