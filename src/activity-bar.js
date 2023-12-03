@@ -2,31 +2,66 @@ import vscode from 'vscode';
 import path from 'path';
 import { queryState } from './queries';
 import { BaseComponent } from './base-component';
-import { getLineInfoInDocument } from './file';
 
-
-class LocationTreeProvider extends BaseComponent {
+class EditLocationView extends BaseComponent {
     constructor() {
         super();
+        this.provider = new LocationTreeProvider();
+        
+        const treeViewOptions = {
+            treeDataProvider: this.provider,
+            showCollapseAll: true
+        }
+        const treeView = vscode.window.createTreeView('editLocations', treeViewOptions);
+        this.treeView = treeView;
+
+        this.register(
+            treeView,
+            this.provider.onDidChangeTreeData((num) => {
+                // Set the whole badge here. Only setting the value won't trigger update
+                this.treeView.badge = {
+                    tooltip: `${num} possible edit locations`,
+                    value: num
+                }
+                vscode.commands.executeCommand('editLocations.focus');
+            }, this),
+            queryState.onDidQuery((qs) => this.provider.refresh(qs.locations), this)
+        );
+    }
+}
+
+class LocationTreeProvider  {
+    constructor() {
         this._onDidChangeTreeData = new vscode.EventEmitter();
         this.onDidChangeTreeData = this._onDidChangeTreeData.event;
         this.modTree = [];
-
-        this.disposable = vscode.Disposable.from(
-            queryState.onDidQuery((qs) => this.refresh(qs.locations), this),
-            vscode.window.registerTreeDataProvider('editPoints', this),
-            vscode.commands.registerCommand('editPilot.refreshEditPoints', (modList) => this.refresh(modList))
-        );
     }
 
     empty() {
         this.modTree = [];
-        this._onDidChangeTreeData.fire();
+        this.notifyChangeofTree();
     }
 
     refresh(modList) {
         this.modTree = this.transformModTree(modList);
-        this._onDidChangeTreeData.fire();
+        this.notifyChangeofTree();
+    }
+
+    notifyChangeofTree() {
+        this._onDidChangeTreeData.fire(
+            this.numOfLocation(),
+        );
+    }
+
+    numOfLocation() {
+        if (this.modTree == null) return 0;
+
+        let num = 0;
+        for (const fileItem of this.modTree) {
+            num += fileItem?.mods?.length ?? 0;
+        }
+
+        return num;
     }
 
     getTreeItem(element) {
@@ -159,7 +194,7 @@ class ModItem extends vscode.TreeItem {
         this.lineContent = lineContent
         this.text = `    ${this.lineContent.trim()}`;
 
-        this.tooltip = `Line ${this.atLine}`;
+        this.tooltip = `line ${this.atLine}`;
         this.description = this.text;
         this.command = {
             command: 'editPilot.openFileAtLine',
@@ -203,5 +238,5 @@ class ModItem extends vscode.TreeItem {
 }
 
 export {
-    LocationTreeProvider
+    EditLocationView
 };

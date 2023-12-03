@@ -112,8 +112,8 @@
     "views": {
       "editPilot": [
         {
-          "id": "editPoints",
-          "name": "Suggested Edits",
+          "id": "editLocations",
+          "name": "Suggested Locations",
           "contextualTitle": "Edit Pilot"
         },
         {

@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
-import { compareTempFileSystemProvider, DiffTabCodelensProvider } from './compare-view';
+import { compareTempFileSystemProvider } from './compare-view';
 import { FileStateMonitor, initFileState } from './file';
-import { LocationTreeProvider } from './activity-bar';
+import { EditLocationView } from './activity-bar';
 import { CommitMessageInput } from './queries';
 import { LocationDecoration } from './inline';
 import { registerBasicCommands, registerTopTaskCommands } from './extension-register';
@@ -25,7 +25,7 @@ function activate(context) {
 		new FileStateMonitor(),
 		new LocationDecoration(),
 		new CommitMessageInput(),
-		new LocationTreeProvider(),
+		new EditLocationView()
 		// new DiffTabCodelensProvider()
 	);
 
