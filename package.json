@@ -20,7 +20,7 @@
   "contributes": {
     "commands": [
       {
-        "command": "extension.inputMessage",
+        "command": "editPilot.inputMessage",
         "category": "Edit Pilot",
         "title": "Change Commit Message"
       },
@@ -62,7 +62,7 @@
     "menus": {
       "editor/context": [
         {
-          "command": "extension.inputMessage",
+          "command": "editPilot.inputMessage",
           "group": "editPilot@3",
           "when": "editorFocus"
         },

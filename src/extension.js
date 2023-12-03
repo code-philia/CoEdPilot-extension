@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
 import { compareTempFileSystemProvider } from './compare-view';
-import { FileStateMonitor, initFileState } from './file';
+import { FileStateMonitor, fileState, initFileState } from './file';
 import { EditLocationView } from './activity-bar';
-import { CommitMessageInput } from './queries';
+import { CommitMessageInput, queryState } from './queries';
 import { LocationDecoration } from './inline';
 import { registerBasicCommands, registerTopTaskCommands } from './extension-register';
 
@@ -11,8 +11,8 @@ function activate(context) {
 	initFileState(vscode.window.activeTextEditor);
 
 	context.subscriptions.push(
-		// fileState,
-		// queryState,
+		fileState,
+		queryState,
 		compareTempFileSystemProvider
 	)
 
@@ -24,7 +24,6 @@ function activate(context) {
 	context.subscriptions.push(
 		new FileStateMonitor(),
 		new LocationDecoration(),
-		new CommitMessageInput(),
 		new EditLocationView()
 		// new DiffTabCodelensProvider()
 	);

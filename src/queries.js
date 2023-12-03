@@ -4,13 +4,22 @@ import { queryDiscriminator, queryLocator, queryGenerator } from './model-client
 import { BaseComponent } from './base-component';
 import { registerCommand } from './extension-register';
 
-class QueryState {
+class QueryState extends BaseComponent {
     constructor() {
+        super();
+        // request parameters
         this.commitMessage = "";
+
+        // response parameters
         this.locations = [];
         this.locatedFilePaths = [];
         this._onDidQuery = new vscode.EventEmitter();
         this.onDidQuery = this._onDidQuery.event;
+        
+        this.register(
+            registerCommand('editPilot.inputMessage', this.inputCommitMessage, this),
+            this._onDidQuery
+        );
     }
 
     async updateLocations(locations) {
@@ -27,9 +36,26 @@ class QueryState {
     async clearLocations() {
         this.updateLocations([]);
     }
+   
+    async requireCommitMessage(msg) {
+        if (!msg) {
+            msg = await this.inputCommitMessage();
+        }
+        
+        this.commitMessage = msg;
+        return msg;
+    }
 
-    dispose() {
-        this._onDidQuery.dispose();
+    async inputCommitMessage() {
+        console.log('==> Edit description input box is displayed')
+        const userInput = await vscode.window.showInputBox({
+            prompt: 'Enter commit message of description of edits you would make.',
+            placeHolder: 'add a feature',
+        }) ?? "";
+        console.log('==> Edit description:', userInput);
+        this.commitMessage = userInput;
+
+        return userInput;
     }
 }
 
@@ -84,6 +110,8 @@ async function queryLocationFromModel(rootPath, files, prevEdits, commitMessage)
             file_info[0]
         );
     }
+
+    commitMessage = await queryState.requireCommitMessage(commitMessage);
 
     // Send to the discriminator model for analysis
     const disc_input = {
@@ -162,41 +190,16 @@ async function queryEditFromModel(fileContent, editType, atLines, prevEdits, com
         atLines: atLines
     };
 
+    commitMessage = await queryState.requireCommitMessage(commitMessage);
+
     const output = await queryGenerator(input);
     let edits = output.data;
     console.log('==> Edit generator model returned successfully');
     return edits; // Return newmodification
 }
 
-class CommitMessageInput extends BaseComponent{
-    constructor() {
-        super();
-        this.inputBox = vscode.window.createInputBox();
-        this.inputBox.prompt = 'Enter edit description';
-        this.inputBox.ignoreFocusOut = true; // The input box will not be hidden after losing focus
-        
-        this.register(
-            registerCommand('extension.inputMessage', this.showInputBox, this),
-            this.inputBox.onDidAccept(this.acceptInputBox, this)
-        );
-    }
-
-    showInputBox() {
-        console.log('==> Edit description input box is displayed')
-        this.inputBox.show();
-    }
-
-    acceptInputBox() {
-        const userInput = this.inputBox.value;
-        console.log('==> Edit description:', userInput);
-        queryState.commitMessage = userInput;
-        this.inputBox.hide();
-    }
-}
-
 export {
     queryLocationFromModel,
     queryEditFromModel,
-    queryState,
-    CommitMessageInput
+    queryState
 };

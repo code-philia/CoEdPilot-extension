@@ -8,8 +8,9 @@ import { BaseComponent } from './base-component';
 
 const prevEditNum = 3;
 
-class FileState {
+class FileState extends BaseComponent{
     constructor() {
+        super();
         this.prevCursorAtLine = 0;
         this.currCursorAtLine = 0;
         this.prevSnapshot = undefined;

@@ -2,17 +2,15 @@ import vscode from 'vscode';
 
 class BaseComponent {
     constructor() {
-        this.disposable = {
-            dispose: () => {}
-        };
+        this._disposables = [];
     }
 
     dispose() {
-        this.disposable.dispose();
+        this._disposables.forEach((e) => e.dispose());
     }
 
     register(...disposables) {
-        this.disposable = vscode.Disposable.from(...disposables);
+        this._disposables.push(...disposables);
     }
 }
 
