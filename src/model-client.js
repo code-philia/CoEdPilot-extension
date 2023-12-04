@@ -54,10 +54,10 @@ class ModelServerProcess{
             console.log(`[ModelServer] Received response:`);
             console.log(response.data);
             // DEBUGGING
-            fs.writeFileSync(
-                path.join(srcDir, '../mock/backend_response.json'),
-                JSON.stringify(response.data), { flag: 'a' }
-            );
+            // fs.writeFileSync(
+            //     path.join(srcDir, '../mock/backend_response.json'),
+            //     JSON.stringify(response.data), { flag: 'a' }
+            // );
             return response.data;
         } else {
             throw new axios.AxiosError(JSON.stringify(response));

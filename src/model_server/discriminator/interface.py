@@ -2,8 +2,8 @@ import os
 import torch
 import torch.nn as nn
 import re
+import numpy as np
 from tqdm import tqdm
-from retriv import SearchEngine
 from torch.utils.data import DataLoader, TensorDataset
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from perf import Stopwatch
@@ -123,7 +123,11 @@ def predict(json_input):
     for edit in json_input["prevEdits"]:
         edits.extend([edit["beforeEdit"], edit["afterEdit"]])
 
-    search_re = re.compile('|'.join(map(lambda x: re.escape(x), edits)))
+    edit_words_list = np.array([np.array(x.split()) for x in edits])
+    edit_words = []
+    if len(edit_words_list):
+        edit_words = np.concatenate(edit_words_list)
+    search_re = re.compile('|'.join(map(lambda x: re.escape(x), edit_words)))
     for filePath, fileContent in json_input["files"]:
         found = False
         for x in search_re.finditer(fileContent):

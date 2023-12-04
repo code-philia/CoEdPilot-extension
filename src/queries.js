@@ -124,10 +124,6 @@ async function queryLocationFromModel(rootPath, files, prevEdits, commitMessage)
     console.log('==> Sending to discriminator model');
     const discriminatorOutput = await queryDiscriminator(disc_input);
     console.log('==> Discriminator model returned successfully');
-    if (discriminatorOutput.data.length == 0) {
-        console.log('==> No files will be analyzed');
-        return;
-    }
     console.log('==> Files to be analyzed:');
     discriminatorOutput.data.forEach(file => {
         console.log('\t*' + file);
@@ -159,7 +155,6 @@ async function queryLocationFromModel(rootPath, files, prevEdits, commitMessage)
     queryState.updateLocations(rawLocations);
     return rawLocations;
 }
-
 
 async function queryEditFromModel(fileContent, editType, atLines, prevEdits, commitMessage) {
     /* 	
