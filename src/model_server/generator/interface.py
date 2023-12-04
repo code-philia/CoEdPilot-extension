@@ -242,8 +242,8 @@ def predict(json_input):
                 replacements.append(text)
     stopwatch.lap('infer result')
 
-    if editType == 'add':
-        replacements = [targetFileLines[editLineIdx[0]] + replacement for replacement in replacements]
+    # if editType == 'add':
+    #     replacements = [targetFileLines[editLineIdx[0]] + replacement for replacement in replacements]
 
     result["replacement"] = replacements
     stopwatch.lap('post-process result')

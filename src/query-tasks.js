@@ -1,5 +1,5 @@
 import vscode from 'vscode';
-import { getRootPath, getFiles, updatePrevEdits, getPrevEdits, getLocationAtRange, fileState, toPosixPath } from './file';
+import { getRootPath, getGlobFiles, updatePrevEdits, getPrevEdits, getLocationAtRange, fileState, toPosixPath, globalEditDetector, getOpenedFilePaths, liveFilesGetter } from './file';
 import { queryLocationFromModel, queryEditFromModel, queryState } from './queries';
 import { BaseComponent } from './base-component';
 import { EditSelector, diffTabSelectors, tempWrite } from './compare-view';
@@ -43,9 +43,11 @@ async function predictLocation() {
     return await globalEditLock.tryWithLockAsync(async () => {
         console.log('==> Send to LLM (After cursor changed line)');
         const rootPath = getRootPath();
-        const files = await getFiles();
-        const currentPrevEdits = getPrevEdits();
+        const files = await getGlobFiles();
+        // const currentPrevEdits = getPrevEdits();
         try {
+            await globalEditDetector.updateAllSnapshotsFromDocument(liveFilesGetter());
+            const currentPrevEdits = await globalEditDetector.getEditList();
             await queryLocationFromModel(rootPath, files, currentPrevEdits, queryState.commitMessage);
         } catch (err) {
             console.log(err);
