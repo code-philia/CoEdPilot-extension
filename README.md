@@ -34,10 +34,13 @@ Our model scripts require **Python 3.10** and **Pytorch with CUDA.**
 
 #### Step 1: Install Python dependencies
 
+> [!IMPORTANT]
+> For *Windows* and *Linux using CUDA 11.8,* please follow [PyTorch official guide](https://pytorch.org/get-started/locally/) to install PyTorch with CUDA before the following steps.
+
 Using `pip` :
 
 ```shell
-pip install torch torchvision torchaudio transformers retriv flask tqdm bleu
+pip install -r requirements.txt
 ```
 
 Or using `conda` :
@@ -46,11 +49,9 @@ Or using `conda` :
 conda create -n code-edit
 conda activate code-edit
 conda install python=3.10.13
-python -m pip install torch torchvision torchaudio transformers retriv flask tqdm bleu
+python -m pip install -r requirements.txt
 ```
 
-> [!IMPORTANT]
-> For *Windows* and *Linux using CUDA 11.8,* please follow [PyTorch official guide](https://pytorch.org/get-started/locally/) to install PyTorch with CUDA. 
 
 #### Step 2: Download models into the project directory
 
@@ -58,7 +59,7 @@ Download `models.zip` from [here](https://drive.google.com/file/d/1nW1NCeelOUZfq
 
 #### Step 3: Start the backend
 
-Simply run `src/model_server/server.py` from the project root directory
+Simply run `server.py` from the project root directory
 
 ```shell
 python src/model_server/server.py

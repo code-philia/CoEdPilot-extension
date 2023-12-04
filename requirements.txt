@@ -1,0 +1,9 @@
+torch
+torchvision
+torchaudio
+transformers
+retriv
+flask
+tqdm
+bleu
+pandas
