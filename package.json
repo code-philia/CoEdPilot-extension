@@ -16,20 +16,110 @@
     "onLanguage:json",
     "onLanguage:markdown"
   ],
-  "main": "./src/extension.js",
+  "main": "./out/extension",
   "contributes": {
     "commands": [
-      { 
-        "command": "extension.commit_message",
-        "title": "Enter edit description"
+      {
+        "command": "editPilot.inputMessage",
+        "category": "Edit Pilot",
+        "title": "Change Commit Message"
+      },
+      {
+        "title": "Last Suggestion",
+        "category": "Edit Pilot",
+        "command": "editPilot.last-suggestion",
+        "icon": "$(arrow-left)"
+      },
+      {
+        "title": "Next Suggestion",
+        "category": "Edit Pilot",
+        "command": "editPilot.next-suggestion",
+        "icon": "$(arrow-right)"
+      },
+      {
+        "title": "Accept",
+        "category": "Edit Pilot",
+        "command": "editPilot.accept-edit",
+        "icon": "$(pass)"
+      },
+      {
+        "title": "Dismiss",
+        "category": "Edit Pilot",
+        "command": "editPilot.dismiss-edit",
+        "icon": "$(trash)"
+      },
+      {
+        "title": "Predict Locations",
+        "category": "Edit Pilot",
+        "command": "editPilot.predictLocations"
+      },
+      {
+        "title": "Generate Edits",
+        "category": "Edit Pilot",
+        "command": "editPilot.generateEdits"
       }
     ],
     "menus": {
       "editor/context": [
         {
-          "when": "editorFocus", 
-          "command": "extension.commit_message", 
-          "group": "code_suggestion@1"
+          "command": "editPilot.inputMessage",
+          "group": "editPilot@3",
+          "when": "editorFocus"
+        },
+        {
+          "command": "editPilot.predictLocations",
+          "group": "editPilot@1",
+          "when": "editorFocus"
+        },
+        {
+          "command": "editPilot.generateEdits",
+          "group": "editPilot@2",
+          "when": "editorFocus"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "editPilot.last-suggestion",
+          "group": "navigation@-101",
+          "when": "isInDiffEditor"
+        },
+        {
+          "command": "editPilot.next-suggestion",
+          "group": "navigation@-101",
+          "when": "isInDiffEditor"
+        },
+        {
+          "command": "editPilot.accept-edit",
+          "group": "navigation@-101",
+          "when": "isInDiffEditor"
+        },
+        {
+          "command": "editPilot.dismiss-edit",
+          "group": "navigation@-101",
+          "when": "isInDiffEditor"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "editPilot",
+          "title": "Edit Pilot",
+          "icon": "media/reset_wrench.svg"
+        }
+      ]
+    },
+    "views": {
+      "editPilot": [
+        {
+          "id": "editLocations",
+          "name": "Suggested Locations",
+          "contextualTitle": "Edit Pilot"
+        },
+        {
+          "id": "prevEdits",
+          "name": "Previous Edits",
+          "contextualTitle": "Edit Pilot"
         }
       ]
     }
@@ -37,7 +127,8 @@
   "scripts": {
     "lint": "eslint .",
     "pretest": "npm run lint",
-    "test": "node ./test/runTest.js"
+    "test": "node ./test/runTest.js",
+    "watch": "tsc --watch --allowJs -p jsconfig.json"
   },
   "devDependencies": {
     "@types/glob": "^8.1.0",
@@ -45,12 +136,14 @@
     "@types/node": "16.x",
     "@types/vscode": "^1.78.0",
     "@vscode/test-electron": "^2.3.0",
-    "eslint": "^8.39.0",
+    "axios": "^1.6.0",
     "glob": "^8.1.0",
     "mocha": "^10.2.0",
     "typescript": "^5.0.4"
   },
   "dependencies": {
+    "@types/diff": "^5.0.8",
+    "diff": "^5.1.0",
     "vscode-languageserver": "^8.1.0"
   }
 }

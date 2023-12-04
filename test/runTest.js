@@ -1,6 +1,6 @@
-const path = require('path');
+import path from 'path';
 
-const { runTests } = require('@vscode/test-electron');
+import { runTests } from '@vscode/test-electron';
 
 async function main() {
 	try {

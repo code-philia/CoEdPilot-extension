@@ -1,5 +1,10 @@
-src/locator_pytorch_model.bin
-src/generator_pytorch_model.bin
-src/discriminator_pytorch_model.pth
+*.vsix
+*.bin
+*.pth
 test/test_cases/react/
 test/test_cases/tributary/
+node_modules/
+**/__pycache__/
+out/
+models/
+mock/

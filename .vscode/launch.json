@@ -10,8 +10,25 @@
 			"type": "extensionHost",
 			"request": "launch",
 			"args": [
-				"--extensionDevelopmentPath=${workspaceFolder}"
-			]
+				"--extensionDevelopmentPath=${workspaceFolder}",
+				"--disable-extensions",
+				// "--remote=wsl+Ubuntu-22.04"
+			],
+			"outFiles": [
+				"${workspaceFolder}/out/**/*.js"
+			],
+			"preLaunchTask": "npm: watch"
+		},
+		{
+			"name": "Python server debugging",
+			"type": "python",
+			"request": "launch",
+			"program": "${workspaceFolder}/src/model_server/server.py",
+			"console": "integratedTerminal",
+			"justMyCode": true,
+			"env": {
+				"PYTHONPATH": "${workspaceFolder}/src/model_server"
+			}
 		},
 		{
 			"name": "Extension Tests",

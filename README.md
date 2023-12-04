@@ -1,56 +1,78 @@
 # README
 
-This plugin is a VSCode extension that provides automatic code edit recommendations.
+Edit Pilot is a Visual Studio Code extension that features automatic code edit recommendations.
 
-## Feature
-The plugin is composed of an edit locator and an edit generator. The edit locator can highlight recommended edit locations based on previous edits and the edit description provided by user. When the user clicks or selects a highlighted location, multiple edit suggestions will be provided by the edit generator. If the user chooses to accept the edit suggestion, they can click on the suggestion, and the plugin will automatically apply the edit.
+## Features
 
-The edit location recommendation feature can be triggered in the following ways:
-* Content edit (editor content changes, and the cursor moves to a different line):
-    1. Typing/deleting content and then clicking on another line.
-    2. Typing content and pressing "Enter" for a new line.
-    3. Pressing the "Backspace" key to delete the current line until returning to the previous line.
-    4. Copying multiple lines of content to any location.
-    5. Selecting a single line of content, making edits (deleting/typing), and then clicking on another line.
-    6. Selecting multiple lines of content forward, deleting, and then clicking on another line.
-    7. Selecting multiple lines of content backward and deleting them.
-    8. Selecting and replacing content with the same number of lines forward.
-    9. Selecting and replacing content with the same number of lines backward, then clicking on another line.
-    10. Selecting and replacing content with different numbers of lines forward/backward.
-* User enter edit description.
-* Accept edit suggestion provided by the extension.
+The plugin is composed of an **edit locator** and an **edit generator.** 
 
-## Plugin Usage
-1. The plugin is not yet published. Please press `F5` within VS Code to use it in debug mode.
-2. To submit an edit description, right-click anywhere in the editor, then select **Enter edit description** from the menu. An input box will appear at the top. After entering your message, press `Enter` to confirm.
-3. To close the edit description input box, click it and then press `Enter`.
-4. Closing the edit description input box will not delete the current saved edit description. If you want to update the edit description, enter the new content inside the edit description input box and press `Enter` to confirm.
-5. Red highlighting indicates recommended edits for the current line, while green highlighting suggests additions to the code after the current line.
-6. When recommended edit locations are highlighted, users can click or select a location, and a **blue dot** will appear in front of it. Clicking on it will display multiple recommended edit options.
-7. If you want to accept a recommended edit, you can directly click on it to apply the change.
+The edit locator, combining a discriminator model and a locator model, is for suggesting edit locations according to *previous edits* and *current commit message.*
 
-## Deployment of the extension
-1. Install [Node.js](https://nodejs.org/en/download).
-2. Install packages required for VS Code extension: 
+The edit generator, based on a single generator model, is for generating replacements or additions somewhere in the code, from suggested locations or manually selected. It also needs *previous edits* and *current commit message* , together with the code to replace.
+
+## Usage
+
+1. Edit the code, as our extension will automatically record most previous edits.
+
+2. To trigger `Predict Locations` or `Change Commit Message`, right-click anywhere in the editor, then click the action in the menu.
+
+3. To trigger `Generate Edits`, select part of the code for replacing (or select none for adding) in the editor, then right-click and click `Generate Edits` in the menu.
+
+4. After the model generates possible edits at that range, a difference tab with pop up for you to edit the code or switch to different edits. **There are buttons on the top right corner of the difference tab to accept, dismiss or switch among generate edits.**
+
+## Deployment
+
+This extension is currently not released in VS Code Extension Store. Follow the next steps to run the extension in development mode in VS Code.
+
+### To get started
+
+`git clone` this project to somewhere you want, then `cd` the project or simply open the project directory in VS Code.
+
+### Run backend models
+
+Our model scripts require **Python 3.10** and **Pytorch with CUDA.**  
+
+#### Step 1: Install Python dependencies
+
+Using `pip` :
+
+```shell
+pip install torch torchvision torchaudio transformers retriv flask tqdm bleu
 ```
-npm install -g yo generator-code
-```
-3. Download extension [code](https://github.com/code-philia/Code-Edit).
-4. Download [backend models](https://drive.google.com/file/d/1MYn68MOJsUQLDwYNedINZtxgWcXDiLJG/view?usp=sharing).
-5. Rename the edit locator model as *locator_pytorch_model.bin*, and the edit generation model as *generator_pytorch_model.bin*, move them to folder *src/*.
-6. Create environment and install dependencies of the backend models. The backend model can also work with cuda.
-```
+
+Or using `conda` :
+
+```shell
 conda create -n code-edit
 conda activate code-edit
-pip install transformers==4.13.0
-pip3 install torch torchvision torchaudio
+conda install python=3.10.13
+python -m pip install torch torchvision torchaudio transformers retriv flask tqdm bleu
 ```
-7. Open file *src/extension.js*, edit the path variable `PyInterpreter` with the absolute path of the interpreter. E.g.: */home/username/miniconda3/envs/codebert/bin/python*.
-8. Open the extension folder within VS Code, open *src/extension.js*, press `F5` to run the extension in debug mode. If a VS Code menu pop up, select "VS Code Extension".
-9. New VS Code window should appear and the extension is ready. 
+
+> [!IMPORTANT]
+> For Windows, follow [PyTorch official guide](https://pytorch.org/get-started/locally/) to install PyTorch with CUDA. 
+
+#### Step 2: Download models into the project directory
+
+Download `models.zip` from [here](https://drive.google.com/file/d/1nW1NCeelOUZfqebrncKvlB7FVZutjQsT/view?usp=sharing), unzip it, then put the `models` folder into the project root directory.
+
+#### Step 3: Start the 
+
+Simply run `python src/model_server/server.py` from the project root directory.
+
+### Run extension in debugging mode
+
+1. Install [Node.js](https://nodejs.org/en/download).
+
+2. In the project directory, run `npm install` .
+
+3. Open the project directory in VS Code if didn't. Press `F5` and choose `Run Extension` if you are required to choose a configuration. Note that other extension will be disabled in the development host.
+
+> [!Note]
+> Remember to start up backend models before running the extension.
 
 ## Issues
 
-* Currently, Python scripts must be located locally and use stdin and stdout for content exchange.
+The project is still in development. Not fully tested on different platforms.
 
 **Enjoy!**
