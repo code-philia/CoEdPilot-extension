@@ -14,11 +14,11 @@ The edit generator, based on a single generator model, is for generating replace
 
 1. Edit the code, as our extension will automatically record most previous edits.
 
-2. To trigger `Predict Locations` or `Change Commit Message`, right-click anywhere in the editor, then click the action in the menu.
+2. To trigger `Predict Locations` or `Change Commit Message`, **right-click** anywhere in the editor, then click the action in the menu.
 
-3. To trigger `Generate Edits`, select part of the code for replacing (or select none for adding) in the editor, then right-click and click `Generate Edits` in the menu.
+3. To trigger `Generate Edits`, select part of the code for **replacing** (or select none for **adding**) in the editor, then **right-click** and click `Generate Edits` in the menu.
 
-4. After the model generates possible edits at that range, a difference tab with pop up for you to edit the code or switch to different edits. **There are buttons on the top right corner of the difference tab to accept, dismiss or switch among generate edits.**
+4. After the model generates possible edits at that range, a difference tab with pop up for you to edit the code or switch to different edits. **There are buttons on the top right corner of the difference tab to accept, dismiss or switch among generated edits.**
 
 ## Deployment
 
@@ -50,26 +50,40 @@ python -m pip install torch torchvision torchaudio transformers retriv flask tqd
 ```
 
 > [!IMPORTANT]
-> For Windows, follow [PyTorch official guide](https://pytorch.org/get-started/locally/) to install PyTorch with CUDA. 
+> For *Windows* and *Linux using CUDA 11.8,* please follow [PyTorch official guide](https://pytorch.org/get-started/locally/) to install PyTorch with CUDA. 
 
 #### Step 2: Download models into the project directory
 
 Download `models.zip` from [here](https://drive.google.com/file/d/1nW1NCeelOUZfqebrncKvlB7FVZutjQsT/view?usp=sharing), unzip it, then put the `models` folder into the project root directory.
 
-#### Step 3: Start the 
+#### Step 3: Start the backend
 
-Simply run `python src/model_server/server.py` from the project root directory.
+Simply run `src/model_server/server.py` from the project root directory
+
+```shell
+python src/model_server/server.py
+```
+
+> [!NOTE]
+> Always remember to start up backend models which the extension must base on.
 
 ### Run extension in debugging mode
 
-1. Install [Node.js](https://nodejs.org/en/download).
+#### Step 1: Install Node.js
 
-2. In the project directory, run `npm install` .
+See [Node.js official website](https://nodejs.org/en/download).
 
-3. Open the project directory in VS Code if didn't. Press `F5` and choose `Run Extension` if you are required to choose a configuration. Note that other extension will be disabled in the development host.
+#### Step 2: Install Node dependencies
 
-> [!Note]
-> Remember to start up backend models before running the extension.
+In the project root directory, install Node packages
+
+```shell
+npm install
+```
+
+#### Step 3: Run extension using VS Code development host
+
+Open the project directory in VS Code if didn't, press `F5`, then choose `Run Extension` if you are required to choose a configuration. Note that other extensions will be disabled in the development host.
 
 ## Issues
 
