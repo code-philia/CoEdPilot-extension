@@ -36,6 +36,22 @@ const defaultLineBreaks = {
 };
 const defaultLineBreak = defaultLineBreaks[osType] ?? '\n';
 
+let gitignorePatterns = [];
+try {
+    const gitignoreText = fs.readFileSync(path.join(
+        vscode.workspace.workspaceFolders[0].uri.fsPath,
+        '.gitignore'
+    ), 'utf-8');
+    const gitignoreLines = gitignoreText.match(/[^\r\n]+/g);
+    gitignorePatterns.push(...(gitignoreLines.map((p) => {
+        if (p.endsWith('/')) return p + '**';
+        return p;
+    })));
+} catch (err) {
+    console.log(`Neglecting .gitignore rules because of problem: ${err}`);
+    gitignorePatterns = [];
+}
+
 class EditDetector {
     constructor() {
         this.editLimit = 10;
@@ -273,7 +289,7 @@ async function getFiles(useSnapshot = true) {
     const fileList = [];
 
     // Use glob to exclude certain files and return a list of all valid files
-    const filePathList = globFiles(rootPath, []);
+    const filePathList = globFiles(rootPath);
 
     async function readFileFromPathList(filePathList, contentList) {
         for (const filePath of filePathList) {
@@ -383,21 +399,19 @@ function getPrevEdits() {
 }
 
 // glob files with specific patterns
-function globFiles(rootPath, globPatterns) {
+function globFiles(rootPath, globPatterns = []) {
     // Built-in glob patterns
-    const defaultGlobPatterns = [
-        '!.git/**'
-    ];
-    const allPatterns = defaultGlobPatterns.concat(globPatterns);
+    const defaultIgnorePatterns = [];
+    const allIgnorePatterns = defaultIgnorePatterns.concat(gitignorePatterns);
+    const globPatternStr = (globPatterns instanceof Array && globPatterns.length > 0)
+        ? '{' + globPatterns.join(',') + '}'
+        : '/**/*';
 
-    // Concatenate glob patterns
-    function concatRoot(pattern) {
-        const concat_path = pattern[0] == '!' ? '!' + path.join(rootPath, pattern.slice(1)) : path.join(rootPath, pattern);
-        return concat_path;
-    }
-    const allPatternsWithRoot = allPatterns.map(concatRoot).concat([path.join(rootPath, '**')]);
-
-    const pathList = glob.sync('{' + allPatternsWithRoot.join(',') + '}', { windowsPathsNoEscape: true });
+    const pathList = glob.sync(globPatternStr, {
+        root: rootPath,
+        windowsPathsNoEscape: true,
+        ignore: allIgnorePatterns
+    });
     return pathList;
 }
 
