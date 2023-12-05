@@ -1,14 +1,15 @@
-import os
 import torch
 import math
+
 from .model import Seq2Seq
 from tqdm import tqdm
 from torch.utils.data import DataLoader, SequentialSampler, TensorDataset
 from transformers import (RobertaConfig, RobertaModel, RobertaTokenizer)
 from perf import Stopwatch
+from model_manager import load_model_with_cache
 
 codeWindowLength = 10
-model_path = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'models', 'locator_model.bin')
+model_role = "locator"
 
 model = None
 tokenizer = None
@@ -110,8 +111,7 @@ def convert_examples_to_features(examples, tokenizer, stage=None):
         )
     return features
 
-def load_model():
-    global model_path
+def load_model(model_path):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     config_class, model_class, tokenizer_class = (RobertaConfig, RobertaModel, RobertaTokenizer)
     config = config_class.from_pretrained("microsoft/codebert-base")
@@ -153,7 +153,7 @@ def merge_adjacent_removals(results):
 
     return merged_results
 
-def predict(json_input):
+def predict(json_input, language):
     '''
     Function: interface between locator and VScode extension
     Args:
@@ -178,14 +178,11 @@ def predict(json_input):
                 ]
             }
     '''
-    global model, tokenizer, device
     stopwatch = Stopwatch()
 
     stopwatch.start()
     # check model cache
-    if not is_model_cached():
-        print('+++ loading locator model')
-        load_model_cache()
+    model, tokenizer, device = load_model_with_cache(model_role, language, load_model)
     stopwatch.lap('load model')
 
     # 提取从 JavaScript 传入的参数

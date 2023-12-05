@@ -63,7 +63,7 @@ class QueryState extends BaseComponent {
 const queryState = new QueryState();
 
 // ------------ Extension States -------------
-async function queryLocationFromModel(rootPath, files, prevEdits, commitMessage) {
+async function queryLocationFromModel(rootPath, files, prevEdits, commitMessage, language) {
     /* 
         Discriminator:
         input:
@@ -120,7 +120,8 @@ async function queryLocationFromModel(rootPath, files, prevEdits, commitMessage)
         files: files,
         targetFilePath: activeFilePath,
         commitMessage: commitMessage,
-        prevEdits: prevEdits
+        prevEdits: prevEdits,
+        language: language
     };
     console.log('==> Sending to discriminator model');
     const discriminatorOutput = await queryDiscriminator(disc_input);
@@ -142,7 +143,8 @@ async function queryLocationFromModel(rootPath, files, prevEdits, commitMessage)
         files: filteredFiles,
         targetFilePath: activeFilePath,
         commitMessage: commitMessage,
-        prevEdits: prevEdits
+        prevEdits: prevEdits,
+        language: language
     };
     console.log('==> Sending to edit locator model');
     const locatorOutput = await queryLocator(loc_input);
@@ -157,7 +159,7 @@ async function queryLocationFromModel(rootPath, files, prevEdits, commitMessage)
     return rawLocations;
 }
 
-async function queryEditFromModel(fileContent, editType, atLines, prevEdits, commitMessage) {
+async function queryEditFromModel(fileContent, editType, atLines, prevEdits, commitMessage, language) {
     /* 	
         Generator:
         input:
@@ -184,7 +186,8 @@ async function queryEditFromModel(fileContent, editType, atLines, prevEdits, com
         commitMessage: commitMessage,
         editType: editType,
         prevEdits: prevEdits,
-        atLines: atLines
+        atLines: atLines,
+        language: language
     };
 
     const output = await queryGenerator(input);

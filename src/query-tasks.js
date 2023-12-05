@@ -5,6 +5,11 @@ import { BaseComponent } from './base-component';
 import { EditSelector, diffTabSelectors, tempWrite } from './compare-view';
 import { registerCommand } from './extension-register';
 
+const supportedLanguages = [
+    "go",
+    "python"
+]
+
 class EditLock {
     constructor() {
         this.isLocked = false;
@@ -40,6 +45,11 @@ class EditLock {
 const globalEditLock = new EditLock();
 
 async function predictLocation() {
+    const language = vscode.window.activeTextEditor?.document?.languageId.toLowerCase();
+    if (!supportedLanguages.includes(language)) {
+        vscode.window.showInformationMessage(`Predicting location canceled: language ${language} not supported yet.`)
+        return;
+    }
     return await globalEditLock.tryWithLockAsync(async () => {
         console.log('==> Send to LLM (After cursor changed line)');
         const rootPath = getRootPath();
@@ -47,7 +57,7 @@ async function predictLocation() {
         // const currentPrevEdits = getPrevEdits();
         try {
             const currentPrevEdits = await globalEditDetector.getUpdatedEditList();
-            await queryLocationFromModel(rootPath, files, currentPrevEdits, queryState.commitMessage);
+            await queryLocationFromModel(rootPath, files, currentPrevEdits, queryState.commitMessage, language);
         } catch (err) {
             console.log(err);
         }
@@ -99,7 +109,13 @@ class GenerateEditCommand extends BaseComponent{
 		super();
         this.register(
             this.registerEditSelectionCommands(),
-			vscode.commands.registerCommand("editPilot.generateEdits", async (...args) => {
+            vscode.commands.registerCommand("editPilot.generateEdits", async (...args) => {
+                const language = vscode.window.activeTextEditor?.document?.languageId.toLowerCase();
+                if (!supportedLanguages.includes(language)) {
+                    vscode.window.showInformationMessage(`Predicting edit canceled: language ${language} not supported yet.`)
+                    return;
+                }
+            
 				if (args.length != 1 || !(args[0] instanceof vscode.Uri)) return;
 				
 				const uri = args[0];
@@ -139,7 +155,8 @@ class GenerateEditCommand extends BaseComponent{
                     editType,
                     atLines,
                     await globalEditDetector.getUpdatedEditList(),
-                    queryState.commitMessage
+                    queryState.commitMessage,
+                    language
                 );
                 
                 // Remove syntax-level unchanged replacements

@@ -1,23 +1,15 @@
-import os
 import torch
 import torch.nn as nn
 import re
 import numpy as np
+
 from tqdm import tqdm
 from torch.utils.data import DataLoader, TensorDataset
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from perf import Stopwatch
+from model_manager import load_model_with_cache
 
-current_file_path = os.path.dirname(os.path.abspath(__file__))
-model_path = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'models', 'discriminator_model.bin')
-
-model = None
-tokenizer = None
-device = None
-
-def is_model_cached():
-    global tokenizer, model, device
-    return not (tokenizer == None or model == None or device == None)
+model_role = "discriminator"
 
 class CombinedModel(nn.Module):
     def __init__(self, model_name):
@@ -66,8 +58,7 @@ def load_data(inputs, tokenizer, max_length=128):
 
     return dataset
 
-def load_model():
-    global model_path
+def load_model(model_path):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     tokenizer = AutoTokenizer.from_pretrained('vishnun/codenlbert-sm', model_max_length=512)
     model = CombinedModel('vishnun/codenlbert-sm')
@@ -76,11 +67,8 @@ def load_model():
     model.load_state_dict(checkpoint['model_state_dict'])
     return model, tokenizer, device
 
-def load_model_cache():
-    global model, tokenizer, device
-    model, tokenizer, device = load_model()
 
-def predict(json_input):
+def predict(json_input, language):
     '''
     Function: this is the interface between discriminator and VSCode extension
     Args:
@@ -97,14 +85,11 @@ def predict(json_input):
                 "data": [string], relative file paths that are probably related to target file
             }
     '''
-    global model, tokenizer, device
     stopwatch = Stopwatch()
 
     stopwatch.start()
     # check model cache
-    if not is_model_cached():
-        print('+++ loading discriminator model')
-        load_model_cache()
+    model, tokenizer, device = load_model_with_cache(model_role, language, load_model)
     stopwatch.lap('load model')
 
     # 0. remove targetFilePath from input["files"]
@@ -175,4 +160,5 @@ def predict(json_input):
     print("+++ Discriminator profiling:")
     stopwatch.print_result()
 
-    return output
+    return output    
+
