@@ -106,18 +106,19 @@ class EditSelector {
      * @param {*} replacement 
      */
     async _performMod(replacement) {
-        const lines = this.originalContent.split(defaultLineBreak);
-        console.log(JSON.stringify({'linebreak': defaultLineBreak }))
+        const x = this.originalContent.match(/\r?\n|\n/);
+        const lineBreak = x[0] ?? defaultLineBreak;
+        const lines = this.originalContent.split(lineBreak);
         const numLines = lines.length + 1;
         const fromLine = Math.max(0, this.fromLine);
         // If change type is "add", simply insert replacement content at the first line 
         const toLine = this.isAdd ? fromLine : Math.min(this.toLine, numLines);
         
-        const modifiedText = (lines.slice(0, fromLine)).join(defaultLineBreak)
-            + (fromLine > 0 ? defaultLineBreak : '')
+        const modifiedText = (lines.slice(0, fromLine)).join(lineBreak)
+            + (fromLine > 0 ? lineBreak : '')
             + replacement
-            + (toLine < numLines ? defaultLineBreak : '')
-            + (lines.slice(toLine, numLines)).join(defaultLineBreak);
+            + (toLine < numLines ? lineBreak : '')
+            + (lines.slice(toLine, numLines)).join(lineBreak);
         
         this._replaceDocument(modifiedText);
     }

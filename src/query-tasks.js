@@ -46,8 +46,7 @@ async function predictLocation() {
         const files = await getGlobFiles();
         // const currentPrevEdits = getPrevEdits();
         try {
-            await globalEditDetector.updateAllSnapshotsFromDocument(liveFilesGetter());
-            const currentPrevEdits = await globalEditDetector.getEditList();
+            const currentPrevEdits = await globalEditDetector.getUpdatedEditList();
             await queryLocationFromModel(rootPath, files, currentPrevEdits, queryState.commitMessage);
         } catch (err) {
             console.log(err);
@@ -139,7 +138,7 @@ class GenerateEditCommand extends BaseComponent{
                     targetFileContent,
                     editType,
                     atLines,
-                    fileState.prevEdits,
+                    await globalEditDetector.getUpdatedEditList(),
                     queryState.commitMessage
                 );
                 

@@ -54,7 +54,7 @@ try {
 
 class EditDetector {
     constructor() {
-        this.editLimit = 3;
+        this.editLimit = 10;
         this.textBaseSnapshots = new Map();
 
         /**
@@ -282,6 +282,11 @@ class EditDetector {
 			"beforeEdit": edit.rmText?.trim() ?? "",
             "afterEdit": edit.addText?.trim() ?? ""
         }))
+    }
+
+    async getUpdatedEditList() {
+        await globalEditDetector.updateAllSnapshotsFromDocument(liveFilesGetter());
+        return await globalEditDetector.getEditList();
     }
 }
 

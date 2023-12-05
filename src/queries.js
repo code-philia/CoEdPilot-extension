@@ -49,8 +49,9 @@ class QueryState extends BaseComponent {
     async inputCommitMessage() {
         console.log('==> Edit description input box is displayed')
         const userInput = await vscode.window.showInputBox({
-            prompt: 'Enter commit message of description of edits you would make.',
+            prompt: 'Enter commit message or description of edits you would make.',
             placeHolder: 'add a feature',
+            ignoreFocusOut: true
         }) ?? "";
         console.log('==> Edit description:', userInput);
         this.commitMessage = userInput;
@@ -98,6 +99,8 @@ async function queryLocationFromModel(rootPath, files, prevEdits, commitMessage)
             ]
         }
      */
+    commitMessage = await queryState.requireCommitMessage(commitMessage);
+    
     const activeFilePath = toRelPath(
         rootPath,
         getActiveFilePath()
@@ -110,8 +113,6 @@ async function queryLocationFromModel(rootPath, files, prevEdits, commitMessage)
             file_info[0]
         );
     }
-
-    commitMessage = await queryState.requireCommitMessage(commitMessage);
 
     // Send to the discriminator model for analysis
     const disc_input = {
@@ -176,7 +177,8 @@ async function queryEditFromModel(fileContent, editType, atLines, prevEdits, com
             }
         } 
     */
-
+    commitMessage = await queryState.requireCommitMessage(commitMessage);
+       
     const input = {
         targetFileContent: fileContent,
         commitMessage: commitMessage,
@@ -184,8 +186,6 @@ async function queryEditFromModel(fileContent, editType, atLines, prevEdits, com
         prevEdits: prevEdits,
         atLines: atLines
     };
-
-    commitMessage = await queryState.requireCommitMessage(commitMessage);
 
     const output = await queryGenerator(input);
     let edits = output.data;

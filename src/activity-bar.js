@@ -194,7 +194,7 @@ class ModItem extends vscode.TreeItem {
         this.lineContent = lineContent
         this.text = `    ${this.lineContent.trim()}`;
 
-        this.tooltip = `line ${this.atLine}`;
+        this.tooltip = `line ${this.atLine + 1}`; // match real line numbers in the gutter
         this.description = this.text;
         this.command = {
             command: 'editPilot.openFileAtLine',
