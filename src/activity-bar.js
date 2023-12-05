@@ -17,7 +17,7 @@ class EditLocationView extends BaseComponent {
 
         this.register(
             treeView,
-            this.provider.onDidChangeTreeData((num) => {
+            this.provider.onDidChangeLocationNumber((num) => {
                 // Set the whole badge here. Only setting the value won't trigger update
                 this.treeView.badge = {
                     tooltip: `${num} possible edit locations`,
@@ -34,6 +34,8 @@ class LocationTreeProvider  {
     constructor() {
         this._onDidChangeTreeData = new vscode.EventEmitter();
         this.onDidChangeTreeData = this._onDidChangeTreeData.event;
+        this._onDidChangeLocationNumber = new vscode.EventEmitter();
+        this.onDidChangeLocationNumber = this._onDidChangeLocationNumber.event;
         this.modTree = [];
     }
 
@@ -48,9 +50,8 @@ class LocationTreeProvider  {
     }
 
     notifyChangeofTree() {
-        this._onDidChangeTreeData.fire(
-            this.numOfLocation(),
-        );
+        this._onDidChangeTreeData.fire();
+        this._onDidChangeLocationNumber.fire(this.numOfLocation());
     }
 
     numOfLocation() {
