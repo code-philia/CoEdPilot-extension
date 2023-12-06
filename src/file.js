@@ -2,7 +2,7 @@ import vscode from 'vscode';
 import { diffLines } from 'diff';
 import fs from 'fs';
 import path from 'path';
-import glob from 'glob';
+import { glob } from 'glob';
 import os from 'os';
 import { BaseComponent } from './base-component';
 
@@ -36,20 +36,66 @@ const defaultLineBreaks = {
 };
 const defaultLineBreak = defaultLineBreaks[osType] ?? '\n';
 
-let gitignorePatterns = [];
+let gitignorePatterns = {
+    'exclude': [],
+    'permExclude': [], // permanently exclude a directory, unable to re-include
+    'include': []
+};
+
+function parseIgnoreLinesToPatterns(lines) {
+    // Like Git, we only glob files in the patterns
+    let patterns = {
+        'exclude': [],
+        'permExclude': [], // permanently exclude a directory, unable to re-include
+        'include': []
+    };
+
+    let exp = "";
+    let prefix = "";
+    let suffix = "";
+    function addPattern(type) {
+        patterns[type].push(prefix + exp + suffix);
+    } 
+
+    for (const line of lines) {
+        exp = line.trim();
+        if (!exp || exp.startsWith('#')) continue;
+        
+        let isReverse = false;
+        if (exp.startsWith('!')) {
+            const exp = exp.slice(1).trim();
+            isReverse = true;
+        }
+
+        prefix = exp.indexOf('/') != exp.length ? '/' : '/**/';   // check if relative path
+
+        if (exp.endsWith('*')) {            // the same matching as glob
+            suffix = '';
+            isReverse ? addPattern('include') : addPattern('exclude');
+        } else if (exp.endsWith('/')) {     // matches directory only
+            suffix = '**';
+            isReverse ? addPattern('include') : addPattern('permExclude');      // permanently exclude
+        } else {                            // matches all files
+            suffix = '/**';
+            isReverse ? addPattern('include') : addPattern('permExclude');      // permanently exclude if it's a directory
+            suffix = '';
+            isReverse ? addPattern('include') : addPattern('exclude');
+        }
+    }
+
+    patterns["exclude"] = patterns["exclude"].concat(patterns["permExclude"]);
+    return patterns;
+} 
+
 try {
     const gitignoreText = fs.readFileSync(path.join(
         vscode.workspace.workspaceFolders[0].uri.fsPath,
         '.gitignore'
     ), 'utf-8');
     const gitignoreLines = gitignoreText.match(/[^\r\n]+/g);
-    gitignorePatterns.push(...(gitignoreLines.map((p) => {
-        if (p.endsWith('/')) return p + '**';
-        return p;
-    })));
+    gitignorePatterns = parseIgnoreLinesToPatterns(gitignoreLines);
 } catch (err) {
     console.log(`Neglecting .gitignore rules because of problem: ${err}`);
-    gitignorePatterns = [];
 }
 
 class EditDetector {
@@ -467,18 +513,23 @@ function getPrevEdits() {
 // glob files with specific patterns
 function globFiles(rootPath, globPatterns = []) {
     // Built-in glob patterns
-    const defaultIgnorePatterns = [];
-    const allIgnorePatterns = defaultIgnorePatterns.concat(gitignorePatterns);
     const globPatternStr = (globPatterns instanceof Array && globPatterns.length > 0)
-        ? '{' + globPatterns.join(',') + '}'
+        ? globPatterns
         : '/**/*';
 
     const pathList = glob.sync(globPatternStr, {
         root: rootPath,
         windowsPathsNoEscape: true,
-        ignore: allIgnorePatterns
+        ignore: gitignorePatterns["exclude"],
+        nodir: true
     });
-    return pathList;
+    const reincludedPathList = glob.sync(gitignorePatterns["include"], {
+        root: rootPath,
+        windowsPathsNoEscape: true,
+        ignore: gitignorePatterns["permExclude"],
+        nodir: true
+    });
+    return pathList.concat(reincludedPathList);
 }
 
 function replaceCurrentSnapshot(fileList) {

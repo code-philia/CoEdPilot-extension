@@ -107,7 +107,7 @@ class EditSelector {
      */
     async _performMod(replacement) {
         const x = this.originalContent.match(/\r?\n|\n/);
-        const lineBreak = x[0] ?? defaultLineBreak;
+        const lineBreak = x?.at(0) ?? defaultLineBreak;
         const lines = this.originalContent.split(lineBreak);
         const numLines = lines.length + 1;
         const fromLine = Math.max(0, this.fromLine);
