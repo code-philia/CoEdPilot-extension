@@ -12,9 +12,9 @@
   "activationEvents": [
     "onLanguage:typescript",
     "onLanguage:javascript",
+    "onLanguage:python",
     "onLanguage:go",
-    "onLanguage:json",
-    "onLanguage:markdown"
+    "onLanguage:json"
   ],
   "main": "./out/extension",
   "contributes": {
