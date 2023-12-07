@@ -1,9 +1,7 @@
 import vscode from 'vscode';
 import { toPosixPath } from './file';
-import { fileState } from './context';
-import { queryState } from './context';
-import { predictEditAtRange } from './query-tasks';
-import { EditSelector, tempWrite } from './compare-view';
+import { editorState } from './global-context';
+import { queryState } from './global-context';
 import { BaseComponent } from './base-component';
 
 const replacementBackgroundColor = 'rgba(255,0,0,0.2)';
@@ -28,7 +26,7 @@ class LocationDecoration extends BaseComponent {
 	}
 
 	setLocationDecorations(editor) {
-		if (fileState.inDiffEditor) return;
+		if (editorState.inDiffEditor) return;
 
 		const uri = editor?.document?.uri;
 		if (!uri) return;
@@ -71,63 +69,6 @@ class LocationDecoration extends BaseComponent {
 	}
 }
 
-class InlineFixProvider extends BaseComponent {
-	constructor() {
-		super();
-		this.register(
-			vscode.languages.registerCodeActionsProvider({ scheme: 'file' }, this),
-		);
-	}
-
-	async provideCodeActions(document, range) {
-		const currFile = toPosixPath(document?.fileName);
-		const newEdits = await predictEditAtRange(document, range);
-
-		if (!newEdits || newEdits.targetFilePath != currFile)
-			return [];
-		
-		const diagnosticRange = new vscode.Range(document.positionAt(newEdits.startPos), document.positionAt(newEdits.endPos));
-
-		const codeActions = newEdits.replacement.map(replacement => {
-			// Create a diagnostic
-			const diagnostic = new vscode.Diagnostic(diagnosticRange, 'Replace with: ' + replacement, vscode.DiagnosticSeverity.Hint);
-			diagnostic.code = 'replaceCode';
-
-			// Create a QuickFix
-			const codeAction = new vscode.CodeAction(replacement, vscode.CodeActionKind.QuickFix);
-			codeAction.diagnostics = [diagnostic];
-			codeAction.isPreferred = true;
-
-			// Create WorkspaceEdit
-			const edit = new vscode.WorkspaceEdit();
-			const replaceRange = new vscode.Range(document.positionAt(newEdits.startPos), document.positionAt(newEdits.endPos));
-			edit.replace(document.uri, replaceRange, replacement);
-			codeAction.edit = edit;
-
-			codeAction.command = {
-				command: 'editPilot.applyFix',
-				title: '',
-				arguments: [],
-			};
-
-			return codeAction;
-		})
-
-		const selector = new EditSelector(
-			currFile,
-			newEdits.startPos,
-			newEdits.endPos,
-			newEdits.replacement,
-			tempWrite
-		);
-		await selector.init();
-		await selector.editedDocumentAndShowDiff();
-
-		return codeActions;	
-	}
-}
-
 export {
 	LocationDecoration,
-	InlineFixProvider
 };

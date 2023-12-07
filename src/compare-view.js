@@ -4,7 +4,7 @@ import util from 'util';
 import path from 'path';
 import { BaseComponent } from './base-component';
 import { toPosixPath } from './file';
-import { defaultLineBreak } from './context';
+import { defaultLineBreak } from './global-context';
 
 class BaseTempFileProvider extends BaseComponent {
     constructor() {

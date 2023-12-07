@@ -1,29 +1,32 @@
 import vscode from 'vscode';
-import { getRootPath, getGlobFiles, updatePrevEdits, getLocationAtRange, toPosixPath, globalEditDetector } from './file';
-import { fileState, queryState } from './context';
+import { getRootPath, getGlobFiles, updatePrevEdits, toPosixPath, globalEditDetector } from './file';
+import { editorState, isLanguageSupported, queryState } from './global-context';
 import { queryLocationFromModel, queryEditFromModel } from './queries';
 import { BaseComponent } from './base-component';
 import { EditSelector, diffTabSelectors, tempWrite } from './compare-view';
-import { registerCommand } from './extension-register';
-import { supportedLanguages } from './context';
-import { globalEditLock } from './context';
+import { registerCommand } from "./base-component";
+import { globalEditLock } from './global-context';
+import { statusBarItem } from './status-bar';
 
 async function predictLocation() {
-    const language = vscode.window.activeTextEditor?.document?.languageId.toLowerCase();
-    if (!supportedLanguages.includes(language)) {
-        vscode.window.showInformationMessage(`Predicting location canceled: language ${language} not supported yet.`)
+    if (!isLanguageSupported()) {
+        vscode.window.showInformationMessage(`Predicting location canceled: language ${editorState.language} not supported yet.`);
         return;
     }
     return await globalEditLock.tryWithLockAsync(async () => {
         const commitMessage = await queryState.requireCommitMessage();
+        statusBarItem.setStatusLoadingFiles();
         const rootPath = getRootPath();
         const files = await getGlobFiles();
         // const currentPrevEdits = getPrevEdits();
         try {
             const currentPrevEdits = await globalEditDetector.getUpdatedEditList();
-            await queryLocationFromModel(rootPath, files, currentPrevEdits, commitMessage, language);
+            statusBarItem.setStatusQuerying("locator");
+            await queryLocationFromModel(rootPath, files, currentPrevEdits, commitMessage, editorState.language);
+            statusBarItem.setStatusDefault();
         } catch (err) {
             console.log(err);
+            statusBarItem.setStatustProblem("Some error occured when predicting locations");
         }
     });
 }
@@ -35,35 +38,85 @@ async function predictLocationIfHasEditAtSelectedLine(event) {
     }
 }
 
-async function predictEdit(document, location) {
-    return await globalEditLock.tryWithLockAsync(async () => {
-        const predictResult = await queryEditFromModel(
-            document.getText(),
-            location.editType,
-            location.atLines,
-            fileState.prevEdits,
-            queryState.commitMessage
-        );
-        const replacedRange = new vscode.Range(document.positionAt(location.startPos), document.positionAt(location.endPos));
-        const replacedContent = document.getText(replacedRange).trim();
-        predictResult.replacement = predictResult.replacement.filter((snippet) => snippet.trim() !== replacedContent);
-        return predictResult;
-    });
-}
+async function predictEdit() {
+    if (!isLanguageSupported()) {
+        vscode.window.showInformationMessage(`Predicting edit canceled: language ${editorState.language} not supported yet.`);
+        return;
+    }
 
-async function predictEditAtRange(document, range) {
-    const targetLocation = getLocationAtRange(queryState.locations, document, range);    
-    if (targetLocation) {
-        return predictEdit(document, targetLocation)
-    } 
-    return undefined;
+    const activeEditor = vscode.window.activeTextEditor;
+    const activeDocument = activeEditor?.document;
+    if (!(activeEditor && activeDocument)) return;
+    if (activeDocument.uri.scheme !== "file") return;
+
+    statusBarItem.setStatusLoadingFiles();
+    const uri = activeDocument.uri;
+    const atLines = [];
+    const selectedRange = activeEditor.selection;
+    
+    const fromLine = selectedRange.start.line;
+    let toLine = selectedRange.end.line;
+    let editType = "";
+    if (selectedRange.isEmpty) {
+        editType = "add";
+        atLines.push(fromLine);
+    } else {
+        editType = "replace";
+        // If only the beginning of the last line is included, exclude the last line
+        if (selectedRange.end.character === 0) {
+            toLine -= 1;
+        }
+        for (let i = fromLine; i <= toLine; ++i) {
+            atLines.push(i);
+        }
+    }
+    
+    const targetFileContent = activeDocument.getText();
+    const selectedContent = activeDocument.getText(
+        new vscode.Range(
+            activeDocument.lineAt(fromLine).range.start,
+            activeDocument.lineAt(toLine).range.end
+        )
+    );
+    
+    const commitMessage = await queryState.requireCommitMessage();
+    
+    statusBarItem.setStatusQuerying("generator");
+    try {
+        const queryResult = await queryEditFromModel(
+            targetFileContent,
+            editType,
+            atLines,
+            await globalEditDetector.getUpdatedEditList(),
+            commitMessage,
+            editorState.language
+        );
+        
+        // Remove syntax-level unchanged replacements
+        queryResult.replacement = queryResult.replacement.filter((snippet) => snippet.trim() !== selectedContent.trim());
+
+        const selector = new EditSelector(
+            toPosixPath(uri.fsPath),
+            fromLine,
+            toLine+1,
+            queryResult.replacement,
+            tempWrite,
+            editType == "add"
+        );
+        await selector.init();
+        await selector.editedDocumentAndShowDiff();
+        statusBarItem.setStatusDefault();
+    } catch (err) {
+        console.log(err);
+        statusBarItem.setStatustProblem("Some error occured when predicting edits");
+    }
 }
 
 class PredictLocationCommand extends BaseComponent{
 	constructor() {
 		super();
 		this.register(
-			vscode.commands.registerCommand("editPilot.predictLocations", () => { predictLocation(); })
+			vscode.commands.registerCommand("editPilot.predictLocations", predictLocation)
 		);
 	}
 }
@@ -73,75 +126,7 @@ class GenerateEditCommand extends BaseComponent{
 		super();
         this.register(
             this.registerEditSelectionCommands(),
-            vscode.commands.registerCommand("editPilot.generateEdits", async (...args) => {
-                const language = vscode.window.activeTextEditor?.document?.languageId.toLowerCase();
-                if (!supportedLanguages.includes(language)) {
-                    vscode.window.showInformationMessage(`Predicting edit canceled: language ${language} not supported yet.`)
-                    return;
-                }
-            
-				if (args.length != 1 || !(args[0] instanceof vscode.Uri)) return;
-				
-				const uri = args[0];
-				const activeEditor = vscode.window.activeTextEditor;
-				const activeDocument = activeEditor.document;
-				if (activeDocument.uri.toString() !== uri.toString()) return;
-                const atLines = [];
-                const selectedRange = activeEditor.selection;
-                
-                const fromLine = selectedRange.start.line;
-                let toLine = selectedRange.end.line;
-                let editType = "";
-                if (selectedRange.isEmpty) {
-                    editType = "add";
-                    atLines.push(fromLine);
-                } else {
-                    editType = "replace";
-                    // If only the beginning of the last line is included, exclude the last line
-                    if (selectedRange.end.character === 0) {
-                        toLine -= 1;
-                    }
-                    for (let i = fromLine; i <= toLine; ++i) {
-                        atLines.push(i);
-                    }
-                }
-                
-                const targetFileContent = activeDocument.getText();
-                const selectedContent = activeDocument.getText(
-                    new vscode.Range(
-                        activeDocument.lineAt(fromLine).range.start,
-                        activeDocument.lineAt(toLine).range.end
-                    )
-                );
-                
-                const commitMessage = await queryState.requireCommitMessage();
-                const queryResult = await queryEditFromModel(
-                    targetFileContent,
-                    editType,
-                    atLines,
-                    await globalEditDetector.getUpdatedEditList(),
-                    commitMessage,
-                    language
-                );
-                
-                // Remove syntax-level unchanged replacements
-				queryResult.replacement = queryResult.replacement.filter((snippet) => snippet.trim() !== selectedContent.trim());
-		
-				try {
-					const selector = new EditSelector(
-						toPosixPath(uri.fsPath),
-						fromLine,
-						toLine+1,
-                        queryResult.replacement,
-                        tempWrite,
-                        editType == "add"
-					);
-					await selector.init();
-					await selector.editedDocumentAndShowDiff();
-				} catch (err) {
-					console.log(err);
-				}
-			})
+            vscode.commands.registerCommand("editPilot.generateEdits", predictEdit)
 		);
     }
     
@@ -184,8 +169,6 @@ class GenerateEditCommand extends BaseComponent{
 export {
     predictLocation,
     predictLocationIfHasEditAtSelectedLine,
-    predictEdit,
-    predictEditAtRange,
     PredictLocationCommand,
     GenerateEditCommand
 };

@@ -29,7 +29,7 @@ def run_predict(predict_name, predict_func):
 
     language = input_json["language"]
     if language not in SUPPORTED_LANGUAGES:
-        return make_400_response(f"Not supporting {language} yet.")
+        return make_400_response(f"Not supporting language {language} yet.")
     
     if DEBUG:
         print(f">>> {predict_name} inferencing: \n${json.dumps(input_json, indent=4)}")

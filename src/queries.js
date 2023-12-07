@@ -1,6 +1,7 @@
-import { queryState } from './context';
-import { toRelPath, getActiveFilePath, toAbsPath } from './file';
+import { queryState } from './global-context';
+import { toRelPath, getActiveFilePath, toAbsPath, getLineInfoInDocument } from './file';
 import { queryDiscriminator, queryLocator, queryGenerator } from './model-client';
+import { statusBarItem } from './status-bar';
 
 // ------------ Extension States -------------
 async function queryLocationFromModel(rootPath, files, prevEdits, commitMessage, language) {
@@ -84,6 +85,7 @@ async function queryLocationFromModel(rootPath, files, prevEdits, commitMessage,
         prevEdits: prevEdits,
         language: language
     };
+    statusBarItem.setStatusQuerying("locator");
     console.log('==> Sending to edit locator model');
     const locatorOutput = await queryLocator(loc_input);
     console.log('==> Edit locator model returned successfully');
@@ -92,6 +94,7 @@ async function queryLocationFromModel(rootPath, files, prevEdits, commitMessage,
     let rawLocations = locatorOutput.data;
     for (const loc of rawLocations) {
         loc.targetFilePath = toAbsPath(rootPath, loc.targetFilePath);
+        loc.lineInfo = await getLineInfoInDocument(loc.targetFilePath, loc.atLines[0]);
     }
     queryState.updateLocations(rawLocations);
     return rawLocations;

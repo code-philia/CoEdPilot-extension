@@ -1,7 +1,6 @@
 import vscode from "vscode";
 import { BaseComponent } from "./base-component";
-import { registerCommand } from "./extension-register";
-import { getLineInfoInDocument } from "./file";
+import { registerCommand } from "./base-component";
 import os from "os";
 
 export const supportedLanguages = [
@@ -11,6 +10,10 @@ export const supportedLanguages = [
     // "javascript",
     // "java"
 ]
+
+export function isLanguageSupported() {
+    return supportedLanguages.includes(editorState.language);
+}
 
 class EditLock {
     constructor() {
@@ -69,9 +72,6 @@ class QueryState extends BaseComponent {
         if (this.locations.length) {
             this.locatedFilePaths = [...new Set(locations.map((loc) => loc.targetFilePath))];
         }
-        for (const loc of this.locations) {
-            loc.lineInfo = await getLineInfoInDocument(loc.targetFilePath, loc.atLines[0]);
-        }
         this._onDidQuery.fire(this);
     }
 
@@ -104,7 +104,7 @@ class QueryState extends BaseComponent {
 
 export const queryState = new QueryState();
 
-class FileState extends BaseComponent {
+class EditorState extends BaseComponent {
     constructor() {
         super();
         this.prevCursorAtLine = 0;
@@ -113,10 +113,11 @@ class FileState extends BaseComponent {
         this.currSnapshot = undefined;
         this.prevEdits = [];
         this.inDiffEditor = false;
+        this.language= "unknown";
     }
 }
 
-export const fileState = new FileState();
+export const editorState = new EditorState();
 
 export const supportedOSTypes = ['Windows_NT', 'Darwin', 'Linux'];
 export const osType = os.type();

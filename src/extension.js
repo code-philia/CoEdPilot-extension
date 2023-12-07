@@ -1,33 +1,38 @@
-import * as vscode from 'vscode';
+import vscode from 'vscode';
 import { compareTempFileSystemProvider } from './compare-view';
 import { FileStateMonitor, initFileState } from './file';
-import { fileState } from './context';
+import { editorState, queryState } from './global-context';
 import { EditLocationView } from './activity-bar';
-import { queryState } from './context';
 import { LocationDecoration } from './inline';
 import { registerBasicCommands, registerTopTaskCommands } from './extension-register';
+import { statusBarItem } from './status-bar';
 
 function activate(context) {
+	try {
 
-	initFileState(vscode.window.activeTextEditor);
-
-	context.subscriptions.push(
-		fileState,
-		queryState,
-		compareTempFileSystemProvider
-	)
-
-	context.subscriptions.push(
-		registerBasicCommands(),
-		registerTopTaskCommands(),
-	);
-
-	context.subscriptions.push(
-		new FileStateMonitor(),
-		new LocationDecoration(),
-		new EditLocationView()
-		// new DiffTabCodelensProvider()
-	);
+		initFileState(vscode.window.activeTextEditor);
+	
+		context.subscriptions.push(
+			editorState,
+			queryState,
+			compareTempFileSystemProvider,
+			statusBarItem
+		)
+	
+		context.subscriptions.push(
+			registerBasicCommands(),
+			registerTopTaskCommands(),
+		);
+	
+		context.subscriptions.push(
+			new FileStateMonitor(),
+			new LocationDecoration(),
+			new EditLocationView(),
+			// new DiffTabCodelensProvider()
+		);
+	} catch (err) {
+		
+	}
 
 	console.log('==> Congratulations, your extension is now active!');
 }

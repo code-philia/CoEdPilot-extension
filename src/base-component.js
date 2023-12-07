@@ -1,6 +1,6 @@
-import vscode from 'vscode';
+import vscode from "vscode";
 
-class BaseComponent {
+export class BaseComponent {
     constructor() {
         this._disposables = [];
     }
@@ -14,6 +14,6 @@ class BaseComponent {
     }
 }
 
-export {
-    BaseComponent
-};
+export function registerCommand(command, callback, thisArg) {
+    return vscode.commands.registerCommand(command, callback, thisArg);
+}

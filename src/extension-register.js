@@ -1,8 +1,6 @@
 import vscode from "vscode";
 import { PredictLocationCommand, GenerateEditCommand } from "./query-tasks";
-export function registerCommand(command, callback, thisArg) {
-	return vscode.commands.registerCommand(command, callback, thisArg);
-}
+import { registerCommand } from "./base-component";
 
 export function registerBasicCommands() {
 	return vscode.Disposable.from(

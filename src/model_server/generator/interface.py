@@ -197,6 +197,7 @@ def predict(json_input, language):
             labels.append(editType)
         else:
             labels.append('keep')
+        # print(f"{labels[-1]}    {targetFileLines[lineIdx]}", end = "")
     
     model_input = codeWindow + ' </s> '  + commitMessage 
     for prevEdit in prevEdits:

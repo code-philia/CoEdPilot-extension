@@ -4,7 +4,8 @@ import fs from 'fs';
 import path from 'path';
 import { glob } from 'glob';
 import { BaseComponent } from './base-component';
-import { fileState, osType } from './context';
+import { editorState, osType } from './global-context';
+import { statusBarItem } from './status-bar';
 
 let gitignorePatterns = {
     'exclude': [],
@@ -33,7 +34,7 @@ function parseIgnoreLinesToPatterns(lines) {
         
         let isReverse = false;
         if (exp.startsWith('!')) {
-            const exp = exp.slice(1).trim();
+            exp = exp.slice(1).trim();
             isReverse = true;
         }
 
@@ -251,8 +252,8 @@ class EditDetector {
 				addedLines[s] = edit.addText ?? "";
 			}
 			return lines
-			.map((x, i) => addedLines[i] + x)
-			.join("");
+                .map((x, i) => addedLines[i] + x)
+                .join("");
 		}
 		
 		// for each file involved in the removed edits
@@ -427,10 +428,10 @@ function detectEdit(prev, curr) {
 }
 
 function pushEdit(item) {
-    fileState.prevEdits.push(item);
+    editorState.prevEdits.push(item);
 
-    if (fileState.prevEdits.length > 3) {
-        fileState.prevEdits.shift(); // FIFO pop the earliest element
+    if (editorState.prevEdits.length > 3) {
+        editorState.prevEdits.shift(); // FIFO pop the earliest element
     }
 }
 
@@ -456,28 +457,28 @@ function getLocationAtRange(edits, document, range) {
 //  Else return null
 function updatePrevEdits(lineNo) {
     const line = lineNo;
-    fileState.currCursorAtLine = line + 1; // VScode API starts counting lines from 0, while our line numbers start from 1, note the +- 1
-    console.log(`==> Cursor position: Line ${fileState.prevCursorAtLine} -> ${fileState.currCursorAtLine}`);
-    fileState.currSnapshot = vscode.window.activeTextEditor.document.getText(); // Read the current text in the editor
-    if (fileState.prevCursorAtLine != fileState.currCursorAtLine && fileState.prevCursorAtLine != 0) { // When the pointer changes position and is not at the first position in the editor
-        let edition = detectEdit(fileState.prevSnapshot, fileState.currSnapshot); // Detect changes compared to the previous snapshot
+    editorState.currCursorAtLine = line + 1; // VScode API starts counting lines from 0, while our line numbers start from 1, note the +- 1
+    console.log(`==> Cursor position: Line ${editorState.prevCursorAtLine} -> ${editorState.currCursorAtLine}`);
+    editorState.currSnapshot = vscode.window.activeTextEditor.document.getText(); // Read the current text in the editor
+    if (editorState.prevCursorAtLine != editorState.currCursorAtLine && editorState.prevCursorAtLine != 0) { // When the pointer changes position and is not at the first position in the editor
+        let edition = detectEdit(editorState.prevSnapshot, editorState.currSnapshot); // Detect changes compared to the previous snapshot
 
         if (edition.beforeEdit != edition.afterEdit) {
             // Add the modification to prevEdit
             pushEdit(edition);
             console.log('==> Before edit:\n', edition.beforeEdit);
             console.log('==> After edit:\n', edition.afterEdit);
-            fileState.prevSnapshot = fileState.currSnapshot;
+            editorState.prevSnapshot = editorState.currSnapshot;
             return true;
         }
         return false;
     }
-    fileState.prevCursorAtLine = fileState.currCursorAtLine; // Update the line number where the mouse pointer is located
+    editorState.prevCursorAtLine = editorState.currCursorAtLine; // Update the line number where the mouse pointer is located
     return false;
 }
 
 function getPrevEdits() {
-    return fileState.prevEdits;
+    return editorState.prevEdits;
 }
 
 // glob files with specific patterns
@@ -505,18 +506,23 @@ function globFiles(rootPath, globPatterns = []) {
 function replaceCurrentSnapshot(fileList) {
     const currentFile = fileList.find((file) => file[0] === getActiveFilePath);
     if (currentFile) {
-        currentFile[1] = fileState.currSnapshot; // Use the unsaved content as the actual file content
+        currentFile[1] = editorState.currSnapshot; // Use the unsaved content as the actual file content
     }
 }
 
 function initFileState(editor) {
     if (!editor) return;
-    fileState.inDiffEditor = (vscode.window.tabGroups.activeTabGroup.activeTab.input instanceof vscode.TabInputTextDiff);
+    editorState.inDiffEditor = (vscode.window.tabGroups.activeTabGroup.activeTab.input instanceof vscode.TabInputTextDiff);
+    editorState.language = vscode.window.activeTextEditor?.document?.languageId.toLowerCase();
+    statusBarItem.setStatusDefault(true);
+
+    // update file snapshot
     const currUri = editor?.document?.uri;
     const currPath = currUri?.fsPath;
     if (currUri && currUri.scheme === "file" && currPath && !(globalEditDetector.hasSnapshot(currPath))) {
         globalEditDetector.addSnapshot(currPath, editor.document.getText());
     }
+
     console.log('==> Active File:', getActiveFilePath());
     console.log('==> Global variables initialized');
 }
@@ -528,8 +534,6 @@ class FileStateMonitor extends BaseComponent{
             vscode.window.onDidChangeActiveTextEditor(initFileState)
         );
     }
-
-    
 }
 
 export {
@@ -548,7 +552,7 @@ export {
     replaceCurrentSnapshot,
     getRootPath,
     getGlobFiles,
-    fileState,
+    editorState,
     initFileState,
     FileStateMonitor,
     EditDetector,

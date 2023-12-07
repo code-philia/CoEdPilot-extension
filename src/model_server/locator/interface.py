@@ -1,3 +1,4 @@
+# import json
 import torch
 import math
 
@@ -190,12 +191,13 @@ def predict(json_input, language):
     commitMessage = json_input["commitMessage"]
     prevEdits = json_input["prevEdits"]
     results = []
+    # print("+++ Prev Edits:")
+    # print(json.dumps(prevEdits, indent=4))
 
     # 获取每个文件的内容
     for file in files:
         targetFilePath = file[0] 
         targetFileContent = file[1]
-
         # 获取文件行数
         targetFileLines = targetFileContent.splitlines(True) # 保留每行的换行符
         targetFileLineNum = len(targetFileLines)
@@ -246,10 +248,10 @@ def predict(json_input, language):
                     preds.extend(output)
 
         if len(preds) != targetFileLineNum:
-            raise ValueError(f'The number of lines ({targetFileLineNum}) in the target file is not equal to the number of predictions ({len(preds)}).')
+            raise ValueError(f'The number of lines ({targetFileLineNum}) in the target file is not equal to the number of predictions ({len(preds)}).') # TODO: solve this problem when some lines are too long
         stopwatch.lap_by_task('infer result')
 
-
+        # print(f"+++ Target file lines:\n{''.join([preds[i] + '    ' + targetFileLines[i] for i in range(targetFileLineNum)])}")
         # get the edit range
         # text = ''
         for i in range(targetFileLineNum):
