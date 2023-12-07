@@ -1,8 +1,9 @@
 import * as vscode from 'vscode';
 import { compareTempFileSystemProvider } from './compare-view';
-import { FileStateMonitor, fileState, initFileState } from './file';
+import { FileStateMonitor, initFileState } from './file';
+import { fileState } from './context';
 import { EditLocationView } from './activity-bar';
-import { CommitMessageInput, queryState } from './queries';
+import { queryState } from './context';
 import { LocationDecoration } from './inline';
 import { registerBasicCommands, registerTopTaskCommands } from './extension-register';
 

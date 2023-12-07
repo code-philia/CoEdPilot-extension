@@ -1,48 +1,12 @@
 import vscode from 'vscode';
-import { getRootPath, getGlobFiles, updatePrevEdits, getPrevEdits, getLocationAtRange, fileState, toPosixPath, globalEditDetector, getOpenedFilePaths, liveFilesGetter } from './file';
-import { queryLocationFromModel, queryEditFromModel, queryState } from './queries';
+import { getRootPath, getGlobFiles, updatePrevEdits, getLocationAtRange, toPosixPath, globalEditDetector } from './file';
+import { fileState, queryState } from './context';
+import { queryLocationFromModel, queryEditFromModel } from './queries';
 import { BaseComponent } from './base-component';
 import { EditSelector, diffTabSelectors, tempWrite } from './compare-view';
 import { registerCommand } from './extension-register';
-
-const supportedLanguages = [
-    "go",
-    "python"
-]
-
-class EditLock {
-    constructor() {
-        this.isLocked = false;
-    }
-
-    tryWithLock(callback) {
-        if (this.isLocked) return undefined;
-        this.isLocked = true;
-        try {
-            return callback();
-        } catch (err) {
-            console.log(`Error occured when running in edit lock: \n${err}`);
-            throw err;
-        } finally {
-            this.isLocked = false;
-        }
-    }
-
-    async tryWithLockAsync(asyncCallback) {
-        if (this.isLocked) return undefined;
-        this.isLocked = true;
-        try {
-            return await asyncCallback();
-        } catch (err) {
-            console.log(`Error occured when running in edit lock (async): \n${err}`);
-            throw err;
-        } finally {
-            this.isLocked = false;
-        }
-    }
-}
-
-const globalEditLock = new EditLock();
+import { supportedLanguages } from './context';
+import { globalEditLock } from './context';
 
 async function predictLocation() {
     const language = vscode.window.activeTextEditor?.document?.languageId.toLowerCase();

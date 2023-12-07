@@ -1,66 +1,6 @@
-import vscode from 'vscode';
-import { toRelPath, getActiveFilePath, toAbsPath, getLineInfoInDocument, getRootPath } from './file';
+import { queryState } from './context';
+import { toRelPath, getActiveFilePath, toAbsPath } from './file';
 import { queryDiscriminator, queryLocator, queryGenerator } from './model-client';
-import { BaseComponent } from './base-component';
-import { registerCommand } from './extension-register';
-
-class QueryState extends BaseComponent {
-    constructor() {
-        super();
-        // request parameters
-        this.commitMessage = "";
-
-        // response parameters
-        this.locations = [];
-        this.locatedFilePaths = [];
-        this._onDidQuery = new vscode.EventEmitter();
-        this.onDidQuery = this._onDidQuery.event;
-        
-        this.register(
-            registerCommand('editPilot.inputMessage', this.inputCommitMessage, this),
-            this._onDidQuery
-        );
-    }
-
-    async updateLocations(locations) {
-        this.locations = locations;
-        if (this.locations.length) {
-            this.locatedFilePaths = [...new Set(locations.map((loc) => loc.targetFilePath))];
-        }
-        for (const loc of this.locations) {
-            loc.lineInfo = await getLineInfoInDocument(loc.targetFilePath, loc.atLines[0]);
-        }
-        this._onDidQuery.fire(this);
-    }
-
-    async clearLocations() {
-        this.updateLocations([]);
-    }
-   
-    async requireCommitMessage() {
-        if (!this.commitMessage) {
-            this.commitMessage = await this.inputCommitMessage();
-        }
-        
-        return this.commitMessage;
-    }
-
-    async inputCommitMessage() {
-        console.log('==> Edit description input box is displayed')
-        const userInput = await vscode.window.showInputBox({
-            prompt: 'Enter a description of edits you want to make.',
-            placeHolder: 'Add a feature...',
-            ignoreFocusOut: true,
-            value: queryState.commitMessage
-        }) ?? "";
-        console.log('==> Edit description:', userInput);
-        this.commitMessage = userInput;
-
-        return userInput;
-    }
-}
-
-const queryState = new QueryState();
 
 // ------------ Extension States -------------
 async function queryLocationFromModel(rootPath, files, prevEdits, commitMessage, language) {

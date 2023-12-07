@@ -3,38 +3,8 @@ import { diffLines } from 'diff';
 import fs from 'fs';
 import path from 'path';
 import { glob } from 'glob';
-import os from 'os';
 import { BaseComponent } from './base-component';
-
-const prevEditNum = 3;
-
-class FileState extends BaseComponent{
-    constructor() {
-        super();
-        this.prevCursorAtLine = 0;
-        this.currCursorAtLine = 0;
-        this.prevSnapshot = undefined;
-        this.currSnapshot = undefined;
-        this.prevEdits = [];
-        this.inDiffEditor = false;
-    }
-}
-
-const fileState = new FileState();
-
-const osType = os.type();
-const supportedOSTypes = ['Windows_NT', 'Darwin', 'Linux'];
-
-if (!supportedOSTypes.includes(osType)) {
-    throw RangeError(`Operating system (node detected: ${osType}) is not supported yet.`);
-}
-
-const defaultLineBreaks = {
-    'Windows_NT': '\r\n',
-    'Darwin': '\r',
-    'Linux': '\n'
-};
-const defaultLineBreak = defaultLineBreaks[osType] ?? '\n';
+import { fileState, osType } from './context';
 
 let gitignorePatterns = {
     'exclude': [],
@@ -459,7 +429,7 @@ function detectEdit(prev, curr) {
 function pushEdit(item) {
     fileState.prevEdits.push(item);
 
-    if (fileState.prevEdits.length > prevEditNum) {
+    if (fileState.prevEdits.length > 3) {
         fileState.prevEdits.shift(); // FIFO pop the earliest element
     }
 }
@@ -581,7 +551,6 @@ export {
     fileState,
     initFileState,
     FileStateMonitor,
-    defaultLineBreak,
     EditDetector,
     getOpenedFilePaths,
     liveFilesGetter

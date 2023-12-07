@@ -1,22 +1,23 @@
 import vscode from 'vscode';
-import { fileState, toPosixPath } from './file';
-import { queryState } from './queries';
+import { toPosixPath } from './file';
+import { fileState } from './context';
+import { queryState } from './context';
 import { predictEditAtRange } from './query-tasks';
 import { EditSelector, tempWrite } from './compare-view';
 import { BaseComponent } from './base-component';
 
-const bgcolor1 = 'rgba(255,0,0,0.2)';
-const bgcolor2 = 'rgba(0,255,0,0.2)';
+const replacementBackgroundColor = 'rgba(255,0,0,0.2)';
+const additionBackgroundColor = 'rgba(0,255,0,0.2)';
 
 class LocationDecoration extends BaseComponent {
 	constructor() {
 		super();
 		this.replaceDecorationType = vscode.window.createTextEditorDecorationType({
-			backgroundColor: bgcolor1,
+			backgroundColor: replacementBackgroundColor,
 			isWholeLine: true
 		});
 		this.addDecorationType = vscode.window.createTextEditorDecorationType({
-			backgroundColor: bgcolor2,
+			backgroundColor: additionBackgroundColor,
 			isWholeLine: true
 		});
 		

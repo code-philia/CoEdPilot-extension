@@ -1,6 +1,6 @@
 import vscode from 'vscode';
 import path from 'path';
-import { queryState } from './queries';
+import { queryState } from './context';
 import { BaseComponent } from './base-component';
 
 class EditLocationView extends BaseComponent {
