@@ -94,8 +94,14 @@ class LocationDecoration extends BaseComponent {
 		queryState.locations
 			.filter((loc) => loc.targetFilePath === filePath)
 			.map((loc) => {
-				const startPos = editor.document.lineAt(loc.atLines[0]).range.start;
-				const endPos = editor.document.lineAt(loc.atLines[loc.atLines.length-1]).range.end;
+				let startLine = loc.atLines[0];
+				let endLine = loc.atLines[loc.atLines.length - 1];
+				if (loc.editType === "add") {	// the model was designed to add content after the mark line
+					startLine += 1;
+					endLine += 1;
+				}
+				const startPos = editor.document.lineAt(startLine).range.start;
+				const endPos = editor.document.lineAt(endLine).range.end;
 				const range = new vscode.Range(startPos, endPos);
 		
 				// Create decoration

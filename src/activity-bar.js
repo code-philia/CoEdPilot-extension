@@ -148,16 +148,17 @@ class LocationTreeProvider  {
         )
 
         for (const loc of modListOnPath) {
+            let lineNum = loc.editType === "add" ? loc.atLines[0] + 1 : loc.atLines[0];
             fileItem.mods.push(
                 new ModItem(
-                    `Line ${loc.atLines[0]}`,
+                    `Line ${lineNum + 1}`,
                     vscode.TreeItemCollapsibleState.None,
                     fileItem,
-                    loc.atLines[0],
+                    lineNum,
                     loc.lineInfo.text,
                     loc.editType
                 )
-            )
+            );
         }
 
         return fileItem;
@@ -195,7 +196,7 @@ class ModItem extends vscode.TreeItem {
         this.lineContent = lineContent
         this.text = `    ${this.lineContent.trim()}`;
 
-        this.tooltip = `line ${this.atLine + 1}`; // match real line numbers in the gutter
+        this.tooltip = `Line ${this.atLine}`; // match real line numbers in the gutter
         this.description = this.text;
         this.command = {
             command: 'editPilot.openFileAtLine',
@@ -232,7 +233,7 @@ class ModItem extends vscode.TreeItem {
         //     default:
         //         return `Modifying line ${this.atLine}`;
         // }
-        return `Line ${this.atLine}`;
+        return `Line ${this.atLine + 1}`;
     }
 
     contextValue = 'mod';

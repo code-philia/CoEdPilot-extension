@@ -190,6 +190,10 @@ async function queryEditFromModel(fileContent, editType, atLines, prevEdits, com
         language: language
     };
 
+    if (editType == "add") { // the model was designed to generate addition at next line, so move one line backward
+        atLines = atLines.map((l) => l > 0 ? l - 1 : 0);
+    }
+
     const output = await queryGenerator(input);
     let edits = output.data;
     console.log('==> Edit generator model returned successfully');
