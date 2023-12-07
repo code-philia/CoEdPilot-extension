@@ -51,13 +51,13 @@ async function predictLocation() {
         return;
     }
     return await globalEditLock.tryWithLockAsync(async () => {
-        console.log('==> Send to LLM (After cursor changed line)');
+        const commitMessage = await queryState.requireCommitMessage();
         const rootPath = getRootPath();
         const files = await getGlobFiles();
         // const currentPrevEdits = getPrevEdits();
         try {
             const currentPrevEdits = await globalEditDetector.getUpdatedEditList();
-            await queryLocationFromModel(rootPath, files, currentPrevEdits, queryState.commitMessage, language);
+            await queryLocationFromModel(rootPath, files, currentPrevEdits, commitMessage, language);
         } catch (err) {
             console.log(err);
         }
@@ -149,13 +149,14 @@ class GenerateEditCommand extends BaseComponent{
                         activeDocument.lineAt(toLine).range.end
                     )
                 );
-
+                
+                const commitMessage = await queryState.requireCommitMessage();
                 const queryResult = await queryEditFromModel(
                     targetFileContent,
                     editType,
                     atLines,
                     await globalEditDetector.getUpdatedEditList(),
-                    queryState.commitMessage,
+                    commitMessage,
                     language
                 );
                 

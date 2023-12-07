@@ -5,71 +5,19 @@ import { predictEditAtRange } from './query-tasks';
 import { EditSelector, tempWrite } from './compare-view';
 import { BaseComponent } from './base-component';
 
-const fgcolor1 = '#000';
 const bgcolor1 = 'rgba(255,0,0,0.2)';
-const fgcolor2 = '#000';
 const bgcolor2 = 'rgba(0,255,0,0.2)';
-
-const decorationStyleForAlter = vscode.window.createTextEditorDecorationType({
-	color: fgcolor1,
-	backgroundColor: bgcolor1
-});
-
-const decorationStyleForAdd = vscode.window.createTextEditorDecorationType({
-	color: fgcolor2,
-	backgroundColor: bgcolor2
-});
-
-
-function highlightLocations(locations, editor) {
-	const decorationsForAlter = []; // Highlight for replace, delete
-	const decorationsForAdd = []; // Highlight for add
-	if (!editor) {
-		return;
-	}
-	
-	// Iterate through each modification
-	locations
-		.filter((loc) => loc.targetFilePath == toPosixPath(editor.document.uri.fsPath))
-		.map((loc) => {
-			const startPos = editor.document.positionAt(loc.startPos);
-			const endPos = editor.document.positionAt(loc.endPos);
-			const range = new vscode.Range(startPos, endPos);
-	
-			// Create decoration
-			const decoration = {
-				range
-			};
-	
-			// Add decoration to array
-			if (loc.editType == 'add') {
-				decorationsForAdd.push(decoration);
-			} else {
-				decorationsForAlter.push(decoration);
-			}
-		})
-	
-	// Apply decorations to editor
-	editor.setDecorations(decorationStyleForAlter, decorationsForAlter);
-	editor.setDecorations(decorationStyleForAdd, decorationsForAdd);
-	// decorationStyleForAlter.dispose();
-	// decorationStyleForAdd.dispose();
-}
-
-function clearHighlights(editor) {
-	highlightLocations([], editor);
-}
 
 class LocationDecoration extends BaseComponent {
 	constructor() {
 		super();
 		this.replaceDecorationType = vscode.window.createTextEditorDecorationType({
-			color: fgcolor1,
-			backgroundColor: bgcolor1
+			backgroundColor: bgcolor1,
+			isWholeLine: true
 		});
 		this.addDecorationType = vscode.window.createTextEditorDecorationType({
-			color: fgcolor2,
-			backgroundColor: bgcolor2
+			backgroundColor: bgcolor2,
+			isWholeLine: true
 		});
 		
 		this.disposable = vscode.Disposable.from(
@@ -179,8 +127,6 @@ class InlineFixProvider extends BaseComponent {
 }
 
 export {
-    // highlightLocations,
-	// clearHighlights,
 	LocationDecoration,
 	InlineFixProvider
 };

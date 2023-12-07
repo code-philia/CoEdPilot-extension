@@ -37,21 +37,21 @@ class QueryState extends BaseComponent {
         this.updateLocations([]);
     }
    
-    async requireCommitMessage(msg) {
-        if (!msg) {
-            msg = await this.inputCommitMessage();
+    async requireCommitMessage() {
+        if (!this.commitMessage) {
+            this.commitMessage = await this.inputCommitMessage();
         }
         
-        this.commitMessage = msg;
-        return msg;
+        return this.commitMessage;
     }
 
     async inputCommitMessage() {
         console.log('==> Edit description input box is displayed')
         const userInput = await vscode.window.showInputBox({
-            prompt: 'Enter commit message or description of edits you would make.',
-            placeHolder: 'add a feature',
-            ignoreFocusOut: true
+            prompt: 'Enter a description of edits you want to make.',
+            placeHolder: 'Add a feature...',
+            ignoreFocusOut: true,
+            value: queryState.commitMessage
         }) ?? "";
         console.log('==> Edit description:', userInput);
         this.commitMessage = userInput;
@@ -99,8 +99,6 @@ async function queryLocationFromModel(rootPath, files, prevEdits, commitMessage,
             ]
         }
      */
-    commitMessage = await queryState.requireCommitMessage(commitMessage);
-    
     const activeFilePath = toRelPath(
         rootPath,
         getActiveFilePath()
@@ -178,9 +176,7 @@ async function queryEditFromModel(fileContent, editType, atLines, prevEdits, com
                 "replacement":      list of strings, replacement content   
             }
         } 
-    */
-    commitMessage = await queryState.requireCommitMessage(commitMessage);
-       
+    */       
     const input = {
         targetFileContent: fileContent,
         commitMessage: commitMessage,
@@ -190,7 +186,7 @@ async function queryEditFromModel(fileContent, editType, atLines, prevEdits, com
         language: language
     };
 
-    if (editType == "add") { // the model was designed to generate addition at next line, so move one line backward
+    if (editType === "add") { // the model was designed to generate addition at next line, so move one line backward
         atLines = atLines.map((l) => l > 0 ? l - 1 : 0);
     }
 
