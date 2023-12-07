@@ -108,7 +108,7 @@ def predict(json_input, language):
     for edit in json_input["prevEdits"]:
         edits.extend([edit["beforeEdit"], edit["afterEdit"]])
 
-    edit_words_list = np.array([np.array(x.split()) for x in edits])
+    edit_words_list = np.array([np.array(x.split()) for x in edits], dtype=object)
     edit_words = []
     if len(edit_words_list):
         edit_words = np.concatenate(edit_words_list)
