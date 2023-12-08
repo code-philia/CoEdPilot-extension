@@ -523,6 +523,15 @@ function initFileState(editor) {
         globalEditDetector.addSnapshot(currPath, editor.document.getText());
     }
 
+    let isEditDiff = false;
+    if (editorState.inDiffEditor) {
+        const input = vscode.window.tabGroups.activeTabGroup?.activeTab?.input;
+        isEditDiff = (input instanceof vscode.TabInputTextDiff)
+            && input.original.scheme === 'temp'
+            && input.modified.scheme === 'file';
+    }
+    vscode.commands.executeCommand('setContext', 'editPilot:isEditDiff', isEditDiff);
+
     console.log('==> Active File:', getActiveFilePath());
     console.log('==> Global variables initialized');
 }

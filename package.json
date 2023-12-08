@@ -57,6 +57,10 @@
         "title": "Generate Edits",
         "category": "Edit Pilot",
         "command": "editPilot.generateEdits"
+      },
+      {
+        "title": "Show Commands",
+        "command": "editPilot.showCommands"
       }
     ],
     "menus": {
@@ -80,23 +84,23 @@
       "editor/title": [
         {
           "command": "editPilot.last-suggestion",
-          "group": "navigation@-101",
-          "when": "isInDiffEditor"
+          "group": "navigation@-4",
+          "when": "editPilot:isEditDiff"
         },
         {
           "command": "editPilot.next-suggestion",
-          "group": "navigation@-101",
-          "when": "isInDiffEditor"
+          "group": "navigation@-3",
+          "when": "editPilot:isEditDiff"
         },
         {
           "command": "editPilot.accept-edit",
-          "group": "navigation@-101",
-          "when": "isInDiffEditor"
+          "group": "navigation@-2",
+          "when": "editPilot:isEditDiff"
         },
         {
           "command": "editPilot.dismiss-edit",
-          "group": "navigation@-101",
-          "when": "isInDiffEditor"
+          "group": "navigation@-1",
+          "when": "editPilot:isEditDiff"
         }
       ]
     },
@@ -105,7 +109,7 @@
         {
           "id": "editPilot",
           "title": "Edit Pilot",
-          "icon": "media/reset_wrench.svg"
+          "icon": "$(edit)"
         }
       ]
     },

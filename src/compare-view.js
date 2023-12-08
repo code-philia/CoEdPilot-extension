@@ -4,7 +4,7 @@ import util from 'util';
 import path from 'path';
 import { BaseComponent } from './base-component';
 import { toPosixPath } from './file';
-import { defaultLineBreak } from './global-context';
+import { defaultLineBreak, queryState } from './global-context';
 
 class BaseTempFileProvider extends BaseComponent {
     constructor() {
@@ -77,12 +77,12 @@ const diffTabSelectors = new Map();
  * Use a series of suggested edits to generate a live editable diff view for the user to make the decision
  */
 class EditSelector {
-    constructor(path, fromLine, toLine, edits, srcWrite, isAdd = false) {
+    constructor(path, fromLine, toLine, edits, originWrite, isAdd = false) {
         this.path = path;
         this.fromLine = fromLine;
         this.toLine = toLine;  // toLine is exclusive
         this.edits = edits;
-        this.tempWrite = srcWrite ?? tempWrite;
+        this.tempWrite = originWrite ?? tempWrite;
         this.isAdd = isAdd;
 
         this.originalContent = "";
@@ -146,11 +146,18 @@ class EditSelector {
             vscode.Uri.file(this.path),
             "Original vs. Modified"
         );
-        diffTabSelectors[vscode.window.tabGroups.activeTabGroup.activeTab] = this;
-        // await vscode.commands.executeCommand('moveActiveEditor', {
-        //     to: 'right',
-        //     by: 'group'
-        // });
+
+        const tabGroups = vscode.window.tabGroups;
+        const activeTab = tabGroups.activeTabGroup.activeTab;
+        diffTabSelectors.set(activeTab, this);
+        let removeSelectorEvent = null;
+        const event = tabGroups.onDidChangeTabs((e) => {
+            if (e.closed.includes(activeTab)) {
+                diffTabSelectors.delete(activeTab);
+                removeSelectorEvent.dispose();
+            }
+        });
+        removeSelectorEvent = event;
     }
 
     async editedDocumentAndShowDiff() {
@@ -167,6 +174,19 @@ class EditSelector {
     async clearEdit() {
         // await vscode.commands.executeCommand('undo');
         await this._replaceDocument(this.originalContent);
+    }
+
+    async acceptEdit() {
+        const locations = queryState.locations;
+        locations.forEach((loc, i) => {
+            const offset = loc.editType === "add" ? 1 : 0;
+            if (loc.atLines
+            && loc.atLines[0] + offset < this.toLine
+            && loc.atLines[loc.atLines.length - 1] + 1 + offset > this.fromLine) {
+                locations.splice(i, 1);
+            }
+            queryState._onDidChangeLocations.fire();
+        })
     }
 
     _getPathId() {

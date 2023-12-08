@@ -3,33 +3,6 @@ import path from 'path';
 import { queryState } from './global-context';
 import { BaseComponent } from './base-component';
 
-class EditLocationView extends BaseComponent {
-    constructor() {
-        super();
-        this.provider = new LocationTreeProvider();
-        
-        const treeViewOptions = {
-            treeDataProvider: this.provider,
-            showCollapseAll: true
-        }
-        const treeView = vscode.window.createTreeView('editLocations', treeViewOptions);
-        this.treeView = treeView;
-
-        this.register(
-            treeView,
-            this.provider.onDidChangeLocationNumber((num) => {
-                // Set the whole badge here. Only setting the value won't trigger update
-                this.treeView.badge = {
-                    tooltip: `${num} possible edit locations`,
-                    value: num
-                }
-                vscode.commands.executeCommand('editLocations.focus');
-            }, this),
-            queryState.onDidQuery((qs) => this.provider.refresh(qs.locations), this)
-        );
-    }
-}
-
 class LocationTreeProvider  {
     constructor() {
         this._onDidChangeTreeData = new vscode.EventEmitter();
@@ -239,6 +212,31 @@ class ModItem extends vscode.TreeItem {
     contextValue = 'mod';
 }
 
-export {
-    EditLocationView
-};
+class EditLocationView extends BaseComponent {
+    constructor() {
+        super();
+        this.provider = new LocationTreeProvider();
+        
+        const treeViewOptions = {
+            treeDataProvider: this.provider,
+            showCollapseAll: true
+        }
+        const treeView = vscode.window.createTreeView('editLocations', treeViewOptions);
+        this.treeView = treeView;
+
+        this.register(
+            treeView,
+            this.provider.onDidChangeLocationNumber((num) => {
+                // Set the whole badge here. Only setting the value won't trigger update
+                this.treeView.badge = {
+                    tooltip: `${num} possible edit locations`,
+                    value: num
+                }
+                vscode.commands.executeCommand('editLocations.focus');
+            }, this),
+            queryState.onDidChangeLocations((qs) => this.provider.refresh(qs.locations), this),
+        );
+    }
+}
+
+export const editLocationView = new EditLocationView();

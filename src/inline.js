@@ -3,6 +3,7 @@ import { toPosixPath } from './file';
 import { editorState } from './global-context';
 import { queryState } from './global-context';
 import { BaseComponent } from './base-component';
+import { editLocationView } from './activity-bar';
 
 const replacementBackgroundColor = 'rgba(255,0,0,0.2)';
 const additionBackgroundColor = 'rgba(0,255,0,0.2)';
@@ -12,16 +13,19 @@ class LocationDecoration extends BaseComponent {
 		super();
 		this.replaceDecorationType = vscode.window.createTextEditorDecorationType({
 			backgroundColor: replacementBackgroundColor,
-			isWholeLine: true
+			isWholeLine: true,
+			rangeBehavior: vscode.DecorationRangeBehavior.ClosedOpen
 		});
 		this.addDecorationType = vscode.window.createTextEditorDecorationType({
 			backgroundColor: additionBackgroundColor,
-			isWholeLine: true
+			isWholeLine: true,
+			rangeBehavior: vscode.DecorationRangeBehavior.ClosedOpen
 		});
 		
 		this.disposable = vscode.Disposable.from(
 			vscode.window.onDidChangeActiveTextEditor(this.setLocationDecorations, this),
-			queryState.onDidQuery(() => this.setLocationDecorations(vscode.window.activeTextEditor), this)
+			queryState.onDidChangeLocations(() => this.setLocationDecorations(vscode.window.activeTextEditor), this),
+			editLocationView.treeView.onDidChangeSelection(() => this.setLocationDecorations(vscode.window.activeTextEditor), this)
 		);
 	}
 

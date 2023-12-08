@@ -58,12 +58,12 @@ class QueryState extends BaseComponent {
         // response parameters
         this.locations = [];
         this.locatedFilePaths = [];
-        this._onDidQuery = new vscode.EventEmitter();
-        this.onDidQuery = this._onDidQuery.event;
+        this._onDidChangeLocations = new vscode.EventEmitter();
+        this.onDidChangeLocations = this._onDidChangeLocations.event;
 
         this.register(
             registerCommand('editPilot.inputMessage', this.inputCommitMessage, this),
-            this._onDidQuery
+            this._onDidChangeLocations
         );
     }
 
@@ -72,7 +72,7 @@ class QueryState extends BaseComponent {
         if (this.locations.length) {
             this.locatedFilePaths = [...new Set(locations.map((loc) => loc.targetFilePath))];
         }
-        this._onDidQuery.fire(this);
+        this._onDidChangeLocations.fire(this);
     }
 
     async clearLocations() {
@@ -80,25 +80,26 @@ class QueryState extends BaseComponent {
     }
 
     async requireCommitMessage() {
-        if (!this.commitMessage) {
-            this.commitMessage = await this.inputCommitMessage();
+        if (this.commitMessage) {
+            return this.commitMessage;
         }
 
-        return this.commitMessage;
+        return await this.inputCommitMessage();
     }
 
     async inputCommitMessage() {
-        console.log('==> Edit description input box is displayed');
         const userInput = await vscode.window.showInputBox({
             prompt: 'Enter a description of edits you want to make.',
             placeHolder: 'Add a feature...',
             ignoreFocusOut: true,
-            value: queryState.commitMessage
-        }) ?? "";
-        console.log('==> Edit description:', userInput);
-        this.commitMessage = userInput;
-
-        return userInput;
+            value: queryState.commitMessage,
+            title: "✍️ Edit Description"
+        });
+        
+        if (userInput) {
+            this.commitMessage = userInput;
+        }
+        return userInput;   // returns undefined if canceled
     }
 }
 

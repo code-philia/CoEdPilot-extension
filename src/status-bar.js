@@ -9,8 +9,12 @@ class ProgressDisplayStatusBarItem extends BaseComponent {
         this.item = vscode.window.createStatusBarItem('editPilot.progressDisplay', vscode.StatusBarAlignment.Right, 1000);
         this.setStatusDefault();
         this.item.show();
-        this.item.command = 
+        this.item.command = "editPilot.showCommands";
         this.busy = false;
+
+        this.register(
+            vscode.commands.registerCommand("editPilot.showCommands", () => { })
+        )
     }
 
     setItemText(iconId, text) {

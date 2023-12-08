@@ -2,7 +2,7 @@ import vscode from 'vscode';
 import { compareTempFileSystemProvider } from './compare-view';
 import { FileStateMonitor, initFileState } from './file';
 import { editorState, queryState } from './global-context';
-import { EditLocationView } from './activity-bar';
+import { editLocationView } from './activity-bar';
 import { LocationDecoration } from './inline';
 import { registerBasicCommands, registerTopTaskCommands } from './extension-register';
 import { statusBarItem } from './status-bar';
@@ -15,7 +15,8 @@ function activate(context) {
 		editorState,
 		queryState,
 		compareTempFileSystemProvider,
-		statusBarItem
+		statusBarItem,
+		editLocationView
 	)
 
 	context.subscriptions.push(
@@ -25,9 +26,7 @@ function activate(context) {
 
 	context.subscriptions.push(
 		new FileStateMonitor(),
-		new LocationDecoration(),
-		new EditLocationView(),
-		// new DiffTabCodelensProvider()
+		new LocationDecoration(),	
 	);
 
 	console.log('==> Congratulations, your extension is now active!');

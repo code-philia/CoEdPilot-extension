@@ -15,6 +15,8 @@ async function predictLocation() {
     }
     return await globalEditLock.tryWithLockAsync(async () => {
         const commitMessage = await queryState.requireCommitMessage();
+        if (commitMessage === undefined) return;
+
         statusBarItem.setStatusLoadingFiles();
         const rootPath = getRootPath();
         const files = await getGlobFiles();
@@ -44,7 +46,10 @@ async function predictEdit() {
         vscode.window.showInformationMessage(`Predicting edit canceled: language ${editorState.language} not supported yet.`);
         return;
     }
-
+    
+    const commitMessage = await queryState.requireCommitMessage();
+    if (commitMessage === undefined) return;
+    
     const activeEditor = vscode.window.activeTextEditor;
     const activeDocument = activeEditor?.document;
     if (!(activeEditor && activeDocument)) return;
@@ -79,8 +84,6 @@ async function predictEdit() {
             activeDocument.lineAt(toLine).range.end
         )
     );
-    
-    const commitMessage = await queryState.requireCommitMessage();
     
     statusBarItem.setStatusQuerying("generator");
     try {
@@ -135,20 +138,24 @@ class GenerateEditCommand extends BaseComponent{
     registerEditSelectionCommands() {
         function getSelectorOfCurrentTab() {
             const currTab = vscode.window.tabGroups.activeTabGroup.activeTab;
-            const selector = diffTabSelectors[currTab];
+            const selector = diffTabSelectors.get(currTab);
             return selector;
         }
         function switchEdit(offset) {
             const selector = getSelectorOfCurrentTab();
             selector && selector.switchEdit(offset);
         }
+        function closeTab() {
+            const tabGroups = vscode.window.tabGroups;
+            tabGroups.close(tabGroups.activeTabGroup.activeTab, true);
+        }
         function clearEdit() {
             const selector = getSelectorOfCurrentTab();
             selector && selector.clearEdit();
         }
-        function closeTab() {
-            const tabGroups = vscode.window.tabGroups;
-            tabGroups.close(tabGroups.activeTabGroup.activeTab, true);
+        function acceptEdit() {
+            const selector = getSelectorOfCurrentTab();
+            selector && selector.acceptEdit();
         }
         return vscode.Disposable.from(
             registerCommand("editPilot.last-suggestion", () => {
@@ -158,6 +165,7 @@ class GenerateEditCommand extends BaseComponent{
                 switchEdit(1);
             }),
             registerCommand("editPilot.accept-edit", () => {
+                acceptEdit();
                 closeTab();
             }),
             registerCommand("editPilot.dismiss-edit", () => {
