@@ -14,7 +14,7 @@
     "onLanguage:javascript",
     "onLanguage:python",
     "onLanguage:go",
-    "onLanguage:json"
+    "onLanguage:java"
   ],
   "main": "./out/extension",
   "contributes": {
