@@ -66,7 +66,7 @@ try {
     const gitignoreLines = gitignoreText.match(/[^\r\n]+/g);
     gitignorePatterns = parseIgnoreLinesToPatterns(gitignoreLines);
 } catch (err) {
-    console.log(`Neglecting .gitignore rules because of problem: ${err}`);
+    console.log(`Neglecting .gitignore rules: a problem occurs: ${err}`);
 }
 
 class EditDetector {
@@ -108,7 +108,7 @@ class EditDetector {
                 const text = await getDocument(path);
                 this.updateEdits(path, text);
             } catch (err) {
-                console.log('Cannot update snapshot on ${path}$')
+                console.log(`Using saved version: cannot update snapshot on ${path}`)
             }
         }
         this.shiftEdits();
@@ -375,7 +375,7 @@ async function getGlobFiles(useSnapshot = true) {
                     contentList.push([filePath, fileContent]);
                 }
             } catch (error) {
-                console.log("Some error occurs when reading file");
+                console.log(`Ignoring file: some error occurs when reading file ${filePath}`);
             }
         }
     }

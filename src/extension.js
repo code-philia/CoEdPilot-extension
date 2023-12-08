@@ -8,31 +8,27 @@ import { registerBasicCommands, registerTopTaskCommands } from './extension-regi
 import { statusBarItem } from './status-bar';
 
 function activate(context) {
-	try {
 
-		initFileState(vscode.window.activeTextEditor);
-	
-		context.subscriptions.push(
-			editorState,
-			queryState,
-			compareTempFileSystemProvider,
-			statusBarItem
-		)
-	
-		context.subscriptions.push(
-			registerBasicCommands(),
-			registerTopTaskCommands(),
-		);
-	
-		context.subscriptions.push(
-			new FileStateMonitor(),
-			new LocationDecoration(),
-			new EditLocationView(),
-			// new DiffTabCodelensProvider()
-		);
-	} catch (err) {
-		
-	}
+	initFileState(vscode.window.activeTextEditor);
+
+	context.subscriptions.push(
+		editorState,
+		queryState,
+		compareTempFileSystemProvider,
+		statusBarItem
+	)
+
+	context.subscriptions.push(
+		registerBasicCommands(),
+		registerTopTaskCommands(),
+	);
+
+	context.subscriptions.push(
+		new FileStateMonitor(),
+		new LocationDecoration(),
+		new EditLocationView(),
+		// new DiffTabCodelensProvider()
+	);
 
 	console.log('==> Congratulations, your extension is now active!');
 }

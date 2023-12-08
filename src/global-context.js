@@ -26,7 +26,7 @@ class EditLock {
         try {
             return callback();
         } catch (err) {
-            console.log(`Error occured when running in edit lock: \n${err}`);
+            console.error(`Error occured when running in edit lock: \n${err.stack}`);
             throw err;
         } finally {
             this.isLocked = false;
@@ -39,7 +39,7 @@ class EditLock {
         try {
             return await asyncCallback();
         } catch (err) {
-            console.log(`Error occured when running in edit lock (async): \n${err}`);
+            console.error(`Error occured when running in edit lock (async): \n${err.stack}`);
             throw err;
         } finally {
             this.isLocked = false;

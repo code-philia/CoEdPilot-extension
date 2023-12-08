@@ -25,8 +25,9 @@ async function predictLocation() {
             await queryLocationFromModel(rootPath, files, currentPrevEdits, commitMessage, editorState.language);
             statusBarItem.setStatusDefault();
         } catch (err) {
-            console.log(err);
+            console.error(err);
             statusBarItem.setStatustProblem("Some error occured when predicting locations");
+            throw err;
         }
     });
 }
@@ -107,8 +108,9 @@ async function predictEdit() {
         await selector.editedDocumentAndShowDiff();
         statusBarItem.setStatusDefault();
     } catch (err) {
-        console.log(err);
+        console.error(err);
         statusBarItem.setStatustProblem("Some error occured when predicting edits");
+        throw err;
     }
 }
 
