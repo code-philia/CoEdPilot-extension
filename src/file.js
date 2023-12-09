@@ -356,12 +356,12 @@ function getRootPath() {
     return toPosixPath(vscode.workspace.workspaceFolders[0].uri.fsPath);
 }
 
-async function getGlobFiles(useSnapshot = true) {
+async function readGlobFiles(useSnapshot = true) {
     const rootPath = getRootPath();
     const fileList = [];
 
     // Use glob to exclude certain files and return a list of all valid files
-    const filePathList = globFiles(rootPath);
+    const filePathList = await globFiles(rootPath);
     const fileGetter = useSnapshot
         ? liveFilesGetter()
         : async (filePath) => fs.readFileSync(filePath, 'utf-8');
@@ -482,19 +482,19 @@ function getPrevEdits() {
 }
 
 // glob files with specific patterns
-function globFiles(rootPath, globPatterns = []) {
+async function globFiles(rootPath, globPatterns = []) {
     // Built-in glob patterns
     const globPatternStr = (globPatterns instanceof Array && globPatterns.length > 0)
         ? globPatterns
         : '/**/*';
 
-    const pathList = glob.sync(globPatternStr, {
+    const pathList = await glob(globPatternStr, {
         root: rootPath,
         windowsPathsNoEscape: true,
         ignore: gitignorePatterns["exclude"],
         nodir: true
     });
-    const reincludedPathList = glob.sync(gitignorePatterns["include"], {
+    const reincludedPathList = await glob(gitignorePatterns["include"], {
         root: rootPath,
         windowsPathsNoEscape: true,
         ignore: gitignorePatterns["permExclude"],
@@ -560,7 +560,7 @@ export {
     globFiles,
     replaceCurrentSnapshot,
     getRootPath,
-    getGlobFiles,
+    readGlobFiles,
     editorState,
     initFileState,
     FileStateMonitor,

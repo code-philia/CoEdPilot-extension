@@ -11,6 +11,34 @@ from model_manager import load_model_with_cache
 
 MODEL_ROLE = "discriminator"
 OUTPUT_MAX = 10
+WORD_PATTERN = re.compile(r"\b[a-zA-Z_][a-zA-Z0-9_]*\b")
+LANGUAGE_KEYWORDS = {
+    "go": set(["break", "default", "func", "interface", "select", "case", "defer", "go", "map", "struct",
+           "chan", "else", "goto", "package", "switch", "const", "fallthrough", "if", "range", "type",
+           "continue", "for", "import", "return", "var"]),
+    "python": set(["False", "await", "else", "import", "pass", "None", "break", "except", "in", "raise",
+               "True", "class", "finally", "is", "return", "and", "continue", "for", "lambda", "try",
+               "as", "def", "from", "nonlocal", "while", "assert", "del", "global", "not", "with",
+               "async", "elif", "if", "or", "yield"]),
+    "javascript": set(["break", "case", "catch", "class", "const", "continue", "debugger", "default", "delete",
+                   "do", "else", "export", "extends", "finally", "for", "function", "if", "import",
+                   "in", "instanceof", "new", "return", "super", "switch", "this", "throw", "try",
+                   "typeof", "var", "void", "while", "with", "yield"]),
+    "typescript": set(["break", "case", "catch", "class", "const", "continue", "debugger", "default", "delete",
+                   "do", "else", "enum", "export", "extends", "finally", "for", "function", "if", "implements",
+                   "import", "in", "instanceof", "interface", "let", "new", "package", "private", "protected",
+                   "public", "return", "static", "super", "switch", "this", "throw", "try", "typeof",
+                   "var", "void", "while", "with", "yield", "as", "asserts", "any", "async", "await",
+                   "boolean", "constructor", "declare", "get", "infer", "is", "keyof", "module", "namespace",
+                   "never", "readonly", "require", "number", "object", "set", "string", "symbol", "type",
+                   "undefined", "unique", "unknown"]),
+    "java": set(["abstract", "assert", "boolean", "break", "byte", "case", "catch", "char", "class", "const",
+             "continue", "default", "do", "double", "else", "enum", "extends", "final", "finally", "float",
+             "for", "goto", "if", "implements", "import", "instanceof", "int", "interface", "long", "native",
+             "new", "package", "private", "protected", "public", "return", "short", "static", "strictfp",
+             "super", "switch", "synchronized", "this", "throw", "throws", "transient", "try", "void", "volatile",
+             "while"])
+}
 
 class CombinedModel(nn.Module):
     def __init__(self, model_name):
@@ -109,7 +137,10 @@ def predict(json_input, language):
     for edit in json_input["prevEdits"]:
         edits.extend([edit["beforeEdit"], edit["afterEdit"]])
 
-    edit_words_list = np.array([np.array(x.split()) for x in edits], dtype=object)
+    keyword_set = LANGUAGE_KEYWORDS[language]
+    edit_words_list = np.array([np.array(
+        [y for y in WORD_PATTERN.findall(x) if y not in keyword_set]
+        ) for x in edits], dtype=object)
     edit_words = []
     if len(edit_words_list):
         edit_words = np.concatenate(edit_words_list)

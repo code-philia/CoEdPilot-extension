@@ -1,5 +1,5 @@
 import vscode from 'vscode';
-import { getRootPath, getGlobFiles, updatePrevEdits, toPosixPath, globalEditDetector } from './file';
+import { getRootPath, readGlobFiles, updatePrevEdits, toPosixPath, globalEditDetector } from './file';
 import { editorState, isLanguageSupported, queryState } from './global-context';
 import { queryLocationFromModel, queryEditFromModel } from './queries';
 import { BaseComponent } from './base-component';
@@ -19,9 +19,10 @@ async function predictLocation() {
 
         statusBarItem.setStatusLoadingFiles();
         const rootPath = getRootPath();
-        const files = await getGlobFiles();
+        const files = await readGlobFiles();
         // const currentPrevEdits = getPrevEdits();
         try {
+            console.log("++++++++++++ getting updates")
             const currentPrevEdits = await globalEditDetector.getUpdatedEditList();
             statusBarItem.setStatusQuerying("locator");
             await queryLocationFromModel(rootPath, files, currentPrevEdits, commitMessage, editorState.language);

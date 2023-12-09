@@ -31,21 +31,21 @@ class ProgressDisplayStatusBarItem extends BaseComponent {
             : new vscode.ThemeColor('statusBarItem.warningBackground');
         this.item.tooltip = isLanguageSupported()
             ? "Edit Pilot is ready 🛫"
-            : "Edit Pilot doesn't support this language yet 💤"
+            : "Edit Pilot doesn't support this language yet 💤";
     } 
 
     setStatusLoadingFiles() {
         this.busy = true;
         this.setItemText(this.loadingIconId, "Loading files...");
         this.item.backgroundColor = undefined;
-        this.item.tooltip = "Edit Pilot is working on local files 🔍"
+        this.item.tooltip = "Edit Pilot is working on local files 🔍";
     }
 
     setStatusQuerying(modelName) {
         this.busy = true;
         this.setItemText(this.loadingIconId, `Querying ${modelName}...`);
         this.item.backgroundColor = undefined;
-        this.item.tooltip = "Edit Pilot is using language model to analyze 🔬"
+        this.item.tooltip = "Edit Pilot is using language model to analyze 🔬";
     }
 
     setStatustProblem(errorMessage) {
