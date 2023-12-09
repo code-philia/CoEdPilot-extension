@@ -1,7 +1,5 @@
 import bleu
 import torch
-import logging
-import warnings
 import torch.nn as nn
 
 from .model import Seq2Seq
@@ -12,8 +10,6 @@ from perf import Stopwatch
 from model_manager import load_model_with_cache
 
 MODEL_CLASSES = {'roberta': (RobertaConfig, RobertaModel, RobertaTokenizer)}
-logging.disable(logging.CRITICAL)
-warnings.filterwarnings("ignore")
 
 contextLength = 5
 model_role = "generator"

@@ -6,9 +6,9 @@ import os from "os";
 export const supportedLanguages = [
     "go",
     "python",
-    // "typescript",
-    // "javascript",
-    // "java"
+    "typescript",
+    "javascript",
+    "java"
 ]
 
 export function isLanguageSupported() {

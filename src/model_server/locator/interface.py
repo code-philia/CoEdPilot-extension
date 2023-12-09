@@ -194,6 +194,33 @@ def predict(json_input, language):
     # print("+++ Prev Edits:")
     # print(json.dumps(prevEdits, indent=4))
 
+    window_token_cnt = 0
+    window_line_cnt = 0
+    window_text = ""
+    def try_feed_in_window(text):
+        nonlocal window_token_cnt, window_line_cnt, window_text
+        masked_line = " <mask> " + text
+        masked_line_token_cnt = len(tokenizer.tokenize(masked_line))
+        if window_token_cnt + masked_line_token_cnt < 508 and window_line_cnt < 10: # a conservative number for token number
+            window_token_cnt += masked_line_token_cnt
+            window_line_cnt += 1
+            window_text += masked_line
+            return True
+        else:
+            return False
+    def end_window(input_list):
+        nonlocal prevEdits, commitMessage, window_token_cnt, window_line_cnt, window_text
+        model_input = window_text + ' </s> '  + commitMessage 
+        for prevEdit in prevEdits:
+            model_input +=' </s> replace ' + prevEdit["beforeEdit"] + ' add ' + prevEdit["afterEdit"]
+        input_list.append(model_input)
+        # with open(r"C:\Users\aaa\Desktop\edit-pilot\mark.txt", "a+", newline='') as f:
+        #     f.write(model_input)
+        #     f.write("\n")
+        window_token_cnt = 0
+        window_line_cnt = 0
+        window_text = ""
+
     # 获取每个文件的内容
     for file in files:
         targetFilePath = file[0] 
@@ -203,20 +230,36 @@ def predict(json_input, language):
         targetFileLineNum = len(targetFileLines)
 
         model_inputs = []
-        for windowIdx in range(math.ceil(targetFileLineNum/codeWindowLength)):
-            # 按照 codeWindowLength 将文件内容分割成 codeWindow
-            if windowIdx == math.ceil(targetFileLineNum/codeWindowLength)-1:
-                codeWindowLines = targetFileLines[windowIdx*codeWindowLength:]
-            else:
-                codeWindowLines = targetFileLines[windowIdx*codeWindowLength:(windowIdx+1)*codeWindowLength]
-            codeWindowLines = [" <mask> " + line for line in codeWindowLines]
-            codeWindow = ''.join(codeWindowLines)
+        # for windowIdx in range(math.ceil(targetFileLineNum/codeWindowLength)):
+        #     # 按照 codeWindowLength 将文件内容分割成 codeWindow
+        #     if windowIdx == math.ceil(targetFileLineNum/codeWindowLength)-1:
+        #         codeWindowLines = targetFileLines[windowIdx*codeWindowLength:]
+        #     else:
+        #         codeWindowLines = targetFileLines[windowIdx*codeWindowLength:(windowIdx+1)*codeWindowLength]
+        #     codeWindowLines = [" <mask> " + line for line in codeWindowLines]
+        #     codeWindow = ''.join(codeWindowLines)
 
-            # 将 CodeWindow， CommitMessage 和 prevEdit 合并为一个字符串，作为模型的输入
-            model_input = codeWindow + ' </s> '  + commitMessage 
-            for prevEdit in prevEdits:
-                model_input +=' </s> replace ' + prevEdit["beforeEdit"] + ' add ' + prevEdit["afterEdit"]
-            model_inputs.append(model_input)
+        #     # 将 CodeWindow， CommitMessage 和 prevEdit 合并为一个字符串，作为模型的输入
+        #     model_input = codeWindow + ' </s> '  + commitMessage 
+        #     for prevEdit in prevEdits:
+        #         model_input +=' </s> replace ' + prevEdit["beforeEdit"] + ' add ' + prevEdit["afterEdit"]
+        #     model_inputs.append(model_input)
+
+        i = 0
+        while i < targetFileLineNum:
+            cur_line = targetFileLines[i]
+            if try_feed_in_window(cur_line):
+                i += 1
+            else:
+                if window_line_cnt == 0:    # the first line is longer than window limit 
+                    while True:
+                        cur_line = cur_line[:len(cur_line)/2]
+                        if try_feed_in_window(cur_line):
+                            break
+                else:
+                    end_window(model_inputs)
+        if len(window_text) > 0:
+            end_window(model_inputs)
         stopwatch.lap_by_task('assemble input text')
 
         # prepare model input (tensor format)

@@ -119,11 +119,6 @@
           "id": "editLocations",
           "name": "Suggested Locations",
           "contextualTitle": "Edit Pilot"
-        },
-        {
-          "id": "prevEdits",
-          "name": "Previous Edits",
-          "contextualTitle": "Edit Pilot"
         }
       ]
     }

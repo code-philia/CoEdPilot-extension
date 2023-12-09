@@ -121,13 +121,15 @@ class LocationTreeProvider  {
         )
 
         for (const loc of modListOnPath) {
-            let lineNum = loc.editType === "add" ? loc.atLines[0] + 1 : loc.atLines[0];
+            let fromLine = loc.editType === "add" ? loc.atLines[0] + 1 : loc.atLines[0];
+            let toLine = loc.editType === "add" ? loc.atLines[loc.atLines.length - 1] + 2 : loc.atLines[loc.atLines.length - 1] + 1;
             fileItem.mods.push(
                 new ModItem(
-                    `Line ${lineNum + 1}`,
+                    `Line ${fromLine + 1}`,
                     vscode.TreeItemCollapsibleState.None,
                     fileItem,
-                    lineNum,
+                    fromLine,
+                    toLine,
                     loc.lineInfo.text,
                     loc.editType
                 )
@@ -160,21 +162,26 @@ class FileItem extends vscode.TreeItem {
 }
 
 class ModItem extends vscode.TreeItem {
-    constructor(label, collapsibleState, fileItem, atLine, lineContent, editType) {
+    constructor(label, collapsibleState, fileItem, fromLine, toLine, lineContent, editType) {
         super(label, collapsibleState);
         this.collapsibleState = collapsibleState;
         this.fileItem = fileItem;
-        this.atLine = atLine;
+        this.fromLine = fromLine;
+        this.toLine = toLine
         this.editType = editType;
         this.lineContent = lineContent
         this.text = `    ${this.lineContent.trim()}`;
 
-        this.tooltip = `Line ${this.atLine}`; // match real line numbers in the gutter
+        this.tooltip = `Line ${this.fromLine}`; // match real line numbers in the gutter
         this.description = this.text;
         this.command = {
             command: 'editPilot.openFileAtLine',
             title: '',
-            arguments: [this.fileItem.filePath, this.atLine]
+            arguments: [
+                this.fileItem.filePath,
+                this.fromLine,
+                editType === "add" ? this.fromLine : this.toLine  // edit of type "add" will only place the cursor at the starting of line
+            ]
         }
         
         this.iconPath = {
@@ -206,7 +213,7 @@ class ModItem extends vscode.TreeItem {
         //     default:
         //         return `Modifying line ${this.atLine}`;
         // }
-        return `Line ${this.atLine + 1}`;
+        return `Line ${this.fromLine + 1}`;
     }
 
     contextValue = 'mod';
