@@ -121,7 +121,21 @@
           "contextualTitle": "Edit Pilot"
         }
       ]
-    }
+    },
+    "keybindings": [
+      {
+        "command": "editPilot.predictLocations",
+        "key": "ctrl+alt+l",
+        "mac": "cmd+alt+l",
+        "when": "editorFocus"
+      },
+      {
+        "command": "editPilot.generateEdits",
+        "key": "ctrl+alt+m",
+        "mac": "cmd+alt+m",
+        "when": "editorFocus"
+      }
+    ]
   },
   "scripts": {
     "test": "node ./test/suite/test.js",

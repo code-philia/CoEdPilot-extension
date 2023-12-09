@@ -239,7 +239,9 @@ class EditLocationView extends BaseComponent {
                     tooltip: `${num} possible edit locations`,
                     value: num
                 }
-                vscode.commands.executeCommand('editLocations.focus');
+                if (!this.treeView.visible) {
+                    vscode.commands.executeCommand('editLocations.focus');
+                }
             }, this),
             queryState.onDidChangeLocations((qs) => this.provider.refresh(qs.locations), this),
         );
