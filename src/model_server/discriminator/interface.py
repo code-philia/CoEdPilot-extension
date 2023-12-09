@@ -9,7 +9,8 @@ from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from perf import Stopwatch
 from model_manager import load_model_with_cache
 
-model_role = "discriminator"
+MODEL_ROLE = "discriminator"
+OUTPUT_MAX = 10
 
 class CombinedModel(nn.Module):
     def __init__(self, model_name):
@@ -89,7 +90,7 @@ def predict(json_input, language):
 
     stopwatch.start()
     # check model cache
-    model, tokenizer, device = load_model_with_cache(model_role, language, load_model)
+    model, tokenizer, device = load_model_with_cache(MODEL_ROLE, language, load_model)
     stopwatch.lap('load model')
 
     # 0. remove targetFilePath from input["files"]
@@ -156,6 +157,8 @@ def predict(json_input, language):
     for idx, model_output in enumerate(model_outputs):
         if model_output == 1:
             output["data"].append(json_input["files"][idx][0])
+        if len(output["data"]) >= OUTPUT_MAX:
+            break
     stopwatch.lap('post-process result')
     print("+++ Discriminator profiling:")
     stopwatch.print_result()

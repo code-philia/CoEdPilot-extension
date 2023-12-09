@@ -1,43 +1,16 @@
-import path from 'path';
 import axios from 'axios';
-import { spawn } from 'child_process';
 import fs from 'fs';
-
-const srcDir = __dirname;
-const PyInterpreter = "C:/Program Files/Python310/python.exe";
-const pyServerPath = path.join(srcDir, 'model_server', "server.py");
+import vscode from 'vscode';
 
 // const regPortInfo = /PORT:[0-9]+/;
 
 class ModelServerProcess{
     constructor() {
-        this.ip = 'localhost';
-        this.port = '5001';
-        // this.setup();
-    }
-
-    setup() {
-        console.log(`[ModelServer] Initializing process from "${pyServerPath}"`)
-        this.process = spawn(PyInterpreter, [pyServerPath]);
-        this.process.stdout.setEncoding('utf-8');
-        console.log("[ModelServer] Process initialized.")
-
-        this.process.stdout.on('data', (data) => {
-            const output = data.toString();
-            console.log(`[ModelServer] ${output}`);
-            // if (regPortInfo.test(output)) {
-            //     this.port = output.slice(5);
-            //     console.log(`[ModelServer] Port number set to ${this.port}`) // Not Implemented Yet
-            // }
-        });
-
-        this.process.stderr.on('data', (data) => {
-            console.log(data.toString());
-        })
+        this.apiUrl = vscode.workspace.getConfiguration("editPilot").get("queryURL");
     }
 
     toURL(path) {
-        return `http://${this.ip}:${this.port}/${path}`;
+        return (new URL(path, this.apiUrl)).href ;
     }
 
     async sendPostRequest(urlPath, jsonObject) {

@@ -11,8 +11,8 @@ from model_manager import load_model_with_cache
 
 MODEL_CLASSES = {'roberta': (RobertaConfig, RobertaModel, RobertaTokenizer)}
 
-contextLength = 5
-model_role = "generator"
+CONTEXT_LENGTH = 5
+MODEL_ROLE = "generator"
 
 def is_model_cached():
     global tokenizer, model, device
@@ -161,7 +161,7 @@ def predict(json_input, language):
 
     stopwatch.start()
     # check model cache
-    model, tokenizer, device = load_model_with_cache(model_role, language, load_model)
+    model, tokenizer, device = load_model_with_cache(MODEL_ROLE, language, load_model)
     stopwatch.lap('load model')
 
     # 提取从 JavaScript 传入的参数
@@ -180,8 +180,8 @@ def predict(json_input, language):
     targetFileLineNum = len(targetFileLines)
 
     # 获取 editRange 的上下文
-    startLineIdx = max(0, editLineIdx[0]-contextLength)
-    endLineIdx = min(targetFileLineNum, editLineIdx[-1]+contextLength+1)
+    startLineIdx = max(0, editLineIdx[0]-CONTEXT_LENGTH)
+    endLineIdx = min(targetFileLineNum, editLineIdx[-1]+CONTEXT_LENGTH+1)
     stopwatch.lap('pre-process arguments')
 
     # 把 editRange 的上下文和 editRange 的内容拼接成 codeWindow

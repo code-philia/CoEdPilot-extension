@@ -167,6 +167,9 @@ class GenerateEditCommand extends BaseComponent{
             registerCommand("editPilot.accept-edit", () => {
                 acceptEdit();
                 closeTab();
+                if (vscode.workspace.getConfiguration("editPilot").get("predictLocationOnEditAcception")) {
+                    vscode.commands.executeCommand("editPilot.predictLocations");
+                }
             }),
             registerCommand("editPilot.dismiss-edit", () => {
                 clearEdit();

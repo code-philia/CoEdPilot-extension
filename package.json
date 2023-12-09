@@ -18,6 +18,23 @@
   ],
   "main": "./out/extension",
   "contributes": {
+    "configuration":[
+      {
+        "title": "Edit Pilot",
+        "properties": {
+          "editPilot.queryURL": {
+            "type": "string",
+            "default": "http://localhost:5001",
+            "description": "The backend URL to send query request to."
+          },
+          "editPilot.predictLocationOnEditAcception": {
+            "type": "boolean",
+            "default": "true",
+            "description": "Perform another prediction immediately when accpeting an edit."
+          }
+        }
+      }
+    ],
     "commands": [
       {
         "command": "editPilot.inputMessage",
