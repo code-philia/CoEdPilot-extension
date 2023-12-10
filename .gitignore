@@ -6,5 +6,6 @@ test/test_cases/tributary/
 node_modules/
 **/__pycache__/
 out/
-models/
+models/**
 mock/
+!models/MODEL.md

@@ -77,7 +77,22 @@ python -m pip install -r requirements.txt
 
 As mentioned before, we respectively prepared 3 models (*discriminator*, *locator*, and *generator*) for each language. Supported languages are `go`, `python`, `java`, `typescript` and `javascript`.
 
-Download **models for different languages** from [here](https://drive.google.com/file/d/1nW1NCeelOUZfqebrncKvlB7FVZutjQsT/view?usp=sharing). To deploy for one language, put its unzipped model folder **named with the language** (e.g. for Python we put `python`) into the project root directory.
+1. Download **models for different languages** from [here](https://drive.google.com/file/d/1nW1NCeelOUZfqebrncKvlB7FVZutjQsT/view?usp=sharing). 
+
+2. To deploy models for one language, put its unzipped model folder **named with the language** (e.g. for Python we put `python`) into `models` directory, i.e., to support Python and Java, the file tree should be like
+
+```
+edit-pilot/
+    models/
+        python/
+            discriminator_model.bin
+            locator_model.bin
+            generator_model.bin
+        java/
+            discriminator_model.bin
+            locator_model.bin
+            generator_model.bin
+```
 
 #### Step 3: Start the backend
 
