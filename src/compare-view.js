@@ -144,7 +144,7 @@ class EditSelector {
         await vscode.commands.executeCommand('vscode.diff',
             vscode.Uri.parse(`temp:/${this.id}`),
             vscode.Uri.file(this.path),
-            "Original vs. Modified"
+            `EDIT: ${path.basename(this.path)}`
         );
 
         const tabGroups = vscode.window.tabGroups;

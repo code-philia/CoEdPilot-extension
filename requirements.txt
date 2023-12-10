@@ -7,3 +7,4 @@ flask
 tqdm
 bleu
 pandas
+waitress

@@ -2,6 +2,7 @@ import vscode from 'vscode';
 import path from 'path';
 import { queryState } from './global-context';
 import { BaseComponent } from './base-component';
+import { getRootPath, toRelPath } from './file';
 
 class LocationTreeProvider  {
     constructor() {
@@ -150,13 +151,11 @@ class FileItem extends vscode.TreeItem {
         this.mods = mods;
         
         this.tooltip = this.fileName;
-        this.description = `   ${this.filePath}`;
+        this.description = `   ${toRelPath(getRootPath(), this.filePath)}`;
+        this.resourceUri = vscode.Uri.file(this.filePath);
     }
     
-    iconPath = {
-        light: path.join(__filename, '..', '..', 'media', 'file.svg'),
-        dark: path.join(__filename, '..', '..', 'media', 'file.svg')
-    }
+    iconPath = vscode.ThemeIcon.File;
 
     contextValue = 'file';
 }
@@ -196,11 +195,11 @@ class ModItem extends vscode.TreeItem {
     getIconFileName() {
         switch (this.editType) {
             case 'add':
-                return 'add.png';
+                return 'add-green.svg';
             case 'remove':
-                return 'remove.png';
+                return 'remove.svg';
             default:
-                return 'edit.png';
+                return 'edit-red.svg';
         }
     }
 

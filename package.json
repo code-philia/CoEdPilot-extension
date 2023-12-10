@@ -143,13 +143,12 @@
       {
         "command": "editPilot.predictLocations",
         "key": "ctrl+alt+l",
-        "mac": "cmd+alt+l",
-        "when": "editorFocus"
+        "mac": "cmd+alt+l"
       },
       {
         "command": "editPilot.generateEdits",
-        "key": "ctrl+alt+m",
-        "mac": "cmd+alt+m",
+        "key": "ctrl+alt+e",
+        "mac": "cmd+alt+e",
         "when": "editorFocus"
       }
     ]

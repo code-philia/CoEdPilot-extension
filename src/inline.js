@@ -4,22 +4,29 @@ import { editorState } from './global-context';
 import { queryState } from './global-context';
 import { BaseComponent } from './base-component';
 import { editLocationView } from './activity-bar';
+import path from 'path';
 
-const replacementBackgroundColor = 'rgba(255,0,0,0.2)';
-const additionBackgroundColor = 'rgba(0,255,0,0.2)';
+const replaceBackgroundColor = 'rgba(255,0,0,0.3)';
+const addBackgroundColor = 'rgba(0,255,0,0.3)';
+const replaceIconPath = path.join(__dirname, '../media/edit-red.svg');
+const addIconPath = path.join(__dirname, '../media/add-green.svg');
 
 class LocationDecoration extends BaseComponent {
 	constructor() {
 		super();
 		this.replaceDecorationType = vscode.window.createTextEditorDecorationType({
-			backgroundColor: replacementBackgroundColor,
+			backgroundColor: replaceBackgroundColor,
 			isWholeLine: true,
-			rangeBehavior: vscode.DecorationRangeBehavior.ClosedOpen
+			rangeBehavior: vscode.DecorationRangeBehavior.ClosedOpen,
+			gutterIconPath: replaceIconPath,
+			gutterIconSize: "75%"
 		});
 		this.addDecorationType = vscode.window.createTextEditorDecorationType({
-			backgroundColor: additionBackgroundColor,
+			backgroundColor: addBackgroundColor,
 			isWholeLine: true,
-			rangeBehavior: vscode.DecorationRangeBehavior.ClosedOpen
+			rangeBehavior: vscode.DecorationRangeBehavior.ClosedOpen,
+			gutterIconPath: addIconPath,
+			gutterIconSize: "75%"
 		});
 		
 		this.disposable = vscode.Disposable.from(
