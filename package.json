@@ -1,7 +1,7 @@
 {
-  "name": "codesuggestion-demo",
-  "displayName": "CodeSuggestion-demo",
-  "description": "",
+  "name": "edit-pilot",
+  "displayName": "Edit Pilot",
+  "description": "A code co-edit helper.",
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.78.0"

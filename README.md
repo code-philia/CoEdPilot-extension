@@ -58,7 +58,7 @@ Our model scripts require **Python 3.10** and **Pytorch with CUDA.**
 > [!IMPORTANT]
 > For *Windows* and *Linux using CUDA 11.8,* please follow [PyTorch official guide](https://pytorch.org/get-started/locally/) to install PyTorch with CUDA before the following steps.
 
-Using `pip` :
+Using `pip` (with Python 3.10):
 
 ```shell
 pip install -r requirements.txt
@@ -77,7 +77,7 @@ python -m pip install -r requirements.txt
 
 As mentioned before, we respectively prepared 3 models (*discriminator*, *locator*, and *generator*) for each language. Supported languages are `go`, `python`, `java`, `typescript` and `javascript`.
 
-1. Download **models for different languages** from [here](https://drive.google.com/file/d/1nW1NCeelOUZfqebrncKvlB7FVZutjQsT/view?usp=sharing). 
+1. Download **models for different languages** from our inner source. 
 
 2. To deploy models for one language, put its unzipped model folder **named with the language** (e.g. for Python we put `python`) into `models` directory, i.e., to support Python and Java, the file tree should be like
 
@@ -129,7 +129,7 @@ Open the project directory in VS Code if didn't, press `F5`, then choose `Run Ex
 
 We recommend to try this extension with backend deployed locally. This will require **CUDA** and **~4GB** video memory. But deploying backend remotely is also easy, since key is to match extension configuration of VS Code and the server listening configuration. 
 
-By default `server.py` uses `server.ini` as configuration and listens to `0.0.0.0:5001`. The extension client sends requests to `editPilot.queryUrl`, by default `http://localhost:5001`.
+By default `server.py` fetches configuration from `server.ini` then listens to `0.0.0.0:5001`. The extension client sends requests to `editPilot.queryUrl`, by default `http://localhost:5001`.
 
 For basic remote backend deployment:
 
