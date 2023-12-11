@@ -109,7 +109,7 @@ async function predictEdit() {
             editType == "add"
         );
         await selector.init();
-        await selector.editedDocumentAndShowDiff();
+        await selector.editDocumentAndShowDiff();
         statusBarItem.setStatusDefault();
     } catch (err) {
         console.error(err);

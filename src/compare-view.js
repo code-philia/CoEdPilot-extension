@@ -4,7 +4,7 @@ import util from 'util';
 import path from 'path';
 import { BaseComponent } from './base-component';
 import { toPosixPath } from './file';
-import { defaultLineBreak, queryState } from './global-context';
+import { defaultLineBreak, editorState, queryState } from './global-context';
 
 class BaseTempFileProvider extends BaseComponent {
     constructor() {
@@ -160,16 +160,17 @@ class EditSelector {
         removeSelectorEvent = event;
     }
 
-    async editedDocumentAndShowDiff() {
+    async editDocumentAndShowDiff() {
         await this._performMod(this.edits[this.modAt]);
+        if (editorState.inDiffEditor) {     // refresh existed diff editor
+            await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
+        }
         await this._showDiffView();
     }
 
     async switchEdit(offset = 1) {
         this.modAt = (this.modAt + offset + this.edits.length) % this.edits.length;
-        await this._performMod(this.edits[this.modAt]);
-        await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
-        await this._showDiffView();
+        await this.editDocumentAndShowDiff();
     }
 
     async clearEdit() {
