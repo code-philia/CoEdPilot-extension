@@ -23,7 +23,7 @@ async function queryLocationFromModel(rootPath, files, prevEdits, commitMessage,
         {
             "files":            list, [[filePath, fileContent], ...],
             "targetFilePath":   str, filePath,
-            "commitMessage":    str, commit message,
+            "commitMessage":    str, edit description,
             "prevEdits":        list, of previous edits, each in format: {"beforeEdit":"", "afterEdit":""}
         }
         output:
@@ -106,7 +106,7 @@ async function queryEditFromModel(fileContent, editType, atLines, prevEdits, com
         input:
         { 
             "targetFileContent":    string
-            "commitMessage":        string, commit message,
+            "commitMessage":        string, edit description,
             "editType":             string, edit type,
             "prevEdits":            list, of previous edits, each in format: {"beforeEdit":"", "afterEdit":""},
             "atLines":               list, of edit line indices

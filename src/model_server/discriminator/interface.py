@@ -105,7 +105,7 @@ def predict(json_input, language):
             {
                 "files":            list, [[relativeFilePath, fileContent], ...]
                 "targetFilePath":   string, the relative path of the file to be edited
-                "commitMessage":    string, the commit message
+                "commitMessage":    string, the edit description
                 "prevEdits":        list, [{"beforeEdit": string, "afterEdit": string}, ...]
             }
     Return:

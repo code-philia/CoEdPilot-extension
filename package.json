@@ -39,7 +39,7 @@
       {
         "command": "editPilot.inputMessage",
         "category": "Edit Pilot",
-        "title": "Change Commit Message"
+        "title": "Change Edit Description"
       },
       {
         "title": "Last Suggestion",

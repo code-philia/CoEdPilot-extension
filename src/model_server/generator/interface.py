@@ -143,7 +143,7 @@ def predict(json_input, language):
     Args: input, dictionary
         { 
             "targetFileContent":    string, the whole content fo target file
-            "commitMessage":        string, commit message,
+            "commitMessage":        string, edit description,
             "editType":             str, the type of edit,
             "prevEdits":            list, of previous edits, each in format: {"beforeEdit":"", "afterEdit":""},
             "atLines":               list, of edit line indices

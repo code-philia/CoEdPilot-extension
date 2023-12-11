@@ -128,7 +128,7 @@ class EditSelector {
         const editor = vscode.window.visibleTextEditors.find(
             (editor) => editor.document === this.document
         );
-
+        
         const fullRange = new vscode.Range(
             this.document.positionAt(0),
             this.document.positionAt(this.document.getText().length)
@@ -144,7 +144,7 @@ class EditSelector {
         await vscode.commands.executeCommand('vscode.diff',
             vscode.Uri.parse(`temp:/${this.id}`),
             vscode.Uri.file(this.path),
-            `EDIT: ${path.basename(this.path)}`
+            `EDIT ${this.modAt+1}/${this.edits.length}: ${path.basename(this.path)}`
         );
 
         const tabGroups = vscode.window.tabGroups;
@@ -168,6 +168,7 @@ class EditSelector {
     async switchEdit(offset = 1) {
         this.modAt = (this.modAt + offset + this.edits.length) % this.edits.length;
         await this._performMod(this.edits[this.modAt]);
+        await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
         await this._showDiffView();
     }
 
