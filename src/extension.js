@@ -6,6 +6,7 @@ import { editLocationView } from './activity-bar';
 import { LocationDecoration } from './inline';
 import { registerBasicCommands, registerTopTaskCommands } from './extension-register';
 import { statusBarItem } from './status-bar';
+import { modelServerProcess } from './model-client';
 
 function activate(context) {
 
@@ -16,7 +17,8 @@ function activate(context) {
 		queryState,
 		compareTempFileSystemProvider,
 		statusBarItem,
-		editLocationView
+		editLocationView,
+		modelServerProcess
 	)
 
 	context.subscriptions.push(

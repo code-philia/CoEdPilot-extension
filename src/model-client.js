@@ -1,12 +1,26 @@
 import axios from 'axios';
 import fs from 'fs';
 import vscode from 'vscode';
+import { BaseComponent } from './base-component';
 
 // const regPortInfo = /PORT:[0-9]+/;
 
-class ModelServerProcess{
+class ModelServerProcess extends BaseComponent{
     constructor() {
-        this.apiUrl = vscode.workspace.getConfiguration("editPilot").get("queryURL");
+        super();
+        this.apiUrl = this.getAPIUrl();
+
+        this.register(
+            vscode.workspace.onDidChangeConfiguration((e) => {
+                if (e.affectsConfiguration("editPilot.queryURL")) {
+                    this.apiUrl = this.getAPIUrl();
+                }
+            })
+        )
+    }
+
+    getAPIUrl() {
+        return vscode.workspace.getConfiguration("editPilot").get("queryURL");
     }
 
     toURL(path) {
@@ -49,7 +63,7 @@ class ModelServerProcess{
 //     }
 // }
 
-const modelServerProcess = new ModelServerProcess();
+export const modelServerProcess = new ModelServerProcess();
 
 async function basicQuery(suffix, json_obj) {
     // fs.writeFileSync('../backend_request.json', JSON.stringify(json_obj), {flag: 'a'});
