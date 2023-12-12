@@ -62,10 +62,8 @@ async function queryLocationFromModel(rootPath, files, prevEdits, commitMessage,
         prevEdits: prevEdits,
         language: language
     };
-    console.log('==> Sending to discriminator model');
     const discriminatorOutput = await queryDiscriminator(disc_input);
-    console.log('==> Discriminator model returned successfully');
-    console.log('==> Files to be analyzed:');
+    console.log('==> Discriminated files to be analyzed:');
     discriminatorOutput.data.forEach(file => {
         console.log('\t*' + file);
     });
@@ -86,9 +84,7 @@ async function queryLocationFromModel(rootPath, files, prevEdits, commitMessage,
         language: language
     };
     statusBarItem.setStatusQuerying("locator");
-    console.log('==> Sending to edit locator model');
     const locatorOutput = await queryLocator(loc_input);
-    console.log('==> Edit locator model returned successfully');
 
     // convert all paths back to absolute paths
     let rawLocations = locatorOutput.data;
@@ -135,7 +131,6 @@ async function queryEditFromModel(fileContent, editType, atLines, prevEdits, com
 
     const output = await queryGenerator(input);
     let edits = output.data;
-    console.log('==> Edit generator model returned successfully');
     return edits; // Return newmodification
 }
 

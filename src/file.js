@@ -531,9 +531,6 @@ function initFileState(editor) {
             && input.modified.scheme === 'file';
     }
     vscode.commands.executeCommand('setContext', 'editPilot:isEditDiff', isEditDiff);
-
-    console.log('==> Active File:', getActiveFilePath());
-    console.log('==> Global variables initialized');
 }
 
 class FileStateMonitor extends BaseComponent{
