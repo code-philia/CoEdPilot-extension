@@ -180,7 +180,7 @@ def predict(json_input, language):
         batch_input, attention_mask = [item.to(device) for item in batch]
         outputs = model(input_ids=batch_input, attention_mask=attention_mask)
         preds.append(outputs.detach().cpu())
-    model_outputs = (torch.cat(preds, dim=0) >= 0.5).numpy()
+    model_outputs = (torch.cat(preds, dim=0) >= 0.0).numpy()
     stopwatch.lap('infer result')
 
     # 7. prepare output

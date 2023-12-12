@@ -24,7 +24,7 @@
         "properties": {
           "editPilot.queryURL": {
             "type": "string",
-            "default": "http://localhost:5001",
+            "default": "http://localhost:5003",
             "description": "The backend URL to send query request to."
           },
           "editPilot.predictLocationOnEditAcception": {
@@ -78,6 +78,11 @@
       {
         "title": "Show Commands",
         "command": "editPilot.showCommands"
+      },
+      {
+        "title": "Clear Locations",
+        "command": "editPilot.clearLocations",
+        "icon": "$(close)"
       }
     ],
     "menus": {
@@ -118,6 +123,13 @@
           "command": "editPilot.dismiss-edit",
           "group": "navigation@-1",
           "when": "editPilot:isEditDiff"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "editPilot.clearLocations",
+          "when": "view == editLocations",
+          "group": "navigation"
         }
       ]
     },

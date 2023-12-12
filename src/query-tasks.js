@@ -122,7 +122,10 @@ class PredictLocationCommand extends BaseComponent{
 	constructor() {
 		super();
 		this.register(
-			vscode.commands.registerCommand("editPilot.predictLocations", predictLocation)
+            vscode.commands.registerCommand("editPilot.predictLocations", predictLocation),
+            vscode.commands.registerCommand("editPilot.clearLocations", async () => {
+                await queryState.clearLocations();
+            })
 		);
 	}
 }

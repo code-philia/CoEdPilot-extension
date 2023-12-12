@@ -2,6 +2,14 @@ import vscode from "vscode";
 import { PredictLocationCommand, GenerateEditCommand } from "./query-tasks";
 import { registerCommand } from "./base-component";
 
+function numIn(x, lower, upper) {
+	if (x <= lower)
+		x = lower;
+	if (x >= upper)
+		x = upper;
+	return x;
+}
+
 export function registerBasicCommands() {
 	return vscode.Disposable.from(
 		registerCommand('editPilot.openFileAtLine', async (filePath, fromLine, toLine) => {
@@ -9,6 +17,9 @@ export function registerBasicCommands() {
 
 			const document = await vscode.workspace.openTextDocument(uri);
 			const editor = await vscode.window.showTextDocument(document);
+
+			fromLine = numIn(fromLine, 0, document.lineCount - 1);
+			toLine = numIn(toLine, 0, document.lineCount - 1);
 			const range = new vscode.Range(
 				editor.document.lineAt(fromLine).range.start,
 				editor.document.lineAt(toLine).range.start,

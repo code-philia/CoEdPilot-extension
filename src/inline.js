@@ -43,8 +43,7 @@ class LocationDecoration extends BaseComponent {
 		if (!uri) return;
 
 		const filePath = toPosixPath(uri.fsPath);
-		console.log(queryState.locatedFilePaths);
-		if (uri.scheme !== 'file' || !queryState.locatedFilePaths.includes(filePath)) return undefined;
+		if (uri.scheme !== 'file') return undefined;
 
 		const decorationsForAlter = [];
 		const decorationsForAdd = [];
@@ -74,9 +73,9 @@ class LocationDecoration extends BaseComponent {
 					decorationsForAlter.push(decoration);
 				}
 
-				editor.setDecorations(this.replaceDecorationType, decorationsForAlter);
-				editor.setDecorations(this.addDecorationType, decorationsForAdd);			
-			})
+			});
+		editor.setDecorations(this.replaceDecorationType, decorationsForAlter);
+		editor.setDecorations(this.addDecorationType, decorationsForAdd);			
 	}
 }
 

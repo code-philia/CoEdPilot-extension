@@ -69,9 +69,7 @@ class QueryState extends BaseComponent {
 
     async updateLocations(locations) {
         this.locations = locations;
-        if (this.locations.length) {
-            this.locatedFilePaths = [...new Set(locations.map((loc) => loc.targetFilePath))];
-        }
+        this.locatedFilePaths = [...new Set(locations.map((loc) => loc.targetFilePath))];
         this._onDidChangeLocations.fire(this);
     }
 
