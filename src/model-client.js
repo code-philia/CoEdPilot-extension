@@ -12,7 +12,7 @@ class ModelServerProcess extends BaseComponent{
 
         this.register(
             vscode.workspace.onDidChangeConfiguration((e) => {
-                if (e.affectsConfiguration("editPilot.queryURL")) {
+                if (e.affectsConfiguration("coEdPilot.queryURL")) {
                     this.apiUrl = this.getAPIUrl();
                 }
             })
@@ -20,7 +20,7 @@ class ModelServerProcess extends BaseComponent{
     }
 
     getAPIUrl() {
-        return vscode.workspace.getConfiguration("editPilot").get("queryURL");
+        return vscode.workspace.getConfiguration("coEdPilot").get("queryURL");
     }
 
     toURL(path) {

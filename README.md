@@ -1,6 +1,6 @@
-# ✏️ Edit Pilot
+# ✏️ CoEdPilot
 
-Edit Pilot is a Visual Studio Code extension that features automatic code edit recommendations.
+CoEdPilot is a Visual Studio Code extension that features automatic code edit recommendations.
 
 ## ⚙️ Functionality
 
@@ -129,13 +129,13 @@ Open the project directory in VS Code if didn't, press `F5`, then choose `Run Ex
 
 We recommend to try this extension with backend deployed locally. This will require **CUDA** and **~4GB** video memory. But deploying backend remotely is also easy, since key is to match extension configuration of VS Code and the server listening configuration. 
 
-By default `server.py` fetches configuration from `server.ini` then listens to `0.0.0.0:5001`. The extension client sends requests to `editPilot.queryUrl`, by default `http://localhost:5001`.
+By default `server.py` fetches configuration from `server.ini` then listens to `0.0.0.0:5001`. The extension client sends requests to `coEdPilot.queryUrl`, by default `http://localhost:5001`.
 
 For basic remote backend deployment:
 
 + On the backend machine, confirm the IP on LAN/WAN, and open up a port through firewall.
 + Use that port in `server.ini` then run the backend `server.py`.
-+ When using the extension, set `editPilot.queryUrl` in VS Code settings (press `Ctrl + ,` then search) to the proper connectable IP of the server.
++ When using the extension, set `coEdPilot.queryUrl` in VS Code settings (press `Ctrl + ,` then search) to the proper connectable IP of the server.
 
 ## ❓ Issues
 

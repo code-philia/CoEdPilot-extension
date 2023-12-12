@@ -62,7 +62,7 @@ class QueryState extends BaseComponent {
         this.onDidChangeLocations = this._onDidChangeLocations.event;
 
         this.register(
-            registerCommand('editPilot.inputMessage', this.inputCommitMessage, this),
+            registerCommand('coEdPilot.inputMessage', this.inputCommitMessage, this),
             this._onDidChangeLocations
         );
     }

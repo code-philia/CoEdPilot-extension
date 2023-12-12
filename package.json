@@ -1,8 +1,9 @@
 {
-  "name": "edit-pilot",
-  "displayName": "Edit Pilot",
+  "name": "co-ed-pilot",
+  "displayName": "CoEdPilot",
   "description": "A code co-edit helper.",
-  "version": "0.0.1",
+  "version": "0.1.0",
+  "publisher": "Code Philia",
   "engines": {
     "vscode": "^1.78.0"
   },
@@ -20,14 +21,14 @@
   "contributes": {
     "configuration":[
       {
-        "title": "Edit Pilot",
+        "title": "CoEdPilot",
         "properties": {
-          "editPilot.queryURL": {
+          "coEdPilot.queryURL": {
             "type": "string",
             "default": "http://localhost:5003",
             "description": "The backend URL to send query request to."
           },
-          "editPilot.predictLocationOnEditAcception": {
+          "coEdPilot.predictLocationOnEditAcception": {
             "type": "boolean",
             "default": "true",
             "description": "Perform another prediction immediately when accpeting an edit."
@@ -37,97 +38,97 @@
     ],
     "commands": [
       {
-        "command": "editPilot.inputMessage",
-        "category": "Edit Pilot",
+        "command": "coEdPilot.inputMessage",
+        "category": "CoEdPilot",
         "title": "Change Edit Description"
       },
       {
         "title": "Last Suggestion",
-        "category": "Edit Pilot",
-        "command": "editPilot.last-suggestion",
+        "category": "CoEdPilot",
+        "command": "coEdPilot.last-suggestion",
         "icon": "$(arrow-left)"
       },
       {
         "title": "Next Suggestion",
-        "category": "Edit Pilot",
-        "command": "editPilot.next-suggestion",
+        "category": "CoEdPilot",
+        "command": "coEdPilot.next-suggestion",
         "icon": "$(arrow-right)"
       },
       {
         "title": "Accept",
-        "category": "Edit Pilot",
-        "command": "editPilot.accept-edit",
+        "category": "CoEdPilot",
+        "command": "coEdPilot.accept-edit",
         "icon": "$(pass)"
       },
       {
         "title": "Dismiss",
-        "category": "Edit Pilot",
-        "command": "editPilot.dismiss-edit",
+        "category": "CoEdPilot",
+        "command": "coEdPilot.dismiss-edit",
         "icon": "$(trash)"
       },
       {
         "title": "Predict Locations",
-        "category": "Edit Pilot",
-        "command": "editPilot.predictLocations"
+        "category": "CoEdPilot",
+        "command": "coEdPilot.predictLocations"
       },
       {
         "title": "Generate Edits",
-        "category": "Edit Pilot",
-        "command": "editPilot.generateEdits"
+        "category": "CoEdPilot",
+        "command": "coEdPilot.generateEdits"
       },
       {
         "title": "Show Commands",
-        "command": "editPilot.showCommands"
+        "command": "coEdPilot.showCommands"
       },
       {
         "title": "Clear Locations",
-        "command": "editPilot.clearLocations",
+        "command": "coEdPilot.clearLocations",
         "icon": "$(close)"
       }
     ],
     "menus": {
       "editor/context": [
         {
-          "command": "editPilot.inputMessage",
-          "group": "editPilot@3",
+          "command": "coEdPilot.inputMessage",
+          "group": "coEdPilot@3",
           "when": "editorFocus"
         },
         {
-          "command": "editPilot.predictLocations",
-          "group": "editPilot@1",
+          "command": "coEdPilot.predictLocations",
+          "group": "coEdPilot@1",
           "when": "editorFocus"
         },
         {
-          "command": "editPilot.generateEdits",
-          "group": "editPilot@2",
+          "command": "coEdPilot.generateEdits",
+          "group": "coEdPilot@2",
           "when": "editorFocus"
         }
       ],
       "editor/title": [
         {
-          "command": "editPilot.last-suggestion",
+          "command": "coEdPilot.last-suggestion",
           "group": "navigation@-4",
-          "when": "editPilot:isEditDiff"
+          "when": "coEdPilot:isEditDiff"
         },
         {
-          "command": "editPilot.next-suggestion",
+          "command": "coEdPilot.next-suggestion",
           "group": "navigation@-3",
-          "when": "editPilot:isEditDiff"
+          "when": "coEdPilot:isEditDiff"
         },
         {
-          "command": "editPilot.accept-edit",
+          "command": "coEdPilot.accept-edit",
           "group": "navigation@-2",
-          "when": "editPilot:isEditDiff"
+          "when": "coEdPilot:isEditDiff"
         },
         {
-          "command": "editPilot.dismiss-edit",
+          "command": "coEdPilot.dismiss-edit",
           "group": "navigation@-1",
-          "when": "editPilot:isEditDiff"
+          "when": "coEdPilot:isEditDiff"
         }
       ],
       "view/title": [
         {
-          "command": "editPilot.clearLocations",
+          "command": "coEdPilot.clearLocations",
           "when": "view == editLocations",
           "group": "navigation"
         }
@@ -136,29 +137,29 @@
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "editPilot",
-          "title": "Edit Pilot",
+          "id": "coEdPilot",
+          "title": "CoEdPilot",
           "icon": "$(edit)"
         }
       ]
     },
     "views": {
-      "editPilot": [
+      "coEdPilot": [
         {
           "id": "editLocations",
           "name": "Suggested Locations",
-          "contextualTitle": "Edit Pilot"
+          "contextualTitle": "CoEdPilot"
         }
       ]
     },
     "keybindings": [
       {
-        "command": "editPilot.predictLocations",
+        "command": "coEdPilot.predictLocations",
         "key": "ctrl+alt+l",
         "mac": "cmd+alt+l"
       },
       {
-        "command": "editPilot.generateEdits",
+        "command": "coEdPilot.generateEdits",
         "key": "ctrl+alt+e",
         "mac": "cmd+alt+e",
         "when": "editorFocus"
@@ -175,14 +176,15 @@
     "@types/node": "16.x",
     "@types/vscode": "^1.78.0",
     "@vscode/test-electron": "^2.3.0",
+    "@types/diff": "^5.0.8",
+    "@vscode/test-cli": "^0.0.4"
+  },
+  "dependencies": {
+    "@vscode/test-electron": "^2.3.0",
     "axios": "^1.6.0",
     "glob": "^10.3.10",
     "mocha": "^10.2.0",
-    "typescript": "^5.0.4"
-  },
-  "dependencies": {
-    "@types/diff": "^5.0.8",
-    "@vscode/test-cli": "^0.0.4",
+    "typescript": "^5.0.4",
     "diff": "^5.1.0",
     "vscode-languageserver": "^8.1.0"
   }

@@ -4,7 +4,7 @@ import { registerCommand, numIn } from "./base-component";
 
 export function registerBasicCommands() {
 	return vscode.Disposable.from(
-		registerCommand('editPilot.openFileAtLine', async (filePath, fromLine, toLine) => {
+		registerCommand('coEdPilot.openFileAtLine', async (filePath, fromLine, toLine) => {
 			const uri = vscode.Uri.file(filePath); // Replace with dynamic file path
 
 			const document = await vscode.workspace.openTextDocument(uri);

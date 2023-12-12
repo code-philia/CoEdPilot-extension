@@ -1,6 +1,6 @@
 import vscode from 'vscode';
 import { diffLines } from 'diff';
-import fs from 'fs';
+import fs, { open } from 'fs';
 import path from 'path';
 import { glob } from 'glob';
 import { BaseComponent } from './base-component';
@@ -302,7 +302,12 @@ class EditDetector {
     }
 
     async getUpdatedEditList() {
-        await globalEditDetector.updateAllSnapshotsFromDocument(liveFilesGetter());
+        const liveGetter = liveFilesGetter();
+        const openedDocuments = getOpenedFilePaths();
+        const docGetter = async (filePath) => {
+            return await liveGetter(openedDocuments, filePath);
+        }
+        await globalEditDetector.updateAllSnapshotsFromDocument(docGetter);
         return await globalEditDetector.getEditList();
     }
 }
@@ -310,6 +315,13 @@ class EditDetector {
 const globalEditDetector = new EditDetector();
 
 // BASIC FUNCTIONS
+
+function toDriveLetterLowerCasePath(filePath) {
+    const driveLetterRegEx = /([A-Z])(?=:(\/|\\))/;
+    return filePath.replace(driveLetterRegEx, (match, p1) => {
+        return p1.toLowerCase();
+    })
+}
 
 // Convert any-style path to POSIX-style path
 function toPosixPath(filePath) {
@@ -339,8 +351,8 @@ function getOpenedFilePaths() {
 }
 
 function getActiveFilePath() {
-    const filePath = vscode.window.activeTextEditor?.document?.fileName;
-    return filePath ?? toPosixPath(filePath);
+    const filePath = vscode.window.activeTextEditor?.document?.uri.fsPath;
+    return filePath === undefined ? undefined : toPosixPath(filePath);
 }
 
 async function getLineInfoInDocument(path, lineNo) {
@@ -363,8 +375,13 @@ async function readGlobFiles(useSnapshot = true) {
     // Use glob to exclude certain files and return a list of all valid files
     const filePathList = await globFiles(rootPath);
     const fileGetter = useSnapshot
-        ? liveFilesGetter()
+        ? async (filePath) => {
+            const liveGetter = liveFilesGetter();
+            const openedPaths = getOpenedFilePaths();
+            return await liveGetter(openedPaths, toDriveLetterLowerCasePath(filePath))
+        }
         : async (filePath) => fs.readFileSync(filePath, 'utf-8');
+    
 
     async function readFileFromPathList(filePathList, contentList) {
         for (const filePath of filePathList) {
@@ -389,9 +406,9 @@ async function readGlobFiles(useSnapshot = true) {
     return fileList;
 }
 
+// Exact match is used here! Ensure the file paths and opened paths are in the same format
 function liveFilesGetter() {
-    const openedPaths = getOpenedFilePaths();
-    return async (filePath) => 
+    return async (openedPaths, filePath) => 
         openedPaths.has(filePath)
             ? (await vscode.workspace.openTextDocument(vscode.Uri.file(filePath))).getText()
             : fs.readFileSync(filePath, 'utf-8');
@@ -530,7 +547,12 @@ function initFileState(editor) {
             && input.original.scheme === 'temp'
             && input.modified.scheme === 'file';
     }
-    vscode.commands.executeCommand('setContext', 'editPilot:isEditDiff', isEditDiff);
+
+    if (vscode.workspace.getConfiguration("coEdPilot").get("predictLocationOnEditAcception") && editorState.toPredictLocation) {
+        vscode.commands.executeCommand("coEdPilot.predictLocations");
+        editorState.toPredictLocation = false;
+    }
+    vscode.commands.executeCommand('setContext', 'coEdPilot:isEditDiff', isEditDiff);
 }
 
 class FileStateMonitor extends BaseComponent{

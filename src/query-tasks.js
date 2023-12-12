@@ -122,8 +122,8 @@ class PredictLocationCommand extends BaseComponent{
 	constructor() {
 		super();
 		this.register(
-            vscode.commands.registerCommand("editPilot.predictLocations", predictLocation),
-            vscode.commands.registerCommand("editPilot.clearLocations", async () => {
+            vscode.commands.registerCommand("coEdPilot.predictLocations", predictLocation),
+            vscode.commands.registerCommand("coEdPilot.clearLocations", async () => {
                 await queryState.clearLocations();
             })
 		);
@@ -135,7 +135,7 @@ class GenerateEditCommand extends BaseComponent{
 		super();
         this.register(
             this.registerEditSelectionCommands(),
-            vscode.commands.registerCommand("editPilot.generateEdits", predictEdit)
+            vscode.commands.registerCommand("coEdPilot.generateEdits", predictEdit)
 		);
     }
     
@@ -162,20 +162,18 @@ class GenerateEditCommand extends BaseComponent{
             selector && selector.acceptEdit();
         }
         return vscode.Disposable.from(
-            registerCommand("editPilot.last-suggestion", () => {
+            registerCommand("coEdPilot.last-suggestion", () => {
                 switchEdit(-1);
             }),
-            registerCommand("editPilot.next-suggestion", () => {
+            registerCommand("coEdPilot.next-suggestion", () => {
                 switchEdit(1);
             }),
-            registerCommand("editPilot.accept-edit", () => {
+            registerCommand("coEdPilot.accept-edit", () => {
                 acceptEdit();
                 closeTab();
-                if (vscode.workspace.getConfiguration("editPilot").get("predictLocationOnEditAcception")) {
-                    vscode.commands.executeCommand("editPilot.predictLocations");
-                }
+                editorState.toPredictLocation = true;
             }),
-            registerCommand("editPilot.dismiss-edit", () => {
+            registerCommand("coEdPilot.dismiss-edit", () => {
                 clearEdit();
                 closeTab();
             })

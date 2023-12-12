@@ -7,3 +7,6 @@ vsc-extension-quickstart.md
 **/jsconfig.json
 **/*.map
 **/.eslintrc.json
+src/
+models/
+mock/

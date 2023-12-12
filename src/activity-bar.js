@@ -110,6 +110,14 @@ class LocationTreeProvider  {
         }
     }
 
+    getParent(element) {
+        if (element.fileItem) {
+            return element.fileItem;
+        } else {
+            return undefined;
+        }
+    }
+
     getFileItem(filePath, fileMods) {
         const modListOnPath = fileMods;
         const fileName = path.basename(filePath); 
@@ -174,7 +182,7 @@ class ModItem extends vscode.TreeItem {
         this.tooltip = `Line ${this.fromLine}`; // match real line numbers in the gutter
         this.description = this.text;
         this.command = {
-            command: 'editPilot.openFileAtLine',
+            command: 'coEdPilot.openFileAtLine',
             title: '',
             arguments: [
                 this.fileItem.filePath,
@@ -232,17 +240,21 @@ class EditLocationView extends BaseComponent {
 
         this.register(
             treeView,
-            this.provider.onDidChangeLocationNumber((num) => {
+            this.provider.onDidChangeLocationNumber(async (num) => {
                 // Set the whole badge here. Only setting the value won't trigger update
                 this.treeView.badge = {
                     tooltip: `${num} possible edit locations`,
                     value: num
                 }
-                if (!this.treeView.visible) {
-                    vscode.commands.executeCommand('editLocations.focus');
-                }
+                
             }, this),
-            queryState.onDidChangeLocations((qs) => this.provider.refresh(qs.locations), this),
+            queryState.onDidChangeLocations(async (qs) => {
+                this.provider.refresh(qs.locations);
+                if (!this.treeView.visible) {
+                    await vscode.commands.executeCommand('editLocations.focus');
+                }
+                await this.treeView.reveal(this.provider.modTree[0], { expand: 2 });
+            }, this),
         );
     }
 }
