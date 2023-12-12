@@ -2,7 +2,7 @@ import vscode from 'vscode';
 import { toPosixPath } from './file';
 import { editorState } from './global-context';
 import { queryState } from './global-context';
-import { BaseComponent } from './base-component';
+import { BaseComponent, numIn } from './base-component';
 import { editLocationView } from './activity-bar';
 import path from 'path';
 
@@ -57,13 +57,18 @@ class LocationDecoration extends BaseComponent {
 					startLine += 1;
 					endLine += 1;
 				}
+
+				const document = editor.document;
+				startLine = numIn(startLine, 0, document.lineCount - 1);
+				endLine = numIn(endLine, 0, document.lineCount - 1);
+				
 				const startPos = editor.document.lineAt(startLine).range.start;
 				const endPos = editor.document.lineAt(endLine).range.end;
 				const range = new vscode.Range(startPos, endPos);
 		
 				// Create decoration
 				const decoration = {
-					range
+					range: range
 				};
 		
 				// Add decoration to array

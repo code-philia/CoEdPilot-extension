@@ -1,14 +1,6 @@
 import vscode from "vscode";
 import { PredictLocationCommand, GenerateEditCommand } from "./query-tasks";
-import { registerCommand } from "./base-component";
-
-function numIn(x, lower, upper) {
-	if (x <= lower)
-		x = lower;
-	if (x >= upper)
-		x = upper;
-	return x;
-}
+import { registerCommand, numIn } from "./base-component";
 
 export function registerBasicCommands() {
 	return vscode.Disposable.from(
