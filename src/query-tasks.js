@@ -29,6 +29,7 @@ async function predictLocation() {
             statusBarItem.setStatusDefault();
         } catch (err) {
             console.error(err);
+            vscode.window.showErrorMessage("Oops! Something went wrong with the query request 😦")
             statusBarItem.setStatustProblem("Some error occured when predicting locations");
             throw err;
         }
@@ -64,6 +65,7 @@ async function predictEdit() {
     const fromLine = selectedRange.start.line;
     let toLine = selectedRange.end.line;
     let editType = "";
+
     if (selectedRange.isEmpty) {
         editType = "add";
         atLines.push(fromLine);
@@ -113,6 +115,7 @@ async function predictEdit() {
         statusBarItem.setStatusDefault();
     } catch (err) {
         console.error(err);
+        vscode.window.showErrorMessage("Oops! Something went wrong with the query request 😦")
         statusBarItem.setStatustProblem("Some error occured when predicting edits");
         throw err;
     }
@@ -141,9 +144,11 @@ class GenerateEditCommand extends BaseComponent{
     
     registerEditSelectionCommands() {
         function getSelectorOfCurrentTab() {
-            const currTab = vscode.window.tabGroups.activeTabGroup.activeTab;
-            const selector = diffTabSelectors.get(currTab);
-            return selector;
+            const currTab = vscode.window.tabGroups?.activeTabGroup?.activeTab;
+            if (currTab && currTab.input instanceof vscode.TabInputTextDiff) {
+                return diffTabSelectors.get(currTab.input.modified.toString());
+            }
+            return undefined;
         }
         function switchEdit(offset) {
             const selector = getSelectorOfCurrentTab();

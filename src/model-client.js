@@ -35,7 +35,7 @@ class ModelServerProcess extends BaseComponent{
             headers: {
                 'Content-Type': 'application/json',
             },
-            timeout: 100000
+            timeout: 10000
         });
         if (response.statusText === 'OK') {
             console.log(`[ModelServer] Received response:`);

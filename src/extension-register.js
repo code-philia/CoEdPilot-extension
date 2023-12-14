@@ -10,11 +10,12 @@ export function registerBasicCommands() {
 			const document = await vscode.workspace.openTextDocument(uri);
 			const editor = await vscode.window.showTextDocument(document);
 
+			const isOverflowed = toLine > document.lineCount - 1
 			fromLine = numIn(fromLine, 0, document.lineCount - 1);
 			toLine = numIn(toLine, 0, document.lineCount - 1);
 			const range = new vscode.Range(
-				editor.document.lineAt(fromLine).range.start,
-				editor.document.lineAt(toLine).range.start,
+				document.lineAt(fromLine).range.start,
+				isOverflowed ? document.lineAt(toLine).range.end : document.lineAt(toLine).range.start,
 			)
 
 			editor.selection = new vscode.Selection(range.start, range.end);

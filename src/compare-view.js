@@ -64,7 +64,9 @@ class CompareTempFileProvider extends BaseTempFileProvider { // impletements vsc
     getAsyncWriter() {
         return (async (path, str) => {
             const encoder = new util.TextEncoder();
-            return this.writeFile(vscode.Uri.parse(`temp:${path}`), encoder.encode(str));
+            const tempUri = vscode.Uri.parse(`temp:${path}`);
+            await this.writeFile(tempUri, encoder.encode(str));
+            return tempUri;
         }).bind(this);
     }
 }
@@ -87,6 +89,7 @@ class EditSelector {
 
         this.originalContent = "";
         this.modAt = 0;
+        this.modifiedUri = vscode.Uri.file(this.path);
     }
 
     async init() {
@@ -96,7 +99,7 @@ class EditSelector {
 
         // Store the originalContent in a temporary readonly file system
         this.id = this._getPathId();
-        this.tempWrite(
+        this.tempUri = await this.tempWrite(
             `/${this.id}`,
             this.originalContent
         );
@@ -142,22 +145,33 @@ class EditSelector {
     async _showDiffView() {
         // Open a diff view to compare the original and the modified document
         await vscode.commands.executeCommand('vscode.diff',
-            vscode.Uri.parse(`temp:/${this.id}`),
-            vscode.Uri.file(this.path),
+            this.tempUri,
+            this.modifiedUri,
             `EDIT ${this.modAt+1}/${this.edits.length}: ${path.basename(this.path)}`
         );
 
-        const tabGroups = vscode.window.tabGroups;
-        const activeTab = tabGroups.activeTabGroup.activeTab;
-        diffTabSelectors.set(activeTab, this);
-        let removeSelectorEvent = null;
-        const event = tabGroups.onDidChangeTabs((e) => {
-            if (e.closed.includes(activeTab)) {
-                diffTabSelectors.delete(activeTab);
-                removeSelectorEvent.dispose();
-            }
-        });
-        removeSelectorEvent = event;
+        // const tabGroups = vscode.window.tabGroups;
+        // const activeTab = tabGroups.activeTabGroup.activeTab;
+        diffTabSelectors.set(this.modifiedUri.toString(), this);
+        // let removeSelectorEvent = null;
+
+        /**
+         * 
+         * @param {vscode.Tab} tab 
+         */
+        const tabMatch = (tab) => {
+            const input = tab.input;
+            return input instanceof vscode.TabInputTextDiff
+                && input.original.toString() == this.tempUri.toString()
+                && input.modified.toString() == this.modifiedUri.toString();
+        }
+        // const event = tabGroups.onDidChangeTabs((e) => {
+        //     if (e.closed.some(tabMatch) && !e.opened.some(tabMatch)) {
+        //         diffTabSelectors.delete(activeTab);
+        //         removeSelectorEvent.dispose();
+        //     }
+        // });
+        // removeSelectorEvent = event;
     }
 
     async editDocumentAndShowDiff() {
@@ -197,51 +211,51 @@ class EditSelector {
     }
 }
 
-class DiffTabCodelensProvider extends BaseComponent {
-    constructor() {
-        super();
-        this.originalContentLabel = "Original";
-        this.modifiedContentLabel = "Modified";
-        this._onDidChangeCodeLenses = new vscode.EventEmitter();
-	    this.onDidChangeCodeLenses = this._onDidChangeCodeLenses.event;
-        this.register(
-            // vscode.languages.registerCodeLensProvider("*", this),
-            vscode.window.onDidChangeActiveTextEditor(() => {
-                console.log("+++ firing code lenses");
-                this._onDidChangeCodeLenses.fire();
-            })
-        );
-    }
+// class DiffTabCodelensProvider extends BaseComponent {
+//     constructor() {
+//         super();
+//         this.originalContentLabel = "Original";
+//         this.modifiedContentLabel = "Modified";
+//         this._onDidChangeCodeLenses = new vscode.EventEmitter();
+// 	    this.onDidChangeCodeLenses = this._onDidChangeCodeLenses.event;
+//         this.register(
+//             // vscode.languages.registerCodeLensProvider("*", this),
+//             vscode.window.onDidChangeActiveTextEditor(() => {
+//                 console.log("+++ firing code lenses");
+//                 this._onDidChangeCodeLenses.fire();
+//             })
+//         );
+//     }
     
-    provideCodeLenses(document, token) {
-        this.codelenses = [];
-        if (document.uri.scheme === 'temp') {
-            this.codelenses.push(this.codelenseAtTop(this.originalContentLabel));
-        }
-        else if (document.uri.scheme === 'file') {
-            for (const [tab, selector] of diffTabSelectors) {
-                if (selector.path == toPosixPath(document.path)) {
-                    this.codelenses.push(this.codelenseAtTop(this.modifiedContentLabel));
-                    break;
-                }
-            }
-        }
-        return this.codelenses;
-    }
+//     provideCodeLenses(document, token) {
+//         this.codelenses = [];
+//         if (document.uri.scheme === 'temp') {
+//             this.codelenses.push(this.codelenseAtTop(this.originalContentLabel));
+//         }
+//         else if (document.uri.scheme === 'file') {
+//             for (const [tab, selector] of diffTabSelectors) {
+//                 if (selector.path == toPosixPath(document.path)) {
+//                     this.codelenses.push(this.codelenseAtTop(this.modifiedContentLabel));
+//                     break;
+//                 }
+//             }
+//         }
+//         return this.codelenses;
+//     }
 
-    resolveCodeLens(codeLens, token) {
-        return codeLens;
-    }
+//     resolveCodeLens(codeLens, token) {
+//         return codeLens;
+//     }
 
-    codelenseAtTop(title) {
-        return new vscode.CodeLens(
-            new vscode.Range(0, 0, 0, 0),
-            {
-                title: title
-            }
-        )
-    }
-}
+//     codelenseAtTop(title) {
+//         return new vscode.CodeLens(
+//             new vscode.Range(0, 0, 0, 0),
+//             {
+//                 title: title
+//             }
+//         )
+//     }
+// }
 
 export {
     EditSelector,
@@ -249,5 +263,5 @@ export {
     diffTabSelectors,
     compareTempFileSystemProvider,
     tempWrite,
-    DiffTabCodelensProvider
+    // DiffTabCodelensProvider
 };
