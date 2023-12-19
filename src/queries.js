@@ -1,68 +1,10 @@
-import vscode from 'vscode';
-import { toRelPath, getActiveFilePath, toAbsPath, getLineInfoInDocument, getRootPath } from './file';
+import { queryState } from './global-context';
+import { toRelPath, getActiveFilePath, toAbsPath, getLineInfoInDocument } from './file';
 import { queryDiscriminator, queryLocator, queryGenerator } from './model-client';
-import { BaseComponent } from './base-component';
-import { registerCommand } from './extension-register';
-
-class QueryState extends BaseComponent {
-    constructor() {
-        super();
-        // request parameters
-        this.commitMessage = "";
-
-        // response parameters
-        this.locations = [];
-        this.locatedFilePaths = [];
-        this._onDidQuery = new vscode.EventEmitter();
-        this.onDidQuery = this._onDidQuery.event;
-        
-        this.register(
-            registerCommand('editPilot.inputMessage', this.inputCommitMessage, this),
-            this._onDidQuery
-        );
-    }
-
-    async updateLocations(locations) {
-        this.locations = locations;
-        if (this.locations.length) {
-            this.locatedFilePaths = [...new Set(locations.map((loc) => loc.targetFilePath))];
-        }
-        for (const loc of this.locations) {
-            loc.lineInfo = await getLineInfoInDocument(loc.targetFilePath, loc.atLines[0]);
-        }
-        this._onDidQuery.fire(this);
-    }
-
-    async clearLocations() {
-        this.updateLocations([]);
-    }
-   
-    async requireCommitMessage(msg) {
-        if (!msg) {
-            msg = await this.inputCommitMessage();
-        }
-        
-        this.commitMessage = msg;
-        return msg;
-    }
-
-    async inputCommitMessage() {
-        console.log('==> Edit description input box is displayed')
-        const userInput = await vscode.window.showInputBox({
-            prompt: 'Enter commit message of description of edits you would make.',
-            placeHolder: 'add a feature',
-        }) ?? "";
-        console.log('==> Edit description:', userInput);
-        this.commitMessage = userInput;
-
-        return userInput;
-    }
-}
-
-const queryState = new QueryState();
+import { statusBarItem } from './status-bar';
 
 // ------------ Extension States -------------
-async function queryLocationFromModel(rootPath, files, prevEdits, commitMessage) {
+async function queryLocationFromModel(rootPath, files, prevEdits, commitMessage, language) {
     /* 
         Discriminator:
         input:
@@ -81,7 +23,7 @@ async function queryLocationFromModel(rootPath, files, prevEdits, commitMessage)
         {
             "files":            list, [[filePath, fileContent], ...],
             "targetFilePath":   str, filePath,
-            "commitMessage":    str, commit message,
+            "commitMessage":    str, edit description,
             "prevEdits":        list, of previous edits, each in format: {"beforeEdit":"", "afterEdit":""}
         }
         output:
@@ -111,20 +53,17 @@ async function queryLocationFromModel(rootPath, files, prevEdits, commitMessage)
         );
     }
 
-    commitMessage = await queryState.requireCommitMessage(commitMessage);
-
     // Send to the discriminator model for analysis
     const disc_input = {
         rootPath: rootPath,
         files: files,
         targetFilePath: activeFilePath,
         commitMessage: commitMessage,
-        prevEdits: prevEdits
+        prevEdits: prevEdits,
+        language: language
     };
-    console.log('==> Sending to discriminator model');
     const discriminatorOutput = await queryDiscriminator(disc_input);
-    console.log('==> Discriminator model returned successfully');
-    console.log('==> Files to be analyzed:');
+    console.log('==> Discriminated files to be analyzed:');
     discriminatorOutput.data.forEach(file => {
         console.log('\t*' + file);
     });
@@ -141,28 +80,29 @@ async function queryLocationFromModel(rootPath, files, prevEdits, commitMessage)
         files: filteredFiles,
         targetFilePath: activeFilePath,
         commitMessage: commitMessage,
-        prevEdits: prevEdits
+        prevEdits: prevEdits,
+        language: language
     };
-    console.log('==> Sending to edit locator model');
+    statusBarItem.setStatusQuerying("locator");
     const locatorOutput = await queryLocator(loc_input);
-    console.log('==> Edit locator model returned successfully');
 
     // convert all paths back to absolute paths
     let rawLocations = locatorOutput.data;
     for (const loc of rawLocations) {
         loc.targetFilePath = toAbsPath(rootPath, loc.targetFilePath);
+        loc.lineInfo = await getLineInfoInDocument(loc.targetFilePath, loc.atLines[0]);
     }
     queryState.updateLocations(rawLocations);
     return rawLocations;
 }
 
-async function queryEditFromModel(fileContent, editType, atLines, prevEdits, commitMessage) {
+async function queryEditFromModel(fileContent, editType, atLines, prevEdits, commitMessage, language) {
     /* 	
         Generator:
         input:
         { 
             "targetFileContent":    string
-            "commitMessage":        string, commit message,
+            "commitMessage":        string, edit description,
             "editType":             string, edit type,
             "prevEdits":            list, of previous edits, each in format: {"beforeEdit":"", "afterEdit":""},
             "atLines":               list, of edit line indices
@@ -175,21 +115,22 @@ async function queryEditFromModel(fileContent, editType, atLines, prevEdits, com
                 "replacement":      list of strings, replacement content   
             }
         } 
-    */
-
+    */       
     const input = {
         targetFileContent: fileContent,
         commitMessage: commitMessage,
         editType: editType,
         prevEdits: prevEdits,
-        atLines: atLines
+        atLines: atLines,
+        language: language
     };
 
-    commitMessage = await queryState.requireCommitMessage(commitMessage);
+    if (editType === "add") { // the model was designed to generate addition at next line, so move one line backward
+        atLines = atLines.map((l) => l > 0 ? l - 1 : 0);
+    }
 
     const output = await queryGenerator(input);
     let edits = output.data;
-    console.log('==> Edit generator model returned successfully');
     return edits; // Return newmodification
 }
 

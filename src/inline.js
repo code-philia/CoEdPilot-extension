@@ -1,92 +1,49 @@
 import vscode from 'vscode';
-import { fileState, toPosixPath } from './file';
-import { queryState } from './queries';
-import { predictEditAtRange } from './query-tasks';
-import { EditSelector, tempWrite } from './compare-view';
-import { BaseComponent } from './base-component';
+import { toPosixPath } from './file';
+import { editorState } from './global-context';
+import { queryState } from './global-context';
+import { BaseComponent, numIn } from './base-component';
+import { editLocationView } from './activity-bar';
+import path from 'path';
 
-const fgcolor1 = '#000';
-const bgcolor1 = 'rgba(255,0,0,0.2)';
-const fgcolor2 = '#000';
-const bgcolor2 = 'rgba(0,255,0,0.2)';
-
-const decorationStyleForAlter = vscode.window.createTextEditorDecorationType({
-	color: fgcolor1,
-	backgroundColor: bgcolor1
-});
-
-const decorationStyleForAdd = vscode.window.createTextEditorDecorationType({
-	color: fgcolor2,
-	backgroundColor: bgcolor2
-});
-
-
-function highlightLocations(locations, editor) {
-	const decorationsForAlter = []; // Highlight for replace, delete
-	const decorationsForAdd = []; // Highlight for add
-	if (!editor) {
-		return;
-	}
-	
-	// Iterate through each modification
-	locations
-		.filter((loc) => loc.targetFilePath == toPosixPath(editor.document.uri.fsPath))
-		.map((loc) => {
-			const startPos = editor.document.positionAt(loc.startPos);
-			const endPos = editor.document.positionAt(loc.endPos);
-			const range = new vscode.Range(startPos, endPos);
-	
-			// Create decoration
-			const decoration = {
-				range
-			};
-	
-			// Add decoration to array
-			if (loc.editType == 'add') {
-				decorationsForAdd.push(decoration);
-			} else {
-				decorationsForAlter.push(decoration);
-			}
-		})
-	
-	// Apply decorations to editor
-	editor.setDecorations(decorationStyleForAlter, decorationsForAlter);
-	editor.setDecorations(decorationStyleForAdd, decorationsForAdd);
-	// decorationStyleForAlter.dispose();
-	// decorationStyleForAdd.dispose();
-}
-
-function clearHighlights(editor) {
-	highlightLocations([], editor);
-}
+const replaceBackgroundColor = 'rgba(255,0,0,0.3)';
+const addBackgroundColor = 'rgba(0,255,0,0.3)';
+const replaceIconPath = path.join(__dirname, '../media/edit-red.svg');
+const addIconPath = path.join(__dirname, '../media/add-green.svg');
 
 class LocationDecoration extends BaseComponent {
 	constructor() {
 		super();
 		this.replaceDecorationType = vscode.window.createTextEditorDecorationType({
-			color: fgcolor1,
-			backgroundColor: bgcolor1
+			backgroundColor: replaceBackgroundColor,
+			isWholeLine: true,
+			rangeBehavior: vscode.DecorationRangeBehavior.ClosedOpen,
+			gutterIconPath: replaceIconPath,
+			gutterIconSize: "75%"
 		});
 		this.addDecorationType = vscode.window.createTextEditorDecorationType({
-			color: fgcolor2,
-			backgroundColor: bgcolor2
+			backgroundColor: addBackgroundColor,
+			isWholeLine: true,
+			rangeBehavior: vscode.DecorationRangeBehavior.ClosedOpen,
+			gutterIconPath: addIconPath,
+			gutterIconSize: "75%"
 		});
 		
 		this.disposable = vscode.Disposable.from(
 			vscode.window.onDidChangeActiveTextEditor(this.setLocationDecorations, this),
-			queryState.onDidQuery(() => this.setLocationDecorations(vscode.window.activeTextEditor), this)
+			queryState.onDidChangeLocations(() => this.setLocationDecorations(vscode.window.activeTextEditor), this),
+			editLocationView.treeView.onDidChangeSelection(() => this.setLocationDecorations(vscode.window.activeTextEditor), this)
 		);
 	}
 
 	setLocationDecorations(editor) {
-		if (fileState.inDiffEditor) return;
+		if (editorState.inDiffEditor) return;
 
 		const uri = editor?.document?.uri;
 		if (!uri) return;
 
 		const filePath = toPosixPath(uri.fsPath);
-		console.log(queryState.locatedFilePaths);
-		if (uri.scheme !== 'file' || !queryState.locatedFilePaths.includes(filePath)) return undefined;
+		if (uri.scheme !== 'file') return undefined;
 
 		const decorationsForAlter = [];
 		const decorationsForAdd = [];
@@ -94,13 +51,24 @@ class LocationDecoration extends BaseComponent {
 		queryState.locations
 			.filter((loc) => loc.targetFilePath === filePath)
 			.map((loc) => {
-				const startPos = editor.document.lineAt(loc.atLines[0]).range.start;
-				const endPos = editor.document.lineAt(loc.atLines[loc.atLines.length-1]).range.end;
+				let startLine = loc.atLines[0];
+				let endLine = loc.atLines[loc.atLines.length - 1];
+				if (loc.editType === "add") {	// the model was designed to add content after the mark line
+					startLine += 1;
+					endLine += 1;
+				}
+
+				const document = editor.document;
+				startLine = numIn(startLine, 0, document.lineCount - 1);
+				endLine = numIn(endLine, 0, document.lineCount - 1);
+				
+				const startPos = editor.document.lineAt(startLine).range.start;
+				const endPos = editor.document.lineAt(endLine).range.end;
 				const range = new vscode.Range(startPos, endPos);
 		
 				// Create decoration
 				const decoration = {
-					range
+					range: range
 				};
 		
 				// Add decoration to array
@@ -110,71 +78,12 @@ class LocationDecoration extends BaseComponent {
 					decorationsForAlter.push(decoration);
 				}
 
-				editor.setDecorations(this.replaceDecorationType, decorationsForAlter);
-				editor.setDecorations(this.addDecorationType, decorationsForAdd);			
-			})
-	}
-}
-
-class InlineFixProvider extends BaseComponent {
-	constructor() {
-		super();
-		this.register(
-			vscode.languages.registerCodeActionsProvider({ scheme: 'file' }, this),
-		);
-	}
-
-	async provideCodeActions(document, range) {
-		const currFile = toPosixPath(document?.fileName);
-		const newEdits = await predictEditAtRange(document, range);
-
-		if (!newEdits || newEdits.targetFilePath != currFile)
-			return [];
-		
-		const diagnosticRange = new vscode.Range(document.positionAt(newEdits.startPos), document.positionAt(newEdits.endPos));
-
-		const codeActions = newEdits.replacement.map(replacement => {
-			// Create a diagnostic
-			const diagnostic = new vscode.Diagnostic(diagnosticRange, 'Replace with: ' + replacement, vscode.DiagnosticSeverity.Hint);
-			diagnostic.code = 'replaceCode';
-
-			// Create a QuickFix
-			const codeAction = new vscode.CodeAction(replacement, vscode.CodeActionKind.QuickFix);
-			codeAction.diagnostics = [diagnostic];
-			codeAction.isPreferred = true;
-
-			// Create WorkspaceEdit
-			const edit = new vscode.WorkspaceEdit();
-			const replaceRange = new vscode.Range(document.positionAt(newEdits.startPos), document.positionAt(newEdits.endPos));
-			edit.replace(document.uri, replaceRange, replacement);
-			codeAction.edit = edit;
-
-			codeAction.command = {
-				command: 'editPilot.applyFix',
-				title: '',
-				arguments: [],
-			};
-
-			return codeAction;
-		})
-
-		const selector = new EditSelector(
-			currFile,
-			newEdits.startPos,
-			newEdits.endPos,
-			newEdits.replacement,
-			tempWrite
-		);
-		await selector.init();
-		await selector.editedDocumentAndShowDiff();
-
-		return codeActions;	
+			});
+		editor.setDecorations(this.replaceDecorationType, decorationsForAlter);
+		editor.setDecorations(this.addDecorationType, decorationsForAdd);			
 	}
 }
 
 export {
-    // highlightLocations,
-	// clearHighlights,
 	LocationDecoration,
-	InlineFixProvider
 };

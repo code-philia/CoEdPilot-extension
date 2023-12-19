@@ -1,39 +1,15 @@
 import vscode from 'vscode';
 import path from 'path';
-import { queryState } from './queries';
+import { queryState } from './global-context';
 import { BaseComponent } from './base-component';
-
-class EditLocationView extends BaseComponent {
-    constructor() {
-        super();
-        this.provider = new LocationTreeProvider();
-        
-        const treeViewOptions = {
-            treeDataProvider: this.provider,
-            showCollapseAll: true
-        }
-        const treeView = vscode.window.createTreeView('editLocations', treeViewOptions);
-        this.treeView = treeView;
-
-        this.register(
-            treeView,
-            this.provider.onDidChangeTreeData((num) => {
-                // Set the whole badge here. Only setting the value won't trigger update
-                this.treeView.badge = {
-                    tooltip: `${num} possible edit locations`,
-                    value: num
-                }
-                vscode.commands.executeCommand('editLocations.focus');
-            }, this),
-            queryState.onDidQuery((qs) => this.provider.refresh(qs.locations), this)
-        );
-    }
-}
+import { getRootPath, toRelPath } from './file';
 
 class LocationTreeProvider  {
     constructor() {
         this._onDidChangeTreeData = new vscode.EventEmitter();
         this.onDidChangeTreeData = this._onDidChangeTreeData.event;
+        this._onDidChangeLocationNumber = new vscode.EventEmitter();
+        this.onDidChangeLocationNumber = this._onDidChangeLocationNumber.event;
         this.modTree = [];
     }
 
@@ -48,9 +24,8 @@ class LocationTreeProvider  {
     }
 
     notifyChangeofTree() {
-        this._onDidChangeTreeData.fire(
-            this.numOfLocation(),
-        );
+        this._onDidChangeTreeData.fire();
+        this._onDidChangeLocationNumber.fire(this.numOfLocation());
     }
 
     numOfLocation() {
@@ -135,6 +110,14 @@ class LocationTreeProvider  {
         }
     }
 
+    getParent(element) {
+        if (element.fileItem) {
+            return element.fileItem;
+        } else {
+            return undefined;
+        }
+    }
+
     getFileItem(filePath, fileMods) {
         const modListOnPath = fileMods;
         const fileName = path.basename(filePath); 
@@ -147,16 +130,19 @@ class LocationTreeProvider  {
         )
 
         for (const loc of modListOnPath) {
+            let fromLine = loc.editType === "add" ? loc.atLines[0] + 1 : loc.atLines[0];
+            let toLine = loc.editType === "add" ? loc.atLines[loc.atLines.length - 1] + 2 : loc.atLines[loc.atLines.length - 1] + 1;
             fileItem.mods.push(
                 new ModItem(
-                    `Line ${loc.atLines[0]}`,
+                    `Line ${fromLine + 1}`,
                     vscode.TreeItemCollapsibleState.None,
                     fileItem,
-                    loc.atLines[0],
+                    fromLine,
+                    toLine,
                     loc.lineInfo.text,
                     loc.editType
                 )
-            )
+            );
         }
 
         return fileItem;
@@ -173,33 +159,36 @@ class FileItem extends vscode.TreeItem {
         this.mods = mods;
         
         this.tooltip = this.fileName;
-        this.description = `   ${this.filePath}`;
+        this.description = `   ${toRelPath(getRootPath(), this.filePath)}`;
+        this.resourceUri = vscode.Uri.file(this.filePath);
     }
     
-    iconPath = {
-        light: path.join(__filename, '..', '..', 'media', 'file.svg'),
-        dark: path.join(__filename, '..', '..', 'media', 'file.svg')
-    }
+    iconPath = vscode.ThemeIcon.File;
 
     contextValue = 'file';
 }
 
 class ModItem extends vscode.TreeItem {
-    constructor(label, collapsibleState, fileItem, atLine, lineContent, editType) {
+    constructor(label, collapsibleState, fileItem, fromLine, toLine, lineContent, editType) {
         super(label, collapsibleState);
         this.collapsibleState = collapsibleState;
         this.fileItem = fileItem;
-        this.atLine = atLine;
+        this.fromLine = fromLine;
+        this.toLine = toLine
         this.editType = editType;
         this.lineContent = lineContent
         this.text = `    ${this.lineContent.trim()}`;
 
-        this.tooltip = `line ${this.atLine}`;
+        this.tooltip = `Line ${this.fromLine}`; // match real line numbers in the gutter
         this.description = this.text;
         this.command = {
-            command: 'editPilot.openFileAtLine',
+            command: 'coEdPilot.openFileAtLine',
             title: '',
-            arguments: [this.fileItem.filePath, this.atLine]
+            arguments: [
+                this.fileItem.filePath,
+                this.fromLine,
+                editType === "add" ? this.fromLine : this.toLine  // edit of type "add" will only place the cursor at the starting of line
+            ]
         }
         
         this.iconPath = {
@@ -214,11 +203,11 @@ class ModItem extends vscode.TreeItem {
     getIconFileName() {
         switch (this.editType) {
             case 'add':
-                return 'add.png';
+                return 'add-green.svg';
             case 'remove':
-                return 'remove.png';
+                return 'remove.svg';
             default:
-                return 'edit.png';
+                return 'edit-red.svg';
         }
     }
 
@@ -231,12 +220,43 @@ class ModItem extends vscode.TreeItem {
         //     default:
         //         return `Modifying line ${this.atLine}`;
         // }
-        return `Line ${this.atLine}`;
+        return `Line ${this.fromLine + 1}`;
     }
 
     contextValue = 'mod';
 }
 
-export {
-    EditLocationView
-};
+class EditLocationView extends BaseComponent {
+    constructor() {
+        super();
+        this.provider = new LocationTreeProvider();
+        
+        const treeViewOptions = {
+            treeDataProvider: this.provider,
+            showCollapseAll: true
+        }
+        const treeView = vscode.window.createTreeView('editLocations', treeViewOptions);
+        this.treeView = treeView;
+
+        this.register(
+            treeView,
+            this.provider.onDidChangeLocationNumber(async (num) => {
+                // Set the whole badge here. Only setting the value won't trigger update
+                this.treeView.badge = {
+                    tooltip: `${num} possible edit locations`,
+                    value: num
+                }
+                
+            }, this),
+            queryState.onDidChangeLocations(async (qs) => {
+                this.provider.refresh(qs.locations);
+                if (!this.treeView.visible) {
+                    await vscode.commands.executeCommand('editLocations.focus');
+                }
+                await this.treeView.reveal(this.provider.modTree[0], { expand: 2 });
+            }, this),
+        );
+    }
+}
+
+export const editLocationView = new EditLocationView();

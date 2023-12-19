@@ -1,17 +1,22 @@
 import vscode from "vscode";
 import { PredictLocationCommand, GenerateEditCommand } from "./query-tasks";
-export function registerCommand(command, callback, thisArg) {
-	return vscode.commands.registerCommand(command, callback, thisArg);
-}
+import { registerCommand, numIn } from "./base-component";
 
 export function registerBasicCommands() {
 	return vscode.Disposable.from(
-		registerCommand('editPilot.openFileAtLine', async (filePath, lineNum) => {
+		registerCommand('coEdPilot.openFileAtLine', async (filePath, fromLine, toLine) => {
 			const uri = vscode.Uri.file(filePath); // Replace with dynamic file path
 
 			const document = await vscode.workspace.openTextDocument(uri);
 			const editor = await vscode.window.showTextDocument(document);
-			const range = editor.document.lineAt(lineNum).range;
+
+			fromLine = numIn(fromLine, 0, document.lineCount - 1);
+			toLine = numIn(toLine, 0, document.lineCount - 1);
+			const range = new vscode.Range(
+				editor.document.lineAt(fromLine).range.start,
+				editor.document.lineAt(toLine).range.start,
+			)
+
 			editor.selection = new vscode.Selection(range.start, range.end);
 			editor.revealRange(range, vscode.TextEditorRevealType.InCenter);
 		})

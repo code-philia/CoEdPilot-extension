@@ -1,19 +1,24 @@
-import * as vscode from 'vscode';
+import vscode from 'vscode';
 import { compareTempFileSystemProvider } from './compare-view';
-import { FileStateMonitor, fileState, initFileState } from './file';
-import { EditLocationView } from './activity-bar';
-import { CommitMessageInput, queryState } from './queries';
+import { FileStateMonitor, initFileState } from './file';
+import { editorState, queryState } from './global-context';
+import { editLocationView } from './activity-bar';
 import { LocationDecoration } from './inline';
 import { registerBasicCommands, registerTopTaskCommands } from './extension-register';
+import { statusBarItem } from './status-bar';
+import { modelServerProcess } from './model-client';
 
 function activate(context) {
 
 	initFileState(vscode.window.activeTextEditor);
 
 	context.subscriptions.push(
-		fileState,
+		editorState,
 		queryState,
-		compareTempFileSystemProvider
+		compareTempFileSystemProvider,
+		statusBarItem,
+		editLocationView,
+		modelServerProcess
 	)
 
 	context.subscriptions.push(
@@ -23,9 +28,7 @@ function activate(context) {
 
 	context.subscriptions.push(
 		new FileStateMonitor(),
-		new LocationDecoration(),
-		new EditLocationView()
-		// new DiffTabCodelensProvider()
+		new LocationDecoration(),	
 	);
 
 	console.log('==> Congratulations, your extension is now active!');

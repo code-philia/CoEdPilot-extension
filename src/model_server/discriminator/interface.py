@@ -1,23 +1,44 @@
-import os
 import torch
 import torch.nn as nn
 import re
 import numpy as np
+
 from tqdm import tqdm
 from torch.utils.data import DataLoader, TensorDataset
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from perf import Stopwatch
+from model_manager import load_model_with_cache
 
-current_file_path = os.path.dirname(os.path.abspath(__file__))
-model_path = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'models', 'discriminator_model.bin')
-
-model = None
-tokenizer = None
-device = None
-
-def is_model_cached():
-    global tokenizer, model, device
-    return not (tokenizer == None or model == None or device == None)
+MODEL_ROLE = "discriminator"
+OUTPUT_MAX = 10
+WORD_PATTERN = re.compile(r"\b[a-zA-Z_][a-zA-Z0-9_]*\b")
+LANGUAGE_KEYWORDS = {
+    "go": set(["break", "default", "func", "interface", "select", "case", "defer", "go", "map", "struct",
+           "chan", "else", "goto", "package", "switch", "const", "fallthrough", "if", "range", "type",
+           "continue", "for", "import", "return", "var"]),
+    "python": set(["False", "await", "else", "import", "pass", "None", "break", "except", "in", "raise",
+               "True", "class", "finally", "is", "return", "and", "continue", "for", "lambda", "try",
+               "as", "def", "from", "nonlocal", "while", "assert", "del", "global", "not", "with",
+               "async", "elif", "if", "or", "yield"]),
+    "javascript": set(["break", "case", "catch", "class", "const", "continue", "debugger", "default", "delete",
+                   "do", "else", "export", "extends", "finally", "for", "function", "if", "import",
+                   "in", "instanceof", "new", "return", "super", "switch", "this", "throw", "try",
+                   "typeof", "var", "void", "while", "with", "yield"]),
+    "typescript": set(["break", "case", "catch", "class", "const", "continue", "debugger", "default", "delete",
+                   "do", "else", "enum", "export", "extends", "finally", "for", "function", "if", "implements",
+                   "import", "in", "instanceof", "interface", "let", "new", "package", "private", "protected",
+                   "public", "return", "static", "super", "switch", "this", "throw", "try", "typeof",
+                   "var", "void", "while", "with", "yield", "as", "asserts", "any", "async", "await",
+                   "boolean", "constructor", "declare", "get", "infer", "is", "keyof", "module", "namespace",
+                   "never", "readonly", "require", "number", "object", "set", "string", "symbol", "type",
+                   "undefined", "unique", "unknown"]),
+    "java": set(["abstract", "assert", "boolean", "break", "byte", "case", "catch", "char", "class", "const",
+             "continue", "default", "do", "double", "else", "enum", "extends", "final", "finally", "float",
+             "for", "goto", "if", "implements", "import", "instanceof", "int", "interface", "long", "native",
+             "new", "package", "private", "protected", "public", "return", "short", "static", "strictfp",
+             "super", "switch", "synchronized", "this", "throw", "throws", "transient", "try", "void", "volatile",
+             "while"])
+}
 
 class CombinedModel(nn.Module):
     def __init__(self, model_name):
@@ -66,8 +87,7 @@ def load_data(inputs, tokenizer, max_length=128):
 
     return dataset
 
-def load_model():
-    global model_path
+def load_model(model_path):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     tokenizer = AutoTokenizer.from_pretrained('vishnun/codenlbert-sm', model_max_length=512)
     model = CombinedModel('vishnun/codenlbert-sm')
@@ -76,11 +96,8 @@ def load_model():
     model.load_state_dict(checkpoint['model_state_dict'])
     return model, tokenizer, device
 
-def load_model_cache():
-    global model, tokenizer, device
-    model, tokenizer, device = load_model()
 
-def predict(json_input):
+def predict(json_input, language):
     '''
     Function: this is the interface between discriminator and VSCode extension
     Args:
@@ -88,7 +105,7 @@ def predict(json_input):
             {
                 "files":            list, [[relativeFilePath, fileContent], ...]
                 "targetFilePath":   string, the relative path of the file to be edited
-                "commitMessage":    string, the commit message
+                "commitMessage":    string, the edit description
                 "prevEdits":        list, [{"beforeEdit": string, "afterEdit": string}, ...]
             }
     Return:
@@ -97,14 +114,11 @@ def predict(json_input):
                 "data": [string], relative file paths that are probably related to target file
             }
     '''
-    global model, tokenizer, device
     stopwatch = Stopwatch()
 
     stopwatch.start()
     # check model cache
-    if not is_model_cached():
-        print('+++ loading discriminator model')
-        load_model_cache()
+    model, tokenizer, device = load_model_with_cache(MODEL_ROLE, language, load_model)
     stopwatch.lap('load model')
 
     # 0. remove targetFilePath from input["files"]
@@ -123,7 +137,10 @@ def predict(json_input):
     for edit in json_input["prevEdits"]:
         edits.extend([edit["beforeEdit"], edit["afterEdit"]])
 
-    edit_words_list = np.array([np.array(x.split()) for x in edits])
+    keyword_set = LANGUAGE_KEYWORDS[language]
+    edit_words_list = np.array([np.array(
+        [y for y in WORD_PATTERN.findall(x) if y not in keyword_set]
+        ) for x in edits], dtype=object)
     edit_words = []
     if len(edit_words_list):
         edit_words = np.concatenate(edit_words_list)
@@ -163,7 +180,7 @@ def predict(json_input):
         batch_input, attention_mask = [item.to(device) for item in batch]
         outputs = model(input_ids=batch_input, attention_mask=attention_mask)
         preds.append(outputs.detach().cpu())
-    model_outputs = (torch.cat(preds, dim=0) >= 0.5).numpy()
+    model_outputs = (torch.cat(preds, dim=0) >= 0.0).numpy()
     stopwatch.lap('infer result')
 
     # 7. prepare output
@@ -171,8 +188,11 @@ def predict(json_input):
     for idx, model_output in enumerate(model_outputs):
         if model_output == 1:
             output["data"].append(json_input["files"][idx][0])
+        if len(output["data"]) >= OUTPUT_MAX:
+            break
     stopwatch.lap('post-process result')
     print("+++ Discriminator profiling:")
     stopwatch.print_result()
 
-    return output
+    return output    
+

@@ -1,8 +1,9 @@
 {
-  "name": "codesuggestion-demo",
-  "displayName": "CodeSuggestion-demo",
-  "description": "",
-  "version": "0.0.1",
+  "name": "co-ed-pilot",
+  "displayName": "CoEdPilot",
+  "description": "A code co-edit helper.",
+  "version": "0.1.0",
+  "publisher": "Code Philia",
   "engines": {
     "vscode": "^1.78.0"
   },
@@ -12,122 +13,161 @@
   "activationEvents": [
     "onLanguage:typescript",
     "onLanguage:javascript",
+    "onLanguage:python",
     "onLanguage:go",
-    "onLanguage:json",
-    "onLanguage:markdown"
+    "onLanguage:java"
   ],
   "main": "./out/extension",
   "contributes": {
+    "configuration":[
+      {
+        "title": "CoEdPilot",
+        "properties": {
+          "coEdPilot.queryURL": {
+            "type": "string",
+            "default": "http://localhost:5003",
+            "description": "The backend URL to send query request to."
+          },
+          "coEdPilot.predictLocationOnEditAcception": {
+            "type": "boolean",
+            "default": "true",
+            "description": "Perform another prediction immediately when accpeting an edit."
+          }
+        }
+      }
+    ],
     "commands": [
       {
-        "command": "editPilot.inputMessage",
-        "category": "Edit Pilot",
-        "title": "Change Commit Message"
+        "command": "coEdPilot.inputMessage",
+        "category": "CoEdPilot",
+        "title": "Change Edit Description"
       },
       {
         "title": "Last Suggestion",
-        "category": "Edit Pilot",
-        "command": "editPilot.last-suggestion",
+        "category": "CoEdPilot",
+        "command": "coEdPilot.last-suggestion",
         "icon": "$(arrow-left)"
       },
       {
         "title": "Next Suggestion",
-        "category": "Edit Pilot",
-        "command": "editPilot.next-suggestion",
+        "category": "CoEdPilot",
+        "command": "coEdPilot.next-suggestion",
         "icon": "$(arrow-right)"
       },
       {
         "title": "Accept",
-        "category": "Edit Pilot",
-        "command": "editPilot.accept-edit",
+        "category": "CoEdPilot",
+        "command": "coEdPilot.accept-edit",
         "icon": "$(pass)"
       },
       {
         "title": "Dismiss",
-        "category": "Edit Pilot",
-        "command": "editPilot.dismiss-edit",
+        "category": "CoEdPilot",
+        "command": "coEdPilot.dismiss-edit",
         "icon": "$(trash)"
       },
       {
         "title": "Predict Locations",
-        "category": "Edit Pilot",
-        "command": "editPilot.predictLocations"
+        "category": "CoEdPilot",
+        "command": "coEdPilot.predictLocations"
       },
       {
         "title": "Generate Edits",
-        "category": "Edit Pilot",
-        "command": "editPilot.generateEdits"
+        "category": "CoEdPilot",
+        "command": "coEdPilot.generateEdits"
+      },
+      {
+        "title": "Show Commands",
+        "command": "coEdPilot.showCommands"
+      },
+      {
+        "title": "Clear Locations",
+        "command": "coEdPilot.clearLocations",
+        "icon": "$(close)"
       }
     ],
     "menus": {
       "editor/context": [
         {
-          "command": "editPilot.inputMessage",
-          "group": "editPilot@3",
+          "command": "coEdPilot.inputMessage",
+          "group": "coEdPilot@3",
           "when": "editorFocus"
         },
         {
-          "command": "editPilot.predictLocations",
-          "group": "editPilot@1",
+          "command": "coEdPilot.predictLocations",
+          "group": "coEdPilot@1",
           "when": "editorFocus"
         },
         {
-          "command": "editPilot.generateEdits",
-          "group": "editPilot@2",
+          "command": "coEdPilot.generateEdits",
+          "group": "coEdPilot@2",
           "when": "editorFocus"
         }
       ],
       "editor/title": [
         {
-          "command": "editPilot.last-suggestion",
-          "group": "navigation@-101",
-          "when": "isInDiffEditor"
+          "command": "coEdPilot.last-suggestion",
+          "group": "navigation@-4",
+          "when": "coEdPilot:isEditDiff"
         },
         {
-          "command": "editPilot.next-suggestion",
-          "group": "navigation@-101",
-          "when": "isInDiffEditor"
+          "command": "coEdPilot.next-suggestion",
+          "group": "navigation@-3",
+          "when": "coEdPilot:isEditDiff"
         },
         {
-          "command": "editPilot.accept-edit",
-          "group": "navigation@-101",
-          "when": "isInDiffEditor"
+          "command": "coEdPilot.accept-edit",
+          "group": "navigation@-2",
+          "when": "coEdPilot:isEditDiff"
         },
         {
-          "command": "editPilot.dismiss-edit",
-          "group": "navigation@-101",
-          "when": "isInDiffEditor"
+          "command": "coEdPilot.dismiss-edit",
+          "group": "navigation@-1",
+          "when": "coEdPilot:isEditDiff"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "coEdPilot.clearLocations",
+          "when": "view == editLocations",
+          "group": "navigation"
         }
       ]
     },
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "editPilot",
-          "title": "Edit Pilot",
-          "icon": "media/reset_wrench.svg"
+          "id": "coEdPilot",
+          "title": "CoEdPilot",
+          "icon": "$(edit)"
         }
       ]
     },
     "views": {
-      "editPilot": [
+      "coEdPilot": [
         {
           "id": "editLocations",
           "name": "Suggested Locations",
-          "contextualTitle": "Edit Pilot"
-        },
-        {
-          "id": "prevEdits",
-          "name": "Previous Edits",
-          "contextualTitle": "Edit Pilot"
+          "contextualTitle": "CoEdPilot"
         }
       ]
-    }
+    },
+    "keybindings": [
+      {
+        "command": "coEdPilot.predictLocations",
+        "key": "ctrl+alt+l",
+        "mac": "cmd+alt+l"
+      },
+      {
+        "command": "coEdPilot.generateEdits",
+        "key": "ctrl+alt+e",
+        "mac": "cmd+alt+e",
+        "when": "editorFocus"
+      }
+    ]
   },
   "scripts": {
-    "lint": "eslint .",
-    "pretest": "npm run lint",
-    "test": "node ./test/runTest.js",
+    "test": "node ./test/suite/test.js",
     "watch": "tsc --watch --allowJs -p jsconfig.json"
   },
   "devDependencies": {
@@ -136,13 +176,15 @@
     "@types/node": "16.x",
     "@types/vscode": "^1.78.0",
     "@vscode/test-electron": "^2.3.0",
-    "axios": "^1.6.0",
-    "glob": "^8.1.0",
-    "mocha": "^10.2.0",
-    "typescript": "^5.0.4"
+    "@types/diff": "^5.0.8",
+    "@vscode/test-cli": "^0.0.4"
   },
   "dependencies": {
-    "@types/diff": "^5.0.8",
+    "@vscode/test-electron": "^2.3.0",
+    "axios": "^1.6.0",
+    "glob": "^10.3.10",
+    "mocha": "^10.2.0",
+    "typescript": "^5.0.4",
     "diff": "^5.1.0",
     "vscode-languageserver": "^8.1.0"
   }

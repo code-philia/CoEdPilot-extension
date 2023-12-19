@@ -1,25 +1,18 @@
-import os
 import bleu
 import torch
-import logging
-import warnings
 import torch.nn as nn
+
 from .model import Seq2Seq
 from tqdm import tqdm
 from torch.utils.data import DataLoader, SequentialSampler, TensorDataset
 from transformers import (RobertaConfig, RobertaModel, RobertaTokenizer)
 from perf import Stopwatch
+from model_manager import load_model_with_cache
 
 MODEL_CLASSES = {'roberta': (RobertaConfig, RobertaModel, RobertaTokenizer)}
-logging.disable(logging.CRITICAL)
-warnings.filterwarnings("ignore")
 
-contextLength = 5
-model_path = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'models', 'generator_model.bin')
-
-model = None
-tokenizer = None
-device = None
+CONTEXT_LENGTH = 5
+MODEL_ROLE = "generator"
 
 def is_model_cached():
     global tokenizer, model, device
@@ -129,8 +122,7 @@ def convert_examples_to_features(examples, tokenizer, prev_preds=None, stage=Non
         )
     return features
 
-def load_model():
-    global model_path
+def load_model(model_path):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     config_class, model_class, tokenizer_class = MODEL_CLASSES['roberta']
     config = config_class.from_pretrained("microsoft/codebert-base")
@@ -145,17 +137,13 @@ def load_model():
     model.to(device)
     return model, tokenizer, device
 
-def load_model_cache():
-    global model, tokenizer, device
-    model, tokenizer, device = load_model()
-
-def predict(json_input):
+def predict(json_input, language):
     '''
     Function: interface between generator and VScode extension
     Args: input, dictionary
         { 
             "targetFileContent":    string, the whole content fo target file
-            "commitMessage":        string, commit message,
+            "commitMessage":        string, edit description,
             "editType":             str, the type of edit,
             "prevEdits":            list, of previous edits, each in format: {"beforeEdit":"", "afterEdit":""},
             "atLines":               list, of edit line indices
@@ -169,14 +157,11 @@ def predict(json_input):
             }
         }
     '''
-    global model, tokenizer, device
     stopwatch = Stopwatch()
 
     stopwatch.start()
     # check model cache
-    if not is_model_cached():
-        print('+++ loading generator model')
-        load_model_cache()
+    model, tokenizer, device = load_model_with_cache(MODEL_ROLE, language, load_model)
     stopwatch.lap('load model')
 
     # 提取从 JavaScript 传入的参数
@@ -195,8 +180,8 @@ def predict(json_input):
     targetFileLineNum = len(targetFileLines)
 
     # 获取 editRange 的上下文
-    startLineIdx = max(0, editLineIdx[0]-contextLength)
-    endLineIdx = min(targetFileLineNum, editLineIdx[-1]+contextLength+1)
+    startLineIdx = max(0, editLineIdx[0]-CONTEXT_LENGTH)
+    endLineIdx = min(targetFileLineNum, editLineIdx[-1]+CONTEXT_LENGTH+1)
     stopwatch.lap('pre-process arguments')
 
     # 把 editRange 的上下文和 editRange 的内容拼接成 codeWindow
@@ -208,6 +193,7 @@ def predict(json_input):
             labels.append(editType)
         else:
             labels.append('keep')
+        # print(f"{labels[-1]}    {targetFileLines[lineIdx]}", end = "")
     
     model_input = codeWindow + ' </s> '  + commitMessage 
     for prevEdit in prevEdits:
@@ -242,8 +228,8 @@ def predict(json_input):
                 replacements.append(text)
     stopwatch.lap('infer result')
 
-    if editType == 'add':
-        replacements = [targetFileLines[editLineIdx[0]] + replacement for replacement in replacements]
+    # if editType == 'add':
+    #     replacements = [targetFileLines[editLineIdx[0]] + replacement for replacement in replacements]
 
     result["replacement"] = replacements
     stopwatch.lap('post-process result')

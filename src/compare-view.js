@@ -3,7 +3,8 @@ import crypto from 'crypto';
 import util from 'util';
 import path from 'path';
 import { BaseComponent } from './base-component';
-import { defaultLineBreak, toPosixPath } from './file';
+import { toPosixPath } from './file';
+import { defaultLineBreak, editorState, queryState } from './global-context';
 
 class BaseTempFileProvider extends BaseComponent {
     constructor() {
@@ -76,12 +77,12 @@ const diffTabSelectors = new Map();
  * Use a series of suggested edits to generate a live editable diff view for the user to make the decision
  */
 class EditSelector {
-    constructor(path, fromLine, toLine, edits, srcWrite, isAdd = false) {
+    constructor(path, fromLine, toLine, edits, originWrite, isAdd = false) {
         this.path = path;
         this.fromLine = fromLine;
         this.toLine = toLine;  // toLine is exclusive
         this.edits = edits;
-        this.tempWrite = srcWrite ?? tempWrite;
+        this.tempWrite = originWrite ?? tempWrite;
         this.isAdd = isAdd;
 
         this.originalContent = "";
@@ -106,18 +107,19 @@ class EditSelector {
      * @param {*} replacement 
      */
     async _performMod(replacement) {
-        const lines = this.originalContent.split(defaultLineBreak);
-        console.log(JSON.stringify({'linebreak': defaultLineBreak }))
+        const x = this.originalContent.match(/\r?\n|\n/);
+        const lineBreak = x?.at(0) ?? defaultLineBreak;
+        const lines = this.originalContent.split(lineBreak);
         const numLines = lines.length + 1;
         const fromLine = Math.max(0, this.fromLine);
         // If change type is "add", simply insert replacement content at the first line 
         const toLine = this.isAdd ? fromLine : Math.min(this.toLine, numLines);
         
-        const modifiedText = (lines.slice(0, fromLine)).join(defaultLineBreak)
-            + (fromLine > 0 ? defaultLineBreak : '')
+        const modifiedText = (lines.slice(0, fromLine)).join(lineBreak)
+            + (fromLine > 0 ? lineBreak : '')
             + replacement
-            + (toLine < numLines ? defaultLineBreak : '')
-            + (lines.slice(toLine, numLines)).join(defaultLineBreak);
+            + (toLine < numLines ? lineBreak : '')
+            + (lines.slice(toLine, numLines)).join(lineBreak);
         
         this._replaceDocument(modifiedText);
     }
@@ -126,7 +128,7 @@ class EditSelector {
         const editor = vscode.window.visibleTextEditors.find(
             (editor) => editor.document === this.document
         );
-
+        
         const fullRange = new vscode.Range(
             this.document.positionAt(0),
             this.document.positionAt(this.document.getText().length)
@@ -142,29 +144,51 @@ class EditSelector {
         await vscode.commands.executeCommand('vscode.diff',
             vscode.Uri.parse(`temp:/${this.id}`),
             vscode.Uri.file(this.path),
-            "Original vs. Modified"
+            `EDIT ${this.modAt+1}/${this.edits.length}: ${path.basename(this.path)}`
         );
-        diffTabSelectors[vscode.window.tabGroups.activeTabGroup.activeTab] = this;
-        // await vscode.commands.executeCommand('moveActiveEditor', {
-        //     to: 'right',
-        //     by: 'group'
-        // });
+
+        const tabGroups = vscode.window.tabGroups;
+        const activeTab = tabGroups.activeTabGroup.activeTab;
+        diffTabSelectors.set(activeTab, this);
+        let removeSelectorEvent = null;
+        const event = tabGroups.onDidChangeTabs((e) => {
+            if (e.closed.includes(activeTab)) {
+                diffTabSelectors.delete(activeTab);
+                removeSelectorEvent.dispose();
+            }
+        });
+        removeSelectorEvent = event;
     }
 
-    async editedDocumentAndShowDiff() {
+    async editDocumentAndShowDiff() {
         await this._performMod(this.edits[this.modAt]);
+        if (editorState.inDiffEditor) {     // refresh existed diff editor
+            await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
+        }
         await this._showDiffView();
     }
 
     async switchEdit(offset = 1) {
         this.modAt = (this.modAt + offset + this.edits.length) % this.edits.length;
-        await this._performMod(this.edits[this.modAt]);
-        await this._showDiffView();
+        await this.editDocumentAndShowDiff();
     }
 
     async clearEdit() {
         // await vscode.commands.executeCommand('undo');
         await this._replaceDocument(this.originalContent);
+    }
+
+    async acceptEdit() {
+        const locations = queryState.locations;
+        locations.forEach((loc, i) => {
+            const offset = loc.editType === "add" ? 1 : 0;
+            if (loc.atLines
+            && loc.atLines[0] + offset < this.toLine
+            && loc.atLines[loc.atLines.length - 1] + 1 + offset > this.fromLine) {
+                locations.splice(i, 1);
+            }
+            queryState._onDidChangeLocations.fire(queryState);
+        })
     }
 
     _getPathId() {

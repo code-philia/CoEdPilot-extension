@@ -1,40 +1,73 @@
 import vscode from 'vscode';
-import { diffTrimmedLines } from 'diff';
-import fs from 'fs';
+import { diffLines } from 'diff';
+import fs, { open } from 'fs';
 import path from 'path';
-import glob from 'glob';
-import os from 'os';
+import { glob } from 'glob';
 import { BaseComponent } from './base-component';
+import { editorState, osType } from './global-context';
+import { statusBarItem } from './status-bar';
 
-const prevEditNum = 3;
-
-class FileState extends BaseComponent{
-    constructor() {
-        super();
-        this.prevCursorAtLine = 0;
-        this.currCursorAtLine = 0;
-        this.prevSnapshot = undefined;
-        this.currSnapshot = undefined;
-        this.prevEdits = [];
-        this.inDiffEditor = false;
-    }
-}
-
-const fileState = new FileState();
-
-const osType = os.type();
-const supportedOSTypes = ['Windows_NT', 'Darwin', 'Linux'];
-
-if (!supportedOSTypes.includes(osType)) {
-    throw RangeError(`Operating system (node detected: ${osType}) is not supported yet.`);
-}
-
-const defaultLineBreaks = {
-    'Windows_NT': '\r\n',
-    'Darwin': '\r',
-    'Linux': '\n'
+let gitignorePatterns = {
+    'exclude': [],
+    'permExclude': [], // permanently exclude a directory, unable to re-include
+    'include': []
 };
-const defaultLineBreak = defaultLineBreaks[osType] ?? '\n';
+
+function parseIgnoreLinesToPatterns(lines) {
+    // Like Git, we only glob files in the patterns
+    let patterns = {
+        'exclude': [],
+        'permExclude': [], // permanently exclude a directory, unable to re-include
+        'include': []
+    };
+
+    let exp = "";
+    let prefix = "";
+    let suffix = "";
+    function addPattern(type) {
+        patterns[type].push(prefix + exp + suffix);
+    } 
+
+    for (const line of lines) {
+        exp = line.trim();
+        if (!exp || exp.startsWith('#')) continue;
+        
+        let isReverse = false;
+        if (exp.startsWith('!')) {
+            exp = exp.slice(1).trim();
+            isReverse = true;
+        }
+
+        prefix = exp.indexOf('/') != exp.length ? '/' : '/**/';   // check if relative path
+
+        if (exp.endsWith('*')) {            // the same matching as glob
+            suffix = '';
+            isReverse ? addPattern('include') : addPattern('exclude');
+        } else if (exp.endsWith('/')) {     // matches directory only
+            suffix = '**';
+            isReverse ? addPattern('include') : addPattern('permExclude');      // permanently exclude
+        } else {                            // matches all files
+            suffix = '/**';
+            isReverse ? addPattern('include') : addPattern('permExclude');      // permanently exclude if it's a directory
+            suffix = '';
+            isReverse ? addPattern('include') : addPattern('exclude');
+        }
+    }
+
+    patterns["exclude"] = patterns["exclude"].concat(patterns["permExclude"]);
+    return patterns;
+} 
+
+try {
+    const gitignoreText = fs.readFileSync(path.join(
+        vscode.workspace.workspaceFolders[0].uri.fsPath,
+        '.gitignore'
+    ), 'utf-8');
+    const gitignoreLines = gitignoreText.match(/[^\r\n]+/g);
+    gitignorePatterns = parseIgnoreLinesToPatterns(gitignoreLines);
+} catch (err) {
+    console.log(`Neglecting .gitignore rules: a problem occurs: ${err}`);
+}
 
 class EditDetector {
     constructor() {
@@ -62,95 +95,98 @@ class EditDetector {
         return this.textBaseSnapshots.has(path);
     }
 
-    updateSnapshot(path, text) {
-        this.textBaseSnapshots[path] = text;
+    addSnapshot(path, text) {
+        if (!this.hasSnapshot(path)) {
+            this.textBaseSnapshots.set(path, text);
+        }
     }
 
-    updateAllSnapshotsFromDocument() {
+    async updateAllSnapshotsFromDocument(getDocument) {
+        // need to fetch text from opened editors
         for (const [path,] of this.textBaseSnapshots) {
             try {
-                const text = fs.readFileSync(path, 'utf-8');	// won't throw error on non-utf-8 character here
+                const text = await getDocument(path);
                 this.updateEdits(path, text);
             } catch (err) {
-                console.log('Cannot update snapshot on ${path}$')
+                console.log(`Using saved version: cannot update snapshot on ${path}`)
             }
         }
+        this.shiftEdits();
     }
 
     updateEdits(path, text) {
-        if (this.textBaseSnapshots.has(path)) {
-            return;
-        }
-
         // Compare old `editList` with new diff on a document
-        // All new diffs should be added to edit list, but merge some of them to the old ones
-        // Merge "-" (removed) diff into an overlapped old edit
+        // All new diffs should be added to edit list, but merge the overlapped/adjoined to the old ones of them 
+        // Merge "-" (removed) diff into an overlapped/adjoined old edit
         // Merge "+" (added) diff into an old edit only if its precedented "-" hunk (a zero-line "-" hunk if there's no) wraps the old edit's "-" hunk
         // By default, there could only be zero or one "+" hunk following a "-" hunk
-        const newDiffs = diffTrimmedLines(
-            this.textBaseSnapshots[path],
+        const newDiffs = diffLines(
+            this.textBaseSnapshots.get(path),
             text
         )
-        const oldEditsWithIdx = this.editList.
-            filter((edit) => edit.path === path)
-            .map((edit, idx) => {
-                return {
+        const oldEditsWithIdx = [];
+        const oldEditIndices = new Set();
+        this.editList.forEach((edit, idx) => {
+            if (edit.path === path) {
+                oldEditsWithIdx.push({
                     idx: idx,
                     edit: edit
-                }
-            });		// keep index order (aka. time order)
-
+                });
+                oldEditIndices.add(idx);
+            }
+        })
+        
         oldEditsWithIdx.sort((edit1, edit2) => edit1.edit.s - edit2.edit.s);	// sort in starting line order
 
-        const oldAdjustedEditsWithIdx = [];
+        const oldAdjustedEditsWithIdx = new Map();
         const newEdits = [];
         let lastLine = 1;
         let oldEditIdx = 0;
 
         function mergeDiff(rmDiff, addDiff) {
             const fromLine = lastLine;
-            const toLine = lastLine + (rmDiff.count ?? 0);
+            const toLine = lastLine + (rmDiff?.count ?? 0);
 
             // construct new edit
             const newEdit = {
                 "path": path,
                 "s": fromLine,
-                "rmLine": rmDiff.count ?? 0,
-                "rmText": rmDiff.value ?? null,
-                "addLine": addDiff.count ?? 0,
-                "addText": addDiff.count ?? null,
+                "rmLine": rmDiff?.count ?? 0,
+                "rmText": rmDiff?.value ?? null,
+                "addLine": addDiff?.count ?? 0,
+                "addText": addDiff?.value ?? null,
             };
 
             // skip all old edits between this diff and the last diff
             while (
                 oldEditIdx < oldEditsWithIdx.length &&
-                oldEditsWithIdx[oldEditIdx].edit.s +
-                oldEditsWithIdx[oldEditIdx].edit.rmLine <= lastLine
+				oldEditsWithIdx[oldEditIdx].edit.s + oldEditsWithIdx[oldEditIdx].edit.rmLine < fromLine
             ) {
                 ++oldEditIdx;
-                oldAdjustedEditsWithIdx.push(oldEditsWithIdx[oldEditIdx]);
+                // oldAdjustedEditsWithIdx.push(oldEditsWithIdx[oldEditIdx]);
             }
 
-            // if current edit is overlapped with this diff
-            if (oldEditsWithIdx[oldEditIdx].edit.s < toLine) {
-                // replace the all the overlapped old edits with the new edit
+            // if current edit is overlapped/adjoined with this diff
+			if (
+				oldEditIdx < oldEditsWithIdx.length &&
+				oldEditsWithIdx[oldEditIdx].edit.s <= toLine
+			) {
+                // replace the all the overlapped/adjoined old edits with the new edit
                 const fromIdx = oldEditIdx;
                 while (
                     oldEditIdx < oldEditsWithIdx.length &&
-                    oldEditsWithIdx[oldEditIdx].edit.s +
-                    oldEditsWithIdx[oldEditIdx].edit.rmLine <= toLine
+                    oldEditsWithIdx[oldEditIdx].edit.s <= toLine
                 ) {
                     ++oldEditIdx;
                 }
-                // use the maximum index of the overlapped old edits	---------->  Is it necessary?
+                // use the maximum index of the overlapped/adjoined old edits	---------->  Is it necessary?
                 const minIdx = Math.max.apply(
                     null,
                     oldEditsWithIdx.slice(fromIdx, oldEditIdx).map((edit) => edit.idx)
                 );
-                oldAdjustedEditsWithIdx.push({
-                    idx: minIdx,
-                    edit: newEdit
-                })
+                oldAdjustedEditsWithIdx.set(minIdx, newEdit);
+				// // skip the edit
+				// ++oldEditIdx;
             } else {
                 // simply add the edit as a new edit
                 newEdits.push(newEdit);
@@ -173,41 +209,76 @@ class EditDetector {
                 mergeDiff(null, diff);
             }
 
-            lastLine += diff.count;
+			if (!(diff.added)) {
+				lastLine += diff.count;
+			}
         }
+
+        const oldAdjustedEdits = [];
+		this.editList.forEach((edit, idx) => {
+			if (oldEditIndices.has(idx)) {
+				if (oldAdjustedEditsWithIdx.has(idx)) {
+					oldAdjustedEdits.push(oldAdjustedEditsWithIdx.get(idx));
+				}
+			} else {
+				oldAdjustedEdits.push(edit);
+			}
+		});
+
+		this.editList = oldAdjustedEdits.concat(newEdits);
     }
 
     // Shift editList if out of capacity
     // For every overflown edit, apply it and update the document snapshots on which the edits base
-    shiftEdits() {
+    shiftEdits(numShifted) {
         // filter all removed edits
-        const numRemovedEdits = this.editList.length - this.editLimit;
+        const numRemovedEdits = numShifted ?? this.editList.length - this.editLimit;
         if (numRemovedEdits <= 0) {
             return;
         }
-        const removedEdits = this.editList.slice(
+        const removedEdits = new Set(this.editList.slice(
             0,
             numRemovedEdits
-        );
-
-        // for each file involved in the removed edits
-        // rebase other edits in file
+        ));
+		
+		function performEdits(doc, edits) {
+			const lines = doc.match(/[^\r\n]*(\r?\n|\r\n|$)/g);
+			const addedLines = Array(lines.length).fill("");
+			for (const edit of edits) {
+				const s = edit.s - 1;  // zero-based starting line
+				for (let i = s; i < s + edit.rmLine; ++i) {
+					lines[i] = "";
+				}
+				addedLines[s] = edit.addText ?? "";
+			}
+			return lines
+                .map((x, i) => addedLines[i] + x)
+                .join("");
+		}
+		
+		// for each file involved in the removed edits
         const affectedPaths = new Set(
-            removedEdits.map((edit) => edit.path)
-        );
-        for (const filePath of affectedPaths) {
-            const editsOnPath = this.editList
-                .filter((edit) => edit.path === filePath)
-                .sort((edit1, edit2) => edit1.s - edit2.s);
-
-            let offsetLines = 0;
-            for (let edit of editsOnPath) {
-                if (edit in removedEdits) {
-                    offsetLines = offsetLines - edit.rmLine + edit.addLine;
-                } else {
-                    edit.s += offsetLines;
-                }
-            }
+			[...removedEdits].map((edit) => edit.path)
+			);
+		for (const filePath of affectedPaths) {
+			const doc = this.textBaseSnapshots.get(filePath);
+			const editsOnPath = this.editList
+				.filter((edit) => edit.path === filePath)
+				.sort((edit1, edit2) => edit1.s - edit2.s);
+				
+			// execute removed edits
+			const removedEditsOnPath = editsOnPath.filter((edit) => removedEdits.has(edit));
+			this.textBaseSnapshots.set(filePath, performEdits(doc, removedEditsOnPath));
+			
+			// rebase other edits in file
+			let offsetLines = 0;
+			for (let edit of editsOnPath) {
+				if (removedEdits.has(edit)) {
+					offsetLines = offsetLines - edit.rmLine + edit.addLine;
+				} else {
+					edit.s += offsetLines;
+				}
+			}
         }
 
         this.editList.splice(0, numRemovedEdits);
@@ -223,17 +294,34 @@ class EditDetector {
      * 		...
      * ]
      */
-    getEditListText() {
+    async getEditList() {
         return this.editList.map((edit) => ({
-            "beforeEdit": edit.rmText ?? "",
-            "afterEdit": edit.addText ?? ""
+			"beforeEdit": edit.rmText?.trim() ?? "",
+            "afterEdit": edit.addText?.trim() ?? ""
         }))
+    }
+
+    async getUpdatedEditList() {
+        const liveGetter = liveFilesGetter();
+        const openedDocuments = getOpenedFilePaths();
+        const docGetter = async (filePath) => {
+            return await liveGetter(openedDocuments, filePath);
+        }
+        await globalEditDetector.updateAllSnapshotsFromDocument(docGetter);
+        return await globalEditDetector.getEditList();
     }
 }
 
-const globalEditDetector = EditDetector;
+const globalEditDetector = new EditDetector();
 
 // BASIC FUNCTIONS
+
+function toDriveLetterLowerCasePath(filePath) {
+    const driveLetterRegEx = /([A-Z])(?=:(\/|\\))/;
+    return filePath.replace(driveLetterRegEx, (match, p1) => {
+        return p1.toLowerCase();
+    })
+}
 
 // Convert any-style path to POSIX-style path
 function toPosixPath(filePath) {
@@ -250,9 +338,21 @@ function toRelPath(rootPath, filePath) {
     return toPosixPath(path.relative(rootPath, filePath));
 }
 
+function getOpenedFilePaths() {
+    const openedPaths = new Set();
+    for (const tabGroup of vscode.window.tabGroups.all) {
+        for (const tab of tabGroup.tabs) {
+            if (tab.input instanceof vscode.TabInputText) {
+                openedPaths.add(tab.input.uri.fsPath);
+            }
+        }
+    }
+    return openedPaths;
+}
+
 function getActiveFilePath() {
-    const filePath = vscode.window.activeTextEditor?.document?.fileName;
-    return filePath ?? toPosixPath(filePath);
+    const filePath = vscode.window.activeTextEditor?.document?.uri.fsPath;
+    return filePath === undefined ? undefined : toPosixPath(filePath);
 }
 
 async function getLineInfoInDocument(path, lineNo) {
@@ -268,34 +368,50 @@ function getRootPath() {
     return toPosixPath(vscode.workspace.workspaceFolders[0].uri.fsPath);
 }
 
-async function getFiles(useSnapshot = true) {
+async function readGlobFiles(useSnapshot = true) {
     const rootPath = getRootPath();
     const fileList = [];
 
     // Use glob to exclude certain files and return a list of all valid files
-    const filePathList = globFiles(rootPath, []);
+    const filePathList = await globFiles(rootPath);
+    const fileGetter = useSnapshot
+        ? async (filePath) => {
+            const liveGetter = liveFilesGetter();
+            const openedPaths = getOpenedFilePaths();
+            return await liveGetter(openedPaths, toDriveLetterLowerCasePath(filePath))
+        }
+        : async (filePath) => fs.readFileSync(filePath, 'utf-8');
+    
 
     async function readFileFromPathList(filePathList, contentList) {
         for (const filePath of filePathList) {
             try {
                 const stat = fs.statSync(filePath);
                 if (stat.isFile()) {
-                    const fileContent = await fs.promises.readFile(filePath, 'utf-8');  // Skip files that cannot be correctly decoded
+                    const fileContent = await fileGetter(filePath);  // Skip files that cannot be correctly decoded
                     contentList.push([filePath, fileContent]);
                 }
             } catch (error) {
-                console.log("Some error occurs when reading file");
+                console.log(`Ignoring file: some error occurs when reading file ${filePath}`);
             }
         }
     }
 
     await readFileFromPathList(filePathList, fileList);
     // Replace directly when reading files, instead of replacing later
-    if (useSnapshot) {
-        replaceCurrentSnapshot(fileList);
-    }
+    // if (useSnapshot) {
+    //     replaceCurrentSnapshot(fileList);
+    // }
 
     return fileList;
+}
+
+// Exact match is used here! Ensure the file paths and opened paths are in the same format
+function liveFilesGetter() {
+    return async (openedPaths, filePath) => 
+        openedPaths.has(filePath)
+            ? (await vscode.workspace.openTextDocument(vscode.Uri.file(filePath))).getText()
+            : fs.readFileSync(filePath, 'utf-8');
 }
 
 // ABOUT EDIT
@@ -329,10 +445,10 @@ function detectEdit(prev, curr) {
 }
 
 function pushEdit(item) {
-    fileState.prevEdits.push(item);
+    editorState.prevEdits.push(item);
 
-    if (fileState.prevEdits.length > prevEditNum) {
-        fileState.prevEdits.shift(); // FIFO pop the earliest element
+    if (editorState.prevEdits.length > 3) {
+        editorState.prevEdits.shift(); // FIFO pop the earliest element
     }
 }
 
@@ -358,80 +474,94 @@ function getLocationAtRange(edits, document, range) {
 //  Else return null
 function updatePrevEdits(lineNo) {
     const line = lineNo;
-    fileState.currCursorAtLine = line + 1; // VScode API starts counting lines from 0, while our line numbers start from 1, note the +- 1
-    console.log(`==> Cursor position: Line ${fileState.prevCursorAtLine} -> ${fileState.currCursorAtLine}`);
-    fileState.currSnapshot = vscode.window.activeTextEditor.document.getText(); // Read the current text in the editor
-    if (fileState.prevCursorAtLine != fileState.currCursorAtLine && fileState.prevCursorAtLine != 0) { // When the pointer changes position and is not at the first position in the editor
-        let edition = detectEdit(fileState.prevSnapshot, fileState.currSnapshot); // Detect changes compared to the previous snapshot
+    editorState.currCursorAtLine = line + 1; // VScode API starts counting lines from 0, while our line numbers start from 1, note the +- 1
+    console.log(`==> Cursor position: Line ${editorState.prevCursorAtLine} -> ${editorState.currCursorAtLine}`);
+    editorState.currSnapshot = vscode.window.activeTextEditor.document.getText(); // Read the current text in the editor
+    if (editorState.prevCursorAtLine != editorState.currCursorAtLine && editorState.prevCursorAtLine != 0) { // When the pointer changes position and is not at the first position in the editor
+        let edition = detectEdit(editorState.prevSnapshot, editorState.currSnapshot); // Detect changes compared to the previous snapshot
 
         if (edition.beforeEdit != edition.afterEdit) {
             // Add the modification to prevEdit
             pushEdit(edition);
             console.log('==> Before edit:\n', edition.beforeEdit);
             console.log('==> After edit:\n', edition.afterEdit);
-            fileState.prevSnapshot = fileState.currSnapshot;
+            editorState.prevSnapshot = editorState.currSnapshot;
             return true;
         }
         return false;
     }
-    fileState.prevCursorAtLine = fileState.currCursorAtLine; // Update the line number where the mouse pointer is located
+    editorState.prevCursorAtLine = editorState.currCursorAtLine; // Update the line number where the mouse pointer is located
     return false;
 }
 
 function getPrevEdits() {
-    return fileState.prevEdits;
+    return editorState.prevEdits;
 }
 
 // glob files with specific patterns
-function globFiles(rootPath, globPatterns) {
+async function globFiles(rootPath, globPatterns = []) {
     // Built-in glob patterns
-    const defaultGlobPatterns = [
-        '!.git/**'
-    ];
-    const allPatterns = defaultGlobPatterns.concat(globPatterns);
+    const globPatternStr = (globPatterns instanceof Array && globPatterns.length > 0)
+        ? globPatterns
+        : '/**/*';
 
-    // Concatenate glob patterns
-    function concatRoot(pattern) {
-        const concat_path = pattern[0] == '!' ? '!' + path.join(rootPath, pattern.slice(1)) : path.join(rootPath, pattern);
-        return concat_path;
-    }
-    const allPatternsWithRoot = allPatterns.map(concatRoot).concat([path.join(rootPath, '**')]);
-
-    const pathList = glob.sync('{' + allPatternsWithRoot.join(',') + '}', { windowsPathsNoEscape: true });
-    return pathList;
+    const pathList = await glob(globPatternStr, {
+        root: rootPath,
+        windowsPathsNoEscape: true,
+        ignore: gitignorePatterns["exclude"],
+        nodir: true
+    });
+    const reincludedPathList = await glob(gitignorePatterns["include"], {
+        root: rootPath,
+        windowsPathsNoEscape: true,
+        ignore: gitignorePatterns["permExclude"],
+        nodir: true
+    });
+    return pathList.concat(reincludedPathList);
 }
 
 function replaceCurrentSnapshot(fileList) {
     const currentFile = fileList.find((file) => file[0] === getActiveFilePath);
     if (currentFile) {
-        currentFile[1] = fileState.currSnapshot; // Use the unsaved content as the actual file content
+        currentFile[1] = editorState.currSnapshot; // Use the unsaved content as the actual file content
     }
 }
 
 function initFileState(editor) {
     if (!editor) return;
-    fileState.prevCursorAtLine = 0;
-    fileState.currCursorAtLine = 0;
-    fileState.prevSnapshot = editor.document.getText();
-    fileState.currSnapshot = editor.document.getText();
-    fileState.inDiffEditor = (vscode.window.tabGroups.activeTabGroup.activeTab.input instanceof vscode.TabInputTextDiff);
-    console.log('==> Active File:', getActiveFilePath());
-    console.log('==> Global variables initialized');
-    // highlightModifications(modifications, editor);
+    editorState.inDiffEditor = (vscode.window.tabGroups.activeTabGroup.activeTab.input instanceof vscode.TabInputTextDiff);
+    editorState.language = vscode.window.activeTextEditor?.document?.languageId.toLowerCase();
+    statusBarItem.setStatusDefault(true);
+
+    // update file snapshot
+    const currUri = editor?.document?.uri;
+    const currPath = currUri?.fsPath;
+    if (currUri && currUri.scheme === "file" && currPath && !(globalEditDetector.hasSnapshot(currPath))) {
+        globalEditDetector.addSnapshot(currPath, editor.document.getText());
+    }
+
+    let isEditDiff = false;
+    if (editorState.inDiffEditor) {
+        const input = vscode.window.tabGroups.activeTabGroup?.activeTab?.input;
+        isEditDiff = (input instanceof vscode.TabInputTextDiff)
+            && input.original.scheme === 'temp'
+            && input.modified.scheme === 'file';
+    }
+
+    if (vscode.workspace.getConfiguration("coEdPilot").get("predictLocationOnEditAcception") && editorState.toPredictLocation) {
+        vscode.commands.executeCommand("coEdPilot.predictLocations");
+        editorState.toPredictLocation = false;
+    }
+    vscode.commands.executeCommand('setContext', 'coEdPilot:isEditDiff', isEditDiff);
 }
 
 class FileStateMonitor extends BaseComponent{
     constructor() {
         super();
         this.register(
-            vscode.window.onDidChangeActiveTextEditor(initFileState),
-            vscode.window.onDidChangeTextEditorSelection((event) => {
-                updatePrevEdits(event.selections[0].active.line);
-            })
+            vscode.window.onDidChangeActiveTextEditor(initFileState)
         );
     }
-
-    
 }
 
 export {
@@ -449,9 +579,11 @@ export {
     globFiles,
     replaceCurrentSnapshot,
     getRootPath,
-    getFiles,
-    fileState,
+    readGlobFiles,
+    editorState,
     initFileState,
     FileStateMonitor,
-    defaultLineBreak
+    EditDetector,
+    getOpenedFilePaths,
+    liveFilesGetter
 };

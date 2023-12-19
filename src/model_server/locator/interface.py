@@ -1,14 +1,16 @@
-import os
+# import json
 import torch
 import math
+
 from .model import Seq2Seq
 from tqdm import tqdm
 from torch.utils.data import DataLoader, SequentialSampler, TensorDataset
 from transformers import (RobertaConfig, RobertaModel, RobertaTokenizer)
 from perf import Stopwatch
+from model_manager import load_model_with_cache
 
-codeWindowLength = 10
-model_path = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'models', 'locator_model.bin')
+CODE_WINDOW_LENGTH = 10
+MODEL_ROLE = "locator"
 
 model = None
 tokenizer = None
@@ -110,8 +112,7 @@ def convert_examples_to_features(examples, tokenizer, stage=None):
         )
     return features
 
-def load_model():
-    global model_path
+def load_model(model_path):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     config_class, model_class, tokenizer_class = (RobertaConfig, RobertaModel, RobertaTokenizer)
     config = config_class.from_pretrained("microsoft/codebert-base")
@@ -153,7 +154,7 @@ def merge_adjacent_removals(results):
 
     return merged_results
 
-def predict(json_input):
+def predict(json_input, language):
     '''
     Function: interface between locator and VScode extension
     Args:
@@ -161,7 +162,7 @@ def predict(json_input):
             {
                 "files":            list, [[filePath, fileContent], ...],
                 "targetFilePath":   str, filePath,
-                "commitMessage":    str, commit message,
+                "commitMessage":    str, edit description,
                 "prevEdits":        list, of previous edits, each in format: {"beforeEdit": string, "afterEdit":string}
             }
     Returns:
@@ -178,14 +179,11 @@ def predict(json_input):
                 ]
             }
     '''
-    global model, tokenizer, device
     stopwatch = Stopwatch()
 
     stopwatch.start()
     # check model cache
-    if not is_model_cached():
-        print('+++ loading locator model')
-        load_model_cache()
+    model, tokenizer, device = load_model_with_cache(MODEL_ROLE, language, load_model)
     stopwatch.lap('load model')
 
     # 提取从 JavaScript 传入的参数
@@ -193,31 +191,75 @@ def predict(json_input):
     commitMessage = json_input["commitMessage"]
     prevEdits = json_input["prevEdits"]
     results = []
+    # print("+++ Prev Edits:")
+    # print(json.dumps(prevEdits, indent=4))
+
+    window_token_cnt = 0
+    window_line_cnt = 0
+    window_text = ""
+    def try_feed_in_window(text):
+        nonlocal window_token_cnt, window_line_cnt, window_text
+        masked_line = " <mask> " + text
+        masked_line_token_cnt = len(tokenizer.tokenize(masked_line))
+        if window_token_cnt + masked_line_token_cnt < 508 and window_line_cnt < 10: # a conservative number for token number
+            window_token_cnt += masked_line_token_cnt
+            window_line_cnt += 1
+            window_text += masked_line
+            return True
+        else:
+            return False
+    def end_window(input_list):
+        nonlocal prevEdits, commitMessage, window_token_cnt, window_line_cnt, window_text
+        model_input = window_text + ' </s> '  + commitMessage 
+        for prevEdit in prevEdits:
+            model_input +=' </s> replace ' + prevEdit["beforeEdit"] + ' add ' + prevEdit["afterEdit"]
+        input_list.append(model_input)
+        # with open(r"C:\Users\aaa\Desktop\edit-pilot\mark.txt", "a+", newline='') as f:
+        #     f.write(model_input)
+        #     f.write("\n")
+        window_token_cnt = 0
+        window_line_cnt = 0
+        window_text = ""
 
     # 获取每个文件的内容
     for file in files:
         targetFilePath = file[0] 
         targetFileContent = file[1]
-
         # 获取文件行数
         targetFileLines = targetFileContent.splitlines(True) # 保留每行的换行符
         targetFileLineNum = len(targetFileLines)
 
         model_inputs = []
-        for windowIdx in range(math.ceil(targetFileLineNum/codeWindowLength)):
-            # 按照 codeWindowLength 将文件内容分割成 codeWindow
-            if windowIdx == math.ceil(targetFileLineNum/codeWindowLength)-1:
-                codeWindowLines = targetFileLines[windowIdx*codeWindowLength:]
-            else:
-                codeWindowLines = targetFileLines[windowIdx*codeWindowLength:(windowIdx+1)*codeWindowLength]
-            codeWindowLines = [" <mask> " + line for line in codeWindowLines]
-            codeWindow = ''.join(codeWindowLines)
+        # for windowIdx in range(math.ceil(targetFileLineNum/codeWindowLength)):
+        #     # 按照 codeWindowLength 将文件内容分割成 codeWindow
+        #     if windowIdx == math.ceil(targetFileLineNum/codeWindowLength)-1:
+        #         codeWindowLines = targetFileLines[windowIdx*codeWindowLength:]
+        #     else:
+        #         codeWindowLines = targetFileLines[windowIdx*codeWindowLength:(windowIdx+1)*codeWindowLength]
+        #     codeWindowLines = [" <mask> " + line for line in codeWindowLines]
+        #     codeWindow = ''.join(codeWindowLines)
 
-            # 将 CodeWindow， CommitMessage 和 prevEdit 合并为一个字符串，作为模型的输入
-            model_input = codeWindow + ' </s> '  + commitMessage 
-            for prevEdit in prevEdits:
-                model_input +=' </s> replace ' + prevEdit["beforeEdit"] + ' add ' + prevEdit["afterEdit"]
-            model_inputs.append(model_input)
+        #     # 将 CodeWindow， CommitMessage 和 prevEdit 合并为一个字符串，作为模型的输入
+        #     model_input = codeWindow + ' </s> '  + commitMessage 
+        #     for prevEdit in prevEdits:
+        #         model_input +=' </s> replace ' + prevEdit["beforeEdit"] + ' add ' + prevEdit["afterEdit"]
+        #     model_inputs.append(model_input)
+
+        i = 0
+        while i < targetFileLineNum:
+            cur_line = targetFileLines[i]
+            if try_feed_in_window(cur_line):
+                i += 1
+            else:
+                if window_line_cnt == 0:    # the first line is longer than window limit 
+                    while True:
+                        cur_line = cur_line[:len(cur_line)/2]
+                        if try_feed_in_window(cur_line):
+                            break
+                else:
+                    end_window(model_inputs)
+        if len(window_text) > 0:
+            end_window(model_inputs)
         stopwatch.lap_by_task('assemble input text')
 
         # prepare model input (tensor format)
@@ -249,10 +291,10 @@ def predict(json_input):
                     preds.extend(output)
 
         if len(preds) != targetFileLineNum:
-            raise ValueError(f'The number of lines ({targetFileLineNum}) in the target file is not equal to the number of predictions ({len(preds)}).')
+            raise ValueError(f'The number of lines ({targetFileLineNum}) in the target file is not equal to the number of predictions ({len(preds)}).') # TODO: solve this problem when some lines are too long
         stopwatch.lap_by_task('infer result')
 
-
+        # print(f"+++ Target file lines:\n{''.join([preds[i] + '    ' + targetFileLines[i] for i in range(targetFileLineNum)])}")
         # get the edit range
         # text = ''
         for i in range(targetFileLineNum):
