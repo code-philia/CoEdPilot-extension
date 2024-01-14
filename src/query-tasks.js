@@ -1,6 +1,6 @@
 import vscode from 'vscode';
 import { getRootPath, readGlobFiles, updatePrevEdits, toPosixPath, globalEditDetector } from './file';
-import { editorState, isLanguageSupported, queryState } from './global-context';
+import { editorState, isActiveEditorLanguageSupported, queryState } from './global-context';
 import { queryLocationFromModel, queryEditFromModel } from './queries';
 import { BaseComponent } from './base-component';
 import { EditSelector, diffTabSelectors, tempWrite } from './compare-view';
@@ -9,7 +9,7 @@ import { globalEditLock } from './global-context';
 import { statusBarItem } from './status-bar';
 
 async function predictLocation() {
-    if (!isLanguageSupported()) {
+    if (!isActiveEditorLanguageSupported()) {
         vscode.window.showInformationMessage(`Predicting location canceled: language ${editorState.language} not supported yet.`);
         return;
     }
@@ -44,7 +44,7 @@ async function predictLocationIfHasEditAtSelectedLine(event) {
 }
 
 async function predictEdit() {
-    if (!isLanguageSupported()) {
+    if (!isActiveEditorLanguageSupported()) {
         vscode.window.showInformationMessage(`Predicting edit canceled: language ${editorState.language} not supported yet.`);
         return;
     }
@@ -146,41 +146,45 @@ class GenerateEditCommand extends BaseComponent{
         function getSelectorOfCurrentTab() {
             const currTab = vscode.window.tabGroups?.activeTabGroup?.activeTab;
             if (currTab && currTab.input instanceof vscode.TabInputTextDiff) {
-                return diffTabSelectors.get(currTab.input.modified.toString());
+                const selector = diffTabSelectors.get(currTab.input.modified.toString());
+                if (selector) {
+                    selector.manuallyEdited = false;
+                }
+                return selector;
             }
             return undefined;
         }
-        function switchEdit(offset) {
+        async function switchEdit(offset) {
             const selector = getSelectorOfCurrentTab();
-            selector && selector.switchEdit(offset);
+            selector && await selector.switchEdit(offset);
         }
-        function closeTab() {
+        async function closeTab() {
             const tabGroups = vscode.window.tabGroups;
-            tabGroups.close(tabGroups.activeTabGroup.activeTab, true);
+            await tabGroups.close(tabGroups.activeTabGroup.activeTab, true);
         }
-        function clearEdit() {
+        async function clearEdit() {
             const selector = getSelectorOfCurrentTab();
-            selector && selector.clearEdit();
+            selector && await selector.clearEdit();
         }
-        function acceptEdit() {
+        async function acceptEdit() {
             const selector = getSelectorOfCurrentTab();
-            selector && selector.acceptEdit();
+            selector && await selector.acceptEdit();
         }
         return vscode.Disposable.from(
-            registerCommand("coEdPilot.last-suggestion", () => {
-                switchEdit(-1);
+            registerCommand("coEdPilot.lastSuggestion", async () => {
+                await switchEdit(-1);
             }),
-            registerCommand("coEdPilot.next-suggestion", () => {
-                switchEdit(1);
+            registerCommand("coEdPilot.nextSuggestion", async () => {
+                await switchEdit(1);
             }),
-            registerCommand("coEdPilot.accept-edit", () => {
-                acceptEdit();
-                closeTab();
+            registerCommand("coEdPilot.acceptEdit", async () => {
+                await acceptEdit();
+                await closeTab();
                 editorState.toPredictLocation = true;
             }),
-            registerCommand("coEdPilot.dismiss-edit", () => {
-                clearEdit();
-                closeTab();
+            registerCommand("coEdPilot.dismissEdit", async () => {
+                await clearEdit();
+                await closeTab();
             })
         )
     }

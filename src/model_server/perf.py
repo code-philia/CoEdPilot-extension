@@ -54,13 +54,17 @@ class Stopwatch:
         else:
             return row['Duration']/row['Count']
 
-    def print_result(self):
+    def print_result(self, num=0, out_file=None):
         self.laps['Avg'] = self.laps.apply(self.__calculate_avg, axis=1)
         print(self.laps.to_string(
             index=False, 
             justify='center',
             formatters={'Duration': lambda x: "{:.9f}".format(x), 'Count': lambda x: str(x) if x != 0 else '', 'Avg': lambda x: "{:.9f}".format(x) if x != 0 else ''}
             ))
+
+        if out_file:
+            with open(out_file, 'a') as f:
+                f.write(f'{num}, {self.laps["Duration"].sum()}\n')
 
 if __name__ == '__main__':
     stopwatch = Stopwatch()

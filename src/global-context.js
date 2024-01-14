@@ -11,9 +11,14 @@ export const supportedLanguages = [
     "java"
 ]
 
-export function isLanguageSupported() {
-    return supportedLanguages.includes(editorState.language);
+export function isLanguageSupported(lang) {
+    return supportedLanguages.includes(lang)
 }
+
+export function isActiveEditorLanguageSupported() {
+    return isLanguageSupported(editorState.language);
+}
+
 
 class EditLock {
     constructor() {
@@ -131,4 +136,3 @@ export const defaultLineBreaks = {
     'Linux': '\n'
 };
 export const defaultLineBreak = defaultLineBreaks[osType] ?? '\n';
-

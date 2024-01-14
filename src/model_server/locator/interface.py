@@ -1,7 +1,5 @@
 # import json
 import torch
-import math
-
 from .model import Seq2Seq
 from tqdm import tqdm
 from torch.utils.data import DataLoader, SequentialSampler, TensorDataset
@@ -63,6 +61,7 @@ def read_examples(raw_inputs):
 
 def convert_examples_to_features(examples, tokenizer, stage=None):
     features = []
+    token_cnt = 0
     for example_index, example in enumerate(tqdm(examples)):
         #source
         source_tokens = tokenizer.tokenize(example.source)[:512-2]
@@ -110,7 +109,8 @@ def convert_examples_to_features(examples, tokenizer, stage=None):
                  target_mask,
             )
         )
-    return features
+        token_cnt += len(source_tokens)
+    return features, token_cnt
 
 def load_model(model_path):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -124,10 +124,6 @@ def load_model(model_path):
     model.load_state_dict(torch.load(model_path))
     model.to(device)
     return model, tokenizer, device
-
-def load_model_cache():
-    global model, tokenizer, device
-    model, tokenizer, device = load_model()
 
 def normalize_string(s):
     if type(s) != str:
@@ -153,6 +149,9 @@ def merge_adjacent_removals(results):
             merged_results.append(mod)
 
     return merged_results
+
+def escape_marks(s: str):
+    return s.replace("<mask>", "</mask/>").replace("</s>", "</s/>")
 
 def predict(json_input, language):
     '''
@@ -199,7 +198,7 @@ def predict(json_input, language):
     window_text = ""
     def try_feed_in_window(text):
         nonlocal window_token_cnt, window_line_cnt, window_text
-        masked_line = " <mask> " + text
+        masked_line = " <mask> " + escape_marks(text)
         masked_line_token_cnt = len(tokenizer.tokenize(masked_line))
         if window_token_cnt + masked_line_token_cnt < 508 and window_line_cnt < 10: # a conservative number for token number
             window_token_cnt += masked_line_token_cnt
@@ -210,19 +209,18 @@ def predict(json_input, language):
             return False
     def end_window(input_list):
         nonlocal prevEdits, commitMessage, window_token_cnt, window_line_cnt, window_text
-        model_input = window_text + ' </s> '  + commitMessage 
+        model_input = window_text + ' </s> '  + escape_marks(commitMessage)
         for prevEdit in prevEdits:
-            model_input +=' </s> replace ' + prevEdit["beforeEdit"] + ' add ' + prevEdit["afterEdit"]
+            model_input +=' </s> replace ' + escape_marks(prevEdit["beforeEdit"]) + '</s> add ' + escape_marks(prevEdit["afterEdit"])
         input_list.append(model_input)
-        # with open(r"C:\Users\aaa\Desktop\edit-pilot\mark.txt", "a+", newline='') as f:
-        #     f.write(model_input)
-        #     f.write("\n")
+
         window_token_cnt = 0
         window_line_cnt = 0
         window_text = ""
 
     # 获取每个文件的内容
     for file in files:
+        file_token_cnt = 0
         targetFilePath = file[0] 
         targetFileContent = file[1]
         # 获取文件行数
@@ -255,6 +253,7 @@ def predict(json_input, language):
                     while True:
                         cur_line = cur_line[:len(cur_line)/2]
                         if try_feed_in_window(cur_line):
+                            i += 1
                             break
                 else:
                     end_window(model_inputs)
@@ -264,7 +263,7 @@ def predict(json_input, language):
 
         # prepare model input (tensor format)
         examples=read_examples(model_inputs)
-        eval_features=convert_examples_to_features(examples, tokenizer, stage='test')
+        eval_features, file_token_cnt=convert_examples_to_features(examples, tokenizer, stage='test')
         all_source_ids = torch.tensor([f.source_ids for f in eval_features], dtype=torch.long)
         all_source_mask = torch.tensor([f.source_mask for f in eval_features], dtype=torch.long)  
         all_target_ids = torch.tensor([f.target_ids for f in eval_features], dtype=torch.long)
@@ -272,7 +271,8 @@ def predict(json_input, language):
         eval_data = TensorDataset(all_source_ids,all_source_mask, all_target_ids,all_target_mask)   
 
         eval_sampler = SequentialSampler(eval_data)
-        eval_dataloader = DataLoader(eval_data, sampler=eval_sampler, batch_size=10, shuffle=False)
+        eval_dataloader = DataLoader(eval_data, sampler=eval_sampler, batch_size=20, shuffle=False)
+        stopwatch.lap_by_task('prepare data loader', file_token_cnt)
 
         # run model
         model.eval() 
@@ -291,8 +291,9 @@ def predict(json_input, language):
                     preds.extend(output)
 
         if len(preds) != targetFileLineNum:
+            print(targetFilePath)
             raise ValueError(f'The number of lines ({targetFileLineNum}) in the target file is not equal to the number of predictions ({len(preds)}).') # TODO: solve this problem when some lines are too long
-        stopwatch.lap_by_task('infer result')
+        stopwatch.lap_by_task('infer result', file_token_cnt)
 
         # print(f"+++ Target file lines:\n{''.join([preds[i] + '    ' + targetFileLines[i] for i in range(targetFileLineNum)])}")
         # get the edit range
@@ -328,3 +329,5 @@ def predict(json_input, language):
     stopwatch.print_result()
 
     return {"data": results}
+
+load_model_with_cache(MODEL_ROLE, "python", load_model)

@@ -1,10 +1,10 @@
 import vscode from 'vscode';
 import { diffLines } from 'diff';
-import fs, { open } from 'fs';
+import fs from 'fs';
 import path from 'path';
 import { glob } from 'glob';
 import { BaseComponent } from './base-component';
-import { editorState, osType } from './global-context';
+import { editorState, isActiveEditorLanguageSupported, osType } from './global-context';
 import { statusBarItem } from './status-bar';
 
 let gitignorePatterns = {
@@ -89,6 +89,15 @@ class EditDetector {
          * ]
          */
         this.editList = [];
+    }
+
+    clearEditsAndSnapshots() {
+        this.textBaseSnapshots = new Map();
+        this.editList = [];
+        const activeEditor = vscode.window.activeTextEditor;
+        if (activeEditor) {
+            initFileState(activeEditor);
+        }
     }
 
     hasSnapshot(path) {
@@ -553,6 +562,7 @@ function initFileState(editor) {
         editorState.toPredictLocation = false;
     }
     vscode.commands.executeCommand('setContext', 'coEdPilot:isEditDiff', isEditDiff);
+    vscode.commands.executeCommand('setContext', 'coEdPilot:isLanguageSupported', isActiveEditorLanguageSupported());
 }
 
 class FileStateMonitor extends BaseComponent{

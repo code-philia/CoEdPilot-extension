@@ -14,10 +14,6 @@ MODEL_CLASSES = {'roberta': (RobertaConfig, RobertaModel, RobertaTokenizer)}
 CONTEXT_LENGTH = 5
 MODEL_ROLE = "generator"
 
-def is_model_cached():
-    global tokenizer, model, device
-    return not (tokenizer == None or model == None or device == None)
-
 class Example(object):
     """A single training/test example."""
     def __init__(self,
@@ -66,6 +62,7 @@ def read_examples(input, labels):
 
 def convert_examples_to_features(examples, tokenizer, prev_preds=None, stage=None):
     features = []
+    token_cnt = 0
     for example_index, example in enumerate(tqdm(examples, desc='convert examples to features')):
         #source
         # 1. add previous rejected prediction to input
@@ -120,7 +117,8 @@ def convert_examples_to_features(examples, tokenizer, prev_preds=None, stage=Non
                  target_mask,
             )
         )
-    return features
+        token_cnt += len(source_tokens)
+    return features, token_cnt
 
 def load_model(model_path):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -203,14 +201,14 @@ def predict(json_input, language):
     # prepare model input (tensor format)
     batch_size=1
     eval_examples = read_examples(model_input, labels)
-    eval_features = convert_examples_to_features(eval_examples, tokenizer, stage='test')
+    eval_features, token_cnt = convert_examples_to_features(eval_examples, tokenizer, stage='test')
     all_source_ids = torch.tensor([f.source_ids for f in eval_features], dtype=torch.long)
     all_source_mask = torch.tensor([f.source_mask for f in eval_features], dtype=torch.long)    
     eval_data = TensorDataset(all_source_ids,all_source_mask)  
 
     eval_sampler = SequentialSampler(eval_data)
     eval_dataloader = DataLoader(eval_data, sampler=eval_sampler, batch_size=batch_size)
-    stopwatch.lap('prepare data loader')
+    stopwatch.lap('prepare data loader', token_cnt)
 
     # run model
     replacements=[]
@@ -226,7 +224,7 @@ def predict(json_input, language):
                     t=t[:t.index(0)]
                 text = tokenizer.decode(t,clean_up_tokenization_spaces=False)
                 replacements.append(text)
-    stopwatch.lap('infer result')
+    stopwatch.lap('infer result', token_cnt)
 
     # if editType == 'add':
     #     replacements = [targetFileLines[editLineIdx[0]] + replacement for replacement in replacements]
@@ -236,3 +234,5 @@ def predict(json_input, language):
     print("+++ Generator profiling:")
     stopwatch.print_result()
     return {"data": result}
+
+load_model_with_cache(MODEL_ROLE, "python", load_model)

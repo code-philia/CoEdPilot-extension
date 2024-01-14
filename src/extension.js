@@ -9,9 +9,6 @@ import { statusBarItem } from './status-bar';
 import { modelServerProcess } from './model-client';
 
 function activate(context) {
-
-	initFileState(vscode.window.activeTextEditor);
-
 	context.subscriptions.push(
 		editorState,
 		queryState,
@@ -19,18 +16,19 @@ function activate(context) {
 		statusBarItem,
 		editLocationView,
 		modelServerProcess
-	)
-
+		)
+		
 	context.subscriptions.push(
 		registerBasicCommands(),
 		registerTopTaskCommands(),
-	);
-
+		);
+			
 	context.subscriptions.push(
 		new FileStateMonitor(),
 		new LocationDecoration(),	
-	);
-
+		);
+				
+	initFileState(vscode.window.activeTextEditor);
 	console.log('==> Congratulations, your extension is now active!');
 }
 

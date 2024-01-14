@@ -3,7 +3,6 @@ import crypto from 'crypto';
 import util from 'util';
 import path from 'path';
 import { BaseComponent } from './base-component';
-import { toPosixPath } from './file';
 import { defaultLineBreak, editorState, queryState } from './global-context';
 
 class BaseTempFileProvider extends BaseComponent {
@@ -190,9 +189,10 @@ class EditSelector {
     async clearEdit() {
         // await vscode.commands.executeCommand('undo');
         await this._replaceDocument(this.originalContent);
+        await this.clearRelatedLocation();
     }
 
-    async acceptEdit() {
+    async clearRelatedLocation() {
         const locations = queryState.locations;
         locations.forEach((loc, i) => {
             const offset = loc.editType === "add" ? 1 : 0;
@@ -203,6 +203,10 @@ class EditSelector {
             }
             queryState._onDidChangeLocations.fire(queryState);
         })
+    }
+
+    async acceptEdit() {
+        await this.clearRelatedLocation();
     }
 
     _getPathId() {

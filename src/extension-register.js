@@ -1,6 +1,8 @@
 import vscode from "vscode";
 import { PredictLocationCommand, GenerateEditCommand } from "./query-tasks";
 import { registerCommand, numIn } from "./base-component";
+import { globalEditDetector } from "./file";
+import { addUserStatItem } from "./global-context";
 
 export function registerBasicCommands() {
 	return vscode.Disposable.from(
@@ -20,6 +22,11 @@ export function registerBasicCommands() {
 
 			editor.selection = new vscode.Selection(range.start, range.end);
 			editor.revealRange(range, vscode.TextEditorRevealType.InCenter);
+		}),
+		registerCommand('coEdPilot.clearPrevEdits', async () => {
+			globalEditDetector.clearEditsAndSnapshots();
+			await vscode.window.showInformationMessage("Previous edits cleared!");
+			addUserStatItem("clearPrevEdits");
 		})
 	);
 }

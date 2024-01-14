@@ -1,3 +1,4 @@
+import os
 import torch
 import torch.nn as nn
 import re
@@ -10,7 +11,7 @@ from perf import Stopwatch
 from model_manager import load_model_with_cache
 
 MODEL_ROLE = "discriminator"
-OUTPUT_MAX = 10
+OUTPUT_MAX = 100
 WORD_PATTERN = re.compile(r"\b[a-zA-Z_][a-zA-Z0-9_]*\b")
 LANGUAGE_KEYWORDS = {
     "go": set(["break", "default", "func", "interface", "select", "case", "defer", "go", "map", "struct",
@@ -60,6 +61,7 @@ def load_data(inputs, tokenizer, max_length=128):
     global batch_size
     encoded_data = []
     attention_mask = []
+    token_cnt = 0
 
     for idx, sample in enumerate(inputs):
         code_tokens = ' '.join(sample).replace('\n',' ')
@@ -77,6 +79,8 @@ def load_data(inputs, tokenizer, max_length=128):
         # 添加到encoded_data列表和labels列表
         encoded_data.append(encoded_code)
         attention_mask.append(source_mask)
+        
+        token_cnt += len(encoded_code)
 
     # 组成 batch
     code_batch_tensor = torch.tensor(encoded_data, dtype=torch.long)
@@ -85,7 +89,7 @@ def load_data(inputs, tokenizer, max_length=128):
     # 创建TensorDataset
     dataset = TensorDataset(code_batch_tensor, attention_mask)
 
-    return dataset
+    return dataset, token_cnt
 
 def load_model(model_path):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -122,10 +126,10 @@ def predict(json_input, language):
     stopwatch.lap('load model')
 
     # 0. remove targetFilePath from input["files"]
-    for i in range(len(json_input["files"])):
-        if json_input["files"][i][0] == json_input["targetFilePath"]:
-            json_input["files"].pop(i)
-            break
+    # for i in range(len(json_input["files"])):
+    #     if json_input["files"][i][0] == json_input["targetFilePath"]:
+    #         json_input["files"].pop(i)
+    #         break
 
     # 1. make code database
     stopwatch.lap('build code collection')
@@ -169,9 +173,9 @@ def predict(json_input, language):
 
     # 5. prepare input (tensor format)
     batch_size = 128
-    test_set = load_data(model_inputs, tokenizer)
+    test_set, token_cnt = load_data(model_inputs, tokenizer)
     test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=False)
-    stopwatch.lap('prepare data loader')
+    stopwatch.lap('prepare data loader', token_cnt)
 
     # 6. inference
     model.eval()
@@ -180,8 +184,8 @@ def predict(json_input, language):
         batch_input, attention_mask = [item.to(device) for item in batch]
         outputs = model(input_ids=batch_input, attention_mask=attention_mask)
         preds.append(outputs.detach().cpu())
-    model_outputs = (torch.cat(preds, dim=0) >= 0.0).numpy()
-    stopwatch.lap('infer result')
+    model_outputs = (torch.cat(preds, dim=0) >= 0.5).numpy()
+    stopwatch.lap('infer result', token_cnt)
 
     # 7. prepare output
     output = {"data": []}
@@ -192,7 +196,8 @@ def predict(json_input, language):
             break
     stopwatch.lap('post-process result')
     print("+++ Discriminator profiling:")
-    stopwatch.print_result()
+    stopwatch.print_result(len(json_input["files"]), 'disc_stat.txt')
 
     return output    
 
+load_model_with_cache(MODEL_ROLE, "python", load_model)

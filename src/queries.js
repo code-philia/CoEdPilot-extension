@@ -15,7 +15,7 @@ async function queryLocationFromModel(rootPath, files, prevEdits, commitMessage,
         }
         output:
         {
-            "data": list, [[filePath, fileContent], ...]
+            "data": list, [filePath, ...]
         }
 	
         Locator:
@@ -71,7 +71,8 @@ async function queryLocationFromModel(rootPath, files, prevEdits, commitMessage,
     console.log('==> No. of files to be analyzed:', discriminatorOutput.data.length);
 
     // Send the selected files to the locator model for location prediction
-    const filteredFiles = files.filter(([filename, _]) => discriminatorOutput.data.includes(filename) || filename == activeFilePath);
+    // const filteredFiles = files.filter(([filename, _]) => discriminatorOutput.data.includes(filename) || filename == activeFilePath);
+    const filteredFiles = files.filter(([filename, _]) => discriminatorOutput.data.includes(filename));
 
     console.log("==> Filtered files:")
     console.log(filteredFiles)
