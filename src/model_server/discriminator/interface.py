@@ -1,101 +1,46 @@
+import os
 import torch
-import torch.nn as nn
-import re
+import pickle
+import jsonlines
 import numpy as np
-
-from tqdm import tqdm
-from torch.utils.data import DataLoader, TensorDataset
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from torch.utils.data import DataLoader
+from sklearn.linear_model import LinearRegression
+from transformers import RobertaTokenizer, RobertaModel
+from .dependency_analyzer import cal_dep_score, DependencyClassifier
+from .siamese_net import evaluate_embedding_model, load_siamese_data
 from perf import Stopwatch
 from model_manager import load_model_with_cache
 
 MODEL_ROLE = "discriminator"
 OUTPUT_MAX = 10
-WORD_PATTERN = re.compile(r"\b[a-zA-Z_][a-zA-Z0-9_]*\b")
-LANGUAGE_KEYWORDS = {
-    "go": set(["break", "default", "func", "interface", "select", "case", "defer", "go", "map", "struct",
-           "chan", "else", "goto", "package", "switch", "const", "fallthrough", "if", "range", "type",
-           "continue", "for", "import", "return", "var"]),
-    "python": set(["False", "await", "else", "import", "pass", "None", "break", "except", "in", "raise",
-               "True", "class", "finally", "is", "return", "and", "continue", "for", "lambda", "try",
-               "as", "def", "from", "nonlocal", "while", "assert", "del", "global", "not", "with",
-               "async", "elif", "if", "or", "yield"]),
-    "javascript": set(["break", "case", "catch", "class", "const", "continue", "debugger", "default", "delete",
-                   "do", "else", "export", "extends", "finally", "for", "function", "if", "import",
-                   "in", "instanceof", "new", "return", "super", "switch", "this", "throw", "try",
-                   "typeof", "var", "void", "while", "with", "yield"]),
-    "typescript": set(["break", "case", "catch", "class", "const", "continue", "debugger", "default", "delete",
-                   "do", "else", "enum", "export", "extends", "finally", "for", "function", "if", "implements",
-                   "import", "in", "instanceof", "interface", "let", "new", "package", "private", "protected",
-                   "public", "return", "static", "super", "switch", "this", "throw", "try", "typeof",
-                   "var", "void", "while", "with", "yield", "as", "asserts", "any", "async", "await",
-                   "boolean", "constructor", "declare", "get", "infer", "is", "keyof", "module", "namespace",
-                   "never", "readonly", "require", "number", "object", "set", "string", "symbol", "type",
-                   "undefined", "unique", "unknown"]),
-    "java": set(["abstract", "assert", "boolean", "break", "byte", "case", "catch", "char", "class", "const",
-             "continue", "default", "do", "double", "else", "enum", "extends", "final", "finally", "float",
-             "for", "goto", "if", "implements", "import", "instanceof", "int", "interface", "long", "native",
-             "new", "package", "private", "protected", "public", "return", "short", "static", "strictfp",
-             "super", "switch", "synchronized", "this", "throw", "throws", "transient", "try", "void", "volatile",
-             "while"])
-}
 
-class CombinedModel(nn.Module):
-    def __init__(self, model_name):
-        super(CombinedModel, self).__init__()
-        
-        # Define the layers
-        self.lm = AutoModelForSequenceClassification.from_pretrained(model_name, num_labels=2)
-        self.linear = nn.Sequential(
-            nn.Linear(2, 1),
-            nn.Sigmoid()
-        )
-    
-    def forward(self, input_ids, attention_mask):
-        out = self.lm(input_ids, attention_mask).logits # (B,2)
-        out = self.linear(out)
-        return out.squeeze(1)
-    
-def load_data(inputs, tokenizer, max_length=128):
-    global batch_size
-    encoded_data = []
-    attention_mask = []
-
-    for idx, sample in enumerate(inputs):
-        code_tokens = ' '.join(sample).replace('\n',' ')
-        
-        # 使用tokenizer进行编码
-        # encoded_code = tokenizer.encode(code_tokens, add_special_tokens=True, padding=True, max_length=max_length)
-        encoded_code = tokenizer.tokenize(code_tokens)[:max_length-2]
-        encoded_code =[tokenizer.cls_token]+encoded_code+[tokenizer.sep_token]
-        encoded_code =  tokenizer.convert_tokens_to_ids(encoded_code)
-        source_mask = [1] * (len(encoded_code))
-        padding_length = max_length - len(encoded_code)
-        encoded_code+=[tokenizer.pad_token_id]*padding_length
-        source_mask+=[0]*padding_length
-
-        # 添加到encoded_data列表和labels列表
-        encoded_data.append(encoded_code)
-        attention_mask.append(source_mask)
-
-    # 组成 batch
-    code_batch_tensor = torch.tensor(encoded_data, dtype=torch.long)
-    attention_mask = torch.tensor(attention_mask, dtype=torch.long)
-    
-    # 创建TensorDataset
-    dataset = TensorDataset(code_batch_tensor, attention_mask)
-
+def construct_discriminator_dataset(hunk, file_name_contents, dependency_analyzer):
+    dataset = []
+    for file_name_content in file_name_contents:
+        dep_score_list = cal_dep_score(hunk, file_name_content[1], dependency_analyzer)
+        sample = {}
+        sample['hunk'] = hunk
+        sample['file'] = file_name_content[1]
+        sample['file_path'] = file_name_content[0]
+        sample['dependency_score'] = dep_score_list
+        sample['label'] = 1
+        dataset.append(sample)
     return dataset
 
 def load_model(model_path):
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    tokenizer = AutoTokenizer.from_pretrained('vishnun/codenlbert-sm', model_max_length=512)
-    model = CombinedModel('vishnun/codenlbert-sm')
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = RobertaModel.from_pretrained("huggingface/CodeBERTa-small-v1")
+    tokenizer = RobertaTokenizer.from_pretrained("huggingface/CodeBERTa-small-v1")
+    model.load_state_dict(torch.load(model_path))
     model.to(device)
-    checkpoint = torch.load(model_path)
-    model.load_state_dict(checkpoint['model_state_dict'])
     return model, tokenizer, device
 
+def load_reg_model(lang):
+    # The regression model is fit based on the validation set
+    with open(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'models', f"./{lang}/reg_model.pickle"), 'rb') as file:
+        reg = pickle.load(file)
+    print("Successfully loaded discriminator regression model")
+    return reg
 
 def predict(json_input, language):
     '''
@@ -106,7 +51,7 @@ def predict(json_input, language):
                 "files":            list, [[relativeFilePath, fileContent], ...]
                 "targetFilePath":   string, the relative path of the file to be edited
                 "commitMessage":    string, the edit description
-                "prevEdits":        list, [{"beforeEdit": string, "afterEdit": string}, ...]
+                "prevEdits":        list, [{"beforeEdit": string, "afterEdit": string, "codeAbove": string, "codeBelow": string}, ...]
             }
     Return:
         output: dictionary, contains chosen files' path and content
@@ -119,75 +64,48 @@ def predict(json_input, language):
     stopwatch.start()
     # check model cache
     model, tokenizer, device = load_model_with_cache(MODEL_ROLE, language, load_model)
+    regModel = load_reg_model(language)
+    dependency_analyzer = DependencyClassifier()
     stopwatch.lap('load model')
 
     # 0. remove targetFilePath from input["files"]
+    # the last element of prevEdits is the edit that just happened, which is in targetFilePath
+    if(len(json_input["prevEdits"]) == 0):
+        return {"data": []}
+    prev_edit = json_input["prevEdits"][-1]
+    prev_edit_hunk = {}
+    prev_edit_hunk["code_window"] = [prev_edit["codeAbove"], prev_edit["beforeEdit"], prev_edit["codeBelow"]]
+
     for i in range(len(json_input["files"])):
         if json_input["files"][i][0] == json_input["targetFilePath"]:
             json_input["files"].pop(i)
             break
 
-    # 1. make code database
+    # 1. construct discriminator dataset
+    dataset = construct_discriminator_dataset(prev_edit_hunk, json_input["files"], dependency_analyzer)
     stopwatch.lap('build code collection')
     
-    # 2. Detech which file contain similar content to previous edits
-    # store files that exist code clone into codeCloneFilePaths
-    codeCloneFilePaths = set()
-    edits = []
-    for edit in json_input["prevEdits"]:
-        edits.extend([edit["beforeEdit"], edit["afterEdit"]])
+    # 2. Calculate the semantic similarity between the edit and the file dataset
+    tensor_dataset = load_siamese_data(dataset, tokenizer, False)
+    dataloader = DataLoader(tensor_dataset, batch_size=1, shuffle=False)
+    embedding_similiarity = evaluate_embedding_model(model, dataloader, "test")
+    stopwatch.lap('calculate the semantic similarity')
 
-    keyword_set = LANGUAGE_KEYWORDS[language]
-    edit_words_list = np.array([np.array(
-        [y for y in WORD_PATTERN.findall(x) if y not in keyword_set]
-        ) for x in edits], dtype=object)
-    edit_words = []
-    if len(edit_words_list):
-        edit_words = np.concatenate(edit_words_list)
-    search_re = re.compile('|'.join(map(lambda x: re.escape(x), edit_words)))
-    for filePath, fileContent in json_input["files"]:
-        found = False
-        for x in search_re.finditer(fileContent):
-            found = True
-            break
-        if found:
-            codeCloneFilePaths.add(filePath)
-    stopwatch.lap('find clone file paths')
+    # 3. Use linear regression to predict label
+    X_test = [dataset[idx]["dependency_score"] + [embedding_similiarity[idx]] for idx in range(len(embedding_similiarity))]
+    y_pred = regModel.predict(X_test)
+    y_pred = [1 if y > 0.5 else 0 for y in y_pred]
 
-    # 3. prepare input (string format)
-    model_inputs = []
-    for filePath, fileContent in json_input["files"]:
-        if filePath in codeCloneFilePaths:
-            cloneBoolean = "True"
-        else:
-            cloneBoolean = "False"
-        model_input = ' </s> '.join([cloneBoolean, json_input["targetFilePath"], filePath, json_input["commitMessage"]])
-        model_inputs.append(model_input)
-    stopwatch.lap('assemble input text')
-
-    # 4. load model
-
-    # 5. prepare input (tensor format)
-    batch_size = 128
-    test_set = load_data(model_inputs, tokenizer)
-    test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=False)
-    stopwatch.lap('prepare data loader')
-
-    # 6. inference
-    model.eval()
-    preds = []
-    for batch in tqdm(test_loader):
-        batch_input, attention_mask = [item.to(device) for item in batch]
-        outputs = model(input_ids=batch_input, attention_mask=attention_mask)
-        preds.append(outputs.detach().cpu())
-    model_outputs = (torch.cat(preds, dim=0) >= 0.0).numpy()
+    files_pred = []
+    for i in range(len(y_pred)):
+        if y_pred[i] == 1:
+            files_pred.append(json_input["files"][i][0])
     stopwatch.lap('infer result')
 
-    # 7. prepare output
+    # 4. prepare output
     output = {"data": []}
-    for idx, model_output in enumerate(model_outputs):
-        if model_output == 1:
-            output["data"].append(json_input["files"][idx][0])
+    for file in files_pred:
+        output["data"].append(file)
         if len(output["data"]) >= OUTPUT_MAX:
             break
     stopwatch.lap('post-process result')

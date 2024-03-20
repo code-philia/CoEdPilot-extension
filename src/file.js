@@ -83,7 +83,9 @@ class EditDetector {
          * 			"rmLine": int, number of removed lines, 
          * 			"rmText": string or null, removed text, could be null
          * 			"addLine": int, number of added lines,
-         * 			"addText": string or null, number of added text, could be null
+         * 			"addText": string or null, added text, could be null,
+         *          "codeAbove": string, content above the edited text, up to 3 lines
+         *          "codeBelow": string, content below the edited text, up to 3 lines
          * 		},
          * 		...
          * ]
@@ -155,7 +157,20 @@ class EditDetector {
                 "rmText": rmDiff?.value ?? null,
                 "addLine": addDiff?.count ?? 0,
                 "addText": addDiff?.value ?? null,
+                "codeAbove": "",
+                "codeBelow": ""
             };
+
+            // Find context
+            const lines = text.split('\n');
+            const startAbove = Math.max(0, fromLine - 4);
+            const endAbove = fromLine - 1;
+            const startBelow = toLine;
+            const endBelow = Math.min(lines.length, toLine + 3);
+
+            // Get the lines above and below
+            newEdit.codeAbove = lines.slice(startAbove, endAbove).join('\n');
+            newEdit.codeBelow = lines.slice(startBelow, endBelow).join('\n');
 
             // skip all old edits between this diff and the last diff
             while (
@@ -297,7 +312,9 @@ class EditDetector {
     async getEditList() {
         return this.editList.map((edit) => ({
 			"beforeEdit": edit.rmText?.trim() ?? "",
-            "afterEdit": edit.addText?.trim() ?? ""
+            "afterEdit": edit.addText?.trim() ?? "",
+            "codeAbove": edit.codeAbove.trim(),
+            "codeBelow": edit.codeBelow.trim()
         }))
     }
 
@@ -437,10 +454,16 @@ function detectEdit(prev, curr) {
     const beforeEdit = prevSnapshotStrList.slice(start, prevSnapshotStrList.length - end).join('');
     const afterEdit = currSnapshotStrList.slice(start, currSnapshotStrList.length - end).join('');
 
+    // Find context 
+    const codeAbove = prevSnapshotStrList.slice(Math.max(0, start - 3), start).join('');
+    const codeBelow = prevSnapshotStrList.slice(prevSnapshotStrList.length - end, Math.min(prevSnapshotStrList.length, prevSnapshotStrList.length - end + 3)).join('');
+
     // Return the result
     return {
         beforeEdit: beforeEdit.trim(),
-        afterEdit: afterEdit.trim()
+        afterEdit: afterEdit.trim(),
+        codeAbove: codeAbove.trim(),
+        codeBelow: codeBelow.trim()
     };
 }
 
