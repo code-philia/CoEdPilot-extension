@@ -11,7 +11,7 @@ from .siamese_net import evaluate_embedding_model, load_siamese_data
 from perf import Stopwatch
 from model_manager import load_model_with_cache
 
-MODEL_ROLE = "discriminator"
+MODEL_ROLE = "embedding"
 OUTPUT_MAX = 10
 
 def construct_discriminator_dataset(hunk, file_name_contents, dependency_analyzer):
