@@ -75,7 +75,7 @@ python -m pip install -r requirements.txt
 
 #### Step 2: Download models into the project directory
 
-As mentioned before, we respectively prepared 3 models (*discriminator*, *locator*, and *generator*) for each language. Supported languages are `go`, `python`, `java`, `typescript` and `javascript`.
+As mentioned before, we respectively prepared 3 models (*discriminator*(including embedding model, dependency analyzer and a regression model), *locator*, and *generator*) for each language. Supported languages are `go`, `python`, `java`, `typescript` and `javascript`.
 
 1. Download **models for different languages** from our inner source. 
 
@@ -85,11 +85,13 @@ As mentioned before, we respectively prepared 3 models (*discriminator*, *locato
 edit-pilot/
     models/
         python/
-            discriminator_model.bin
+            embedding_model.bin
+            reg_model.pickle
             locator_model.bin
             generator_model.bin
         java/
-            discriminator_model.bin
+            embedding_model.bin
+            reg_model.pickle
             locator_model.bin
             generator_model.bin
 ```
