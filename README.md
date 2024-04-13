@@ -2,6 +2,10 @@
 
 CoEdPilot is a Visual Studio Code extension that features automatic code edit recommendations.
 
+## 🚀 Demo
+[![CoEdPilot Demo](http://img.youtube.com/vi/6G2-7Gf0Fhc/sddefault.jpg)](https://www.youtube.com/embed/6G2-7Gf0Fhc?si=A4XcAEL6OFxO-6iL)
+
+
 ## ⚙️ Functionality
 
 The extension introduces two major features: **Edit Locator** and **Edit Generator.** 
