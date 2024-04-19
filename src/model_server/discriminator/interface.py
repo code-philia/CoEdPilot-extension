@@ -22,7 +22,7 @@ def construct_discriminator_dataset(hunk, file_name_contents, dependency_analyze
         sample['hunk'] = hunk
         sample['file'] = file_name_content[1]
         sample['file_path'] = file_name_content[0]
-        sample['dependency_score'] = dep_score_list
+        sample['dependency_score'] = [dep_score_list[0]]
         sample['label'] = 1
         dataset.append(sample)
     return dataset
@@ -80,6 +80,8 @@ def predict(json_input, language):
         if json_input["files"][i][0] == json_input["targetFilePath"]:
             json_input["files"].pop(i)
             break
+    if(len(json_input["files"]) == 0):
+        return {"data": []}
 
     # 1. construct discriminator dataset
     dataset = construct_discriminator_dataset(prev_edit_hunk, json_input["files"], dependency_analyzer)

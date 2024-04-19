@@ -51,9 +51,15 @@ Once performing a prediction on a line, a diff view is shown for switching ↔�
 4. After the model generates possible edits at that range, a difference tab with pop up for you to switch to different edits or edit the code. **There are buttons on the top right corner of the difference tab to accept, dismiss or switch among generated edits.**
 
 
-## 🏗️ Backend Deployment
+## 🕹️ Run Extension
 
-### Run backend models
+This extension is currently not released in VS Code Extension Store. Follow the next steps to run the extension in development mode in VS Code.
+
+
+### 1. Run backend models
+
+> [!NOTE]
+> Always remember to start up backend models which the extension must base on.
 
 Our model scripts require **Python 3.10** and **Pytorch with CUDA.**  
 
@@ -81,13 +87,14 @@ python -m pip install -r requirements.txt
 
 As mentioned before, we respectively prepared 3 models (*discriminator*(including embedding model, dependency analyzer and a regression model), *locator*, and *generator*) for each language. Supported languages are `go`, `python`, `java`, `typescript` and `javascript`.
 
-1. Download **models for different languages** from our inner source. 
+1. Download **models for different languages** and **dependency analyzer** from our inner source. 
 
 2. To deploy models for one language, put its unzipped model folder **named with the language** (e.g. for Python we put `python`) into `models` directory, i.e., to support Python and Java, the file tree should be like
 
 ```
 edit-pilot/
     models/
+        dependency-analyzer/
         python/
             embedding_model.bin
             reg_model.pickle
@@ -100,6 +107,12 @@ edit-pilot/
             generator_model.bin
 ```
 
+* `dependency-analyzer/`: dependency anaylzer model, available in [Huggingface](https://huggingface.co/code-philia/dependency-analyzer);
+* `embedding_model.bin`: embedding model for file locator, available in [Huggingface](https://huggingface.co/code-philia/CoEdPilot-file-locator);
+* `reg_model.pickle`: , linear regression model, available in [Huggingface](https://huggingface.co/code-philia/CoEdPilot-file-locator);
+* `locator_model.bin`: model for line locator, available in [Huggingface](https://huggingface.co/code-philia/CoEdPilot-line-locator);
+* `generator_model.bin`: model for generator, available in [Huggingface](https://huggingface.co/code-philia/CoEdPilot-generator);
+
 #### Step 3: Start the backend
 
 Simply run `server.py` from the project root directory
@@ -108,18 +121,9 @@ Simply run `server.py` from the project root directory
 python src/model_server/server.py
 ```
 
-> [!NOTE]
-> Always remember to start up backend models which the extension must base on.
+### 2. Run extension
 
-## 🕹️ Run Extension
-
-This extension is currently not released in VS Code Extension Store. Follow the next steps to run the extension in development mode in VS Code.
-
-#### Step 1: Install Node.js
-
-See [Node.js official website](https://nodejs.org/en/download).
-
-#### Step 2: Install Node dependencies
+#### Step 1: Install Node dependencies
 
 In the project root directory, install Node packages
 
@@ -127,7 +131,10 @@ In the project root directory, install Node packages
 npm install
 ```
 
-#### Step 3: Run extension using VS Code development host
+> [!NOTE]
+> Require Node.js (version >= 16). If Node.js not installed, please follow [Node.js official website](https://nodejs.org/en/download) to intall.
+
+#### Step 2: Run extension using VS Code development host
 
 Open the project directory in VS Code if didn't, press `F5`, then choose `Run Extension` if you are required to choose a configuration. Note that other extensions will be disabled in the development host.
 

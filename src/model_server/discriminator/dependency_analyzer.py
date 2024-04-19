@@ -29,8 +29,14 @@ class DependencyAnalyzer(nn.Module, PyTorchModelHubMixin):
         return output_2d
     
 def load_model_and_tokenizer():
-    tokenizer = RobertaTokenizerFast.from_pretrained("code-philia/dependency-analyzer")
-    model = DependencyAnalyzer.from_pretrained("code-philia/dependency-analyzer")
+    model_dir = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'models', 'dependency-analyzer')
+    model_path = os.path.join(model_dir, 'pytorch_model.bin')
+
+    tokenizer = RobertaTokenizerFast.from_pretrained('microsoft/codebert-base')
+    special_tokens = ['<from>', '<to>']
+    tokenizer.add_tokens(special_tokens, special_tokens = True)
+    model = DependencyAnalyzer(match_tokenizer=tokenizer)
+    model.load_state_dict(torch.load(model_path))
     return model, tokenizer
 
 class DependencyClassifier:
