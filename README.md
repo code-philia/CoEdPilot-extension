@@ -3,6 +3,9 @@
 CoEdPilot is a Visual Studio Code extension that features automatic code edit recommendations.
 
 ## 🚀 Demo
+> [!NOTE]
+> Please click the image to watch the demo video on YouTube.
+
 [![CoEdPilot Demo](http://img.youtube.com/vi/6G2-7Gf0Fhc/sddefault.jpg)](https://www.youtube.com/embed/6G2-7Gf0Fhc?si=A4XcAEL6OFxO-6iL)
 
 
@@ -12,11 +15,11 @@ The extension introduces two major features: **Edit Locator** and **Edit Generat
 
 ### Edit Locator
 
-Combining a **🔍 discriminator model** and a **🎯 locator model.** It suggests edit locations according to *previous edits* and *current edit description.*
+Combining a **🔍 file locator (discriminator) model** and a **🎯 line locator model.** It suggests edit locations according to *previous edits* and *current edit description.*
 
 ### Edit Generator
 
-Based on a single **📝 generator model.** It generates replacements or additions somewhere in the code, from suggested locations or manually selected. It also requires *previous edits* and *current edit description* and, in addition, the code to replace.
+Based on a single **📝 generator model.** It generates replacements or insertions somewhere in the code, from suggested locations or manually selected. It also requires *previous edits* and *current edit description* and, in addition, the code to replace.
 
 ## ✨ UI
 
@@ -43,7 +46,12 @@ Once performing a prediction on a line, a diff view is shown for switching ↔�
 3. Run `Generate Edits`: select the code to be edited in the editor, then **right-click** and select it in the menu, or use the default keybinding `Ctrl + Alt + E` (in MacOS `Cmd + Alt + E`)
 
 > [!NOTE]
-> Select part of the code for **replacing** (or select nothing for **adding**). And by default accepting an edit will trigger another location prediction immediately (you can change this in extension configuration).
+> To select code for editing, you can:
+>   * Click recommended locations in the left location list;
+>   * Select part of the code for **replacing**;
+>   * Select nothing to generate **insertion** code at the cursor position.
+>
+> And by default accepting an edit will trigger another location prediction immediately (you can change this in extension configuration).
 
 4. Manually `Change Edit Description`: **right-click** and select it in the menu. By default the input box will automatically show at query **whenever the edit description is empty.**
 
@@ -85,33 +93,26 @@ python -m pip install -r requirements.txt
 
 #### Step 2: Download models into the project directory
 
-As mentioned before, we respectively prepared 3 models (*discriminator*(including embedding model, dependency analyzer and a regression model), *locator*, and *generator*) for each language. Supported languages are `go`, `python`, `java`, `typescript` and `javascript`.
+As mentioned before, we respectively prepared 3 models (*file locator*(including embedding model, dependency analyzer and a regression model), *line locator*, and *generator*) for each language. Supported languages are `go`, `python`, `java`, `typescript` and `javascript`.
 
-1. Download **models for different languages** and **dependency analyzer** from our inner source. 
+1. Download and rename **models for different languages** and **dependency analyzer** from [Huggingface Collections](https://huggingface.co/collections/code-philia/coedpilot-65ee9df1b5e3b11755547205). 
+    * `dependency-analyzer/`: dependency anaylzer model, available in [Huggingface](https://huggingface.co/code-philia/dependency-analyzer);
+    * `embedding_model.bin`: embedding model for file locator, available in [Huggingface](https://huggingface.co/code-philia/CoEdPilot-file-locator);
+    * `reg_model.pickle`: , linear regression model, available in [Huggingface](https://huggingface.co/code-philia/CoEdPilot-file-locator);
+    * `locator_model.bin`: model for line locator, available in [Huggingface](https://huggingface.co/code-philia/CoEdPilot-line-locator);
+    * `generator_model.bin`: model for generator, available in [Huggingface](https://huggingface.co/code-philia/CoEdPilot-generator).
 
-2. To deploy models for one language, put its unzipped model folder **named with the language** (e.g. for Python we put `python`) into `models` directory, i.e., to support Python and Java, the file tree should be like
-
-```
-edit-pilot/
-    models/
-        dependency-analyzer/
-        python/
-            embedding_model.bin
-            reg_model.pickle
-            locator_model.bin
-            generator_model.bin
-        java/
-            embedding_model.bin
-            reg_model.pickle
-            locator_model.bin
-            generator_model.bin
-```
-
-* `dependency-analyzer/`: dependency anaylzer model, available in [Huggingface](https://huggingface.co/code-philia/dependency-analyzer);
-* `embedding_model.bin`: embedding model for file locator, available in [Huggingface](https://huggingface.co/code-philia/CoEdPilot-file-locator);
-* `reg_model.pickle`: , linear regression model, available in [Huggingface](https://huggingface.co/code-philia/CoEdPilot-file-locator);
-* `locator_model.bin`: model for line locator, available in [Huggingface](https://huggingface.co/code-philia/CoEdPilot-line-locator);
-* `generator_model.bin`: model for generator, available in [Huggingface](https://huggingface.co/code-philia/CoEdPilot-generator);
+2. To deploy models for one language, put its unzipped model folder **named with the language**.
+    ```
+    edit-pilot/
+        models/
+            dependency-analyzer/
+            {language}/
+                embedding_model.bin
+                reg_model.pickle
+                locator_model.bin
+                generator_model.bin
+    ```
 
 #### Step 3: Start the backend
 
