@@ -6,8 +6,11 @@ CoEdPilot is a Visual Studio Code extension that features automatic code edit re
 > [!NOTE]
 > Please click the image to watch the demo video on YouTube.
 
-[![CoEdPilot Demo](http://img.youtube.com/vi/6G2-7Gf0Fhc/sddefault.jpg)](https://www.youtube.com/embed/6G2-7Gf0Fhc?si=A4XcAEL6OFxO-6iL)
-
+<div align="center">
+   <a href="https://youtu.be/6G2-7Gf0Fhc">
+   <img src="./media/demo_cover.png" width="600" />
+   </a>
+</div>
 
 ## ⚙️ Functionality
 
@@ -25,7 +28,7 @@ Based on a single **📝 generator model.** It generates replacements or inserti
 
 ### Overview
 
-![Overview](ui1.png)
+![Overview](media/ui1.png)
 
 + Predicted locations will be displayed as a tree view in the left ⬅️ and also highlighted in the active editor
 + Query status will be displayed in the status bar ↘️
@@ -33,7 +36,7 @@ Based on a single **📝 generator model.** It generates replacements or inserti
 
 ### Diff View
 
-![Diff View](ui2.png)
+![Diff View](media/ui2.png)
 
 Once performing a prediction on a line, a diff view is shown for switching ↔️ or editing ✏️ the prediction result.
 
