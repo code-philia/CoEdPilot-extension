@@ -3,6 +3,10 @@ import { BaseComponent } from './base-component';
 import { isActiveEditorLanguageSupported } from './global-context';
 
 class ProgressDisplayStatusBarItem extends BaseComponent {
+    item: vscode.StatusBarItem;
+    loadingIconId: string;
+    busy: boolean;
+
     constructor() {
         super();
         this.loadingIconId = "loading~spin";
@@ -17,7 +21,7 @@ class ProgressDisplayStatusBarItem extends BaseComponent {
         )
     }
 
-    setItemText(iconId, text) {
+    setItemText(iconId: string, text: string) {
         this.item.text = `\$\(${iconId}\) ${text}`;
     }
 
@@ -41,14 +45,14 @@ class ProgressDisplayStatusBarItem extends BaseComponent {
         this.item.tooltip = "CoEdPilot is working on local files 🔍";
     }
 
-    setStatusQuerying(modelName) {
+    setStatusQuerying(modelName: string) {
         this.busy = true;
         this.setItemText(this.loadingIconId, `Querying ${modelName}...`);
         this.item.backgroundColor = undefined;
         this.item.tooltip = "CoEdPilot is using language model to analyze 🔬";
     }
 
-    setStatustProblem(errorMessage) {
+    setStatustProblem(errorMessage: string) {
         this.busy = true;
         this.setItemText("close", "CoEdPilot");
         this.item.backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');

@@ -1,10 +1,18 @@
-import vscode from 'vscode';
+import vscode, { TreeItem, TreeItemCollapsibleState } from 'vscode';
 import path from 'path';
 import { queryState } from './global-context';
 import { BaseComponent } from './base-component';
 import { getRootPath, toRelPath } from './file';
+import { EditType, NativeEdit, NativeEditLocation } from './base-types';
 
-class LocationTreeProvider  {
+export class LocationTreeProvider implements vscode.TreeDataProvider<FileItem | ModItem>  {
+    private _onDidChangeTreeData: vscode.EventEmitter<FileItem | undefined> = new vscode.EventEmitter<FileItem | undefined>();
+    onDidChangeTreeData: vscode.Event<FileItem | undefined> = this._onDidChangeTreeData.event;
+    private _onDidChangeLocationNumber: vscode.EventEmitter<number> = new vscode.EventEmitter<number>();
+    onDidChangeLocationNumber: vscode.Event<number> = this._onDidChangeLocationNumber.event;
+
+    modTree: FileItem[];
+
     constructor() {
         this._onDidChangeTreeData = new vscode.EventEmitter();
         this.onDidChangeTreeData = this._onDidChangeTreeData.event;
@@ -18,13 +26,13 @@ class LocationTreeProvider  {
         this.notifyChangeofTree();
     }
 
-    refresh(modList) {
+    refresh(modList: NativeEditLocation[]) {
         this.modTree = this.transformModTree(modList);
         this.notifyChangeofTree();
     }
 
     notifyChangeofTree() {
-        this._onDidChangeTreeData.fire();
+        this._onDidChangeTreeData.fire(undefined);
         this._onDidChangeLocationNumber.fire(this.numOfLocation());
     }
 
@@ -39,14 +47,14 @@ class LocationTreeProvider  {
         return num;
     }
 
-    getTreeItem(element) {
+    getTreeItem(element: FileItem | ModItem) {
         return element;
     }
 
     /**
      * Structure of modList should be like
      * {
-     *     "atLine": [
+     *     "atLines": [
      *         11
      *     ],
      *     "editType": "add",
@@ -71,7 +79,7 @@ class LocationTreeProvider  {
      *             "filePath": "",
      *             "mods": [
      *                 {
-     *                     "atLine": 0,
+     *                     "atLines": 0,
      *                     "start": 0,
      *                     "end": 0,
      *                     "toBeReplaced": ""
@@ -83,8 +91,8 @@ class LocationTreeProvider  {
      */
     
     
-    transformModTree(modList) {
-        const categorizeByAttr = (arr, attr) => 
+    transformModTree(modList: NativeEditLocation[]) {
+        const categorizeByAttr = (arr: any[], attr: any) => 
             arr.reduce((acc, obj) => {
                 const key = obj[attr];
                 if (!acc[key]) acc[key] = [];
@@ -102,7 +110,7 @@ class LocationTreeProvider  {
         return modTree;
     }
 
-    getChildren(element) {
+    getChildren(element?: FileItem) {
         if (element) {
             return element.mods;
         } else {
@@ -110,7 +118,7 @@ class LocationTreeProvider  {
         }
     }
 
-    getParent(element) {
+    getParent(element: ModItem) {
         if (element.fileItem) {
             return element.fileItem;
         } else {
@@ -118,7 +126,7 @@ class LocationTreeProvider  {
         }
     }
 
-    getFileItem(filePath, fileMods) {
+    getFileItem(filePath: string, fileMods: NativeEdit[]) {
         const modListOnPath = fileMods;
         const fileName = path.basename(filePath); 
         var fileItem = new FileItem(
@@ -150,14 +158,15 @@ class LocationTreeProvider  {
 }
 
 class FileItem extends vscode.TreeItem {
-    constructor(label, collapsibleState, fileName, filePath, mods) {
+    fileName: string;
+    filePath: string;
+    mods: ModItem[];
+
+    constructor(label: string, collapsibleState: TreeItemCollapsibleState, fileName: string, filePath: string, mods: ModItem[]) {
         super(label, collapsibleState);
-        this.label = label;
-        this.collapsibleState = collapsibleState;
         this.fileName = fileName;
         this.filePath = filePath;
         this.mods = mods;
-        
         this.tooltip = this.fileName;
         this.description = `   ${toRelPath(getRootPath(), this.filePath)}`;
         this.resourceUri = vscode.Uri.file(this.filePath);
@@ -169,14 +178,21 @@ class FileItem extends vscode.TreeItem {
 }
 
 class ModItem extends vscode.TreeItem {
-    constructor(label, collapsibleState, fileItem, fromLine, toLine, lineContent, editType) {
+    fileItem: FileItem;
+    fromLine: number;
+    toLine: number;
+    lineContent: string;
+    editType: EditType;
+    text: string
+
+    constructor(label: string, collapsibleState: TreeItemCollapsibleState, fileItem: FileItem, fromLine: number, toLine: number, lineContent: string, editType: EditType) {
         super(label, collapsibleState);
         this.collapsibleState = collapsibleState;
         this.fileItem = fileItem;
         this.fromLine = fromLine;
         this.toLine = toLine
-        this.editType = editType;
         this.lineContent = lineContent
+        this.editType = editType;
         this.text = `    ${this.lineContent.trim()}`;
 
         this.tooltip = `Line ${this.fromLine}`; // match real line numbers in the gutter
@@ -197,7 +213,6 @@ class ModItem extends vscode.TreeItem {
         }
         this.label = this.getLabel();
     }
-
 
 
     getIconFileName() {
@@ -227,6 +242,9 @@ class ModItem extends vscode.TreeItem {
 }
 
 class EditLocationView extends BaseComponent {
+    provider: LocationTreeProvider;
+    treeView: vscode.TreeView<FileItem | TreeItem>;
+
     constructor() {
         super();
         this.provider = new LocationTreeProvider();

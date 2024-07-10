@@ -1,30 +1,37 @@
 import vscode from 'vscode';
-import { diffLines } from 'diff';
+import { diffLines, Change } from 'diff';
 import fs from 'fs';
 import path from 'path';
 import { glob } from 'glob';
 import { BaseComponent } from './base-component';
 import { editorState, isActiveEditorLanguageSupported, osType } from './global-context';
 import { statusBarItem } from './status-bar';
+import { Edit, NativeEdit, SimpleEdit } from './base-types';
 
-let gitignorePatterns = {
+type GlobPatterns = {
+    exclude: string[],
+    permExclude: string[], // permanently exclude a directory, unable to re-include
+    include: string []
+};
+
+let gitignorePatterns: GlobPatterns = {
     'exclude': [],
-    'permExclude': [], // permanently exclude a directory, unable to re-include
+    'permExclude': [],
     'include': []
 };
 
-function parseIgnoreLinesToPatterns(lines) {
+
+function parseIgnoreLinesToPatterns(lines: string[]) {
     // Like Git, we only glob files in the patterns
-    let patterns = {
+    let patterns: GlobPatterns = {
         'exclude': [],
-        'permExclude': [], // permanently exclude a directory, unable to re-include
+        'permExclude': [],
         'include': []
     };
-
     let exp = "";
     let prefix = "";
     let suffix = "";
-    function addPattern(type) {
+    function addPattern(type: 'exclude' | 'permExclude' | 'include') {
         patterns[type].push(prefix + exp + suffix);
     } 
 
@@ -59,17 +66,26 @@ function parseIgnoreLinesToPatterns(lines) {
 } 
 
 try {
-    const gitignoreText = fs.readFileSync(path.join(
-        vscode.workspace.workspaceFolders[0].uri.fsPath,
-        '.gitignore'
-    ), 'utf-8');
-    const gitignoreLines = gitignoreText.match(/[^\r\n]+/g);
-    gitignorePatterns = parseIgnoreLinesToPatterns(gitignoreLines);
+    const workspacePath = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
+    if (workspacePath) {
+        const gitignoreText = fs.readFileSync(path.join(
+            workspacePath,
+            '.gitignore'
+        ), 'utf-8');
+        const gitignoreLines = gitignoreText.match(/[^\r\n]+/g);
+        if (gitignoreLines) {
+            gitignorePatterns = parseIgnoreLinesToPatterns(gitignoreLines);
+        }
+    }
 } catch (err) {
     console.log(`Neglecting .gitignore rules: a problem occurs: ${err}`);
 }
 
 class EditDetector {
+    editLimit: number;
+    textBaseSnapshots: Map<any, any>;
+    editList: Edit[];
+    
     constructor() {
         this.editLimit = 10;
         this.textBaseSnapshots = new Map();
@@ -100,17 +116,17 @@ class EditDetector {
         }
     }
 
-    hasSnapshot(path) {
+    hasSnapshot(path: string) {
         return this.textBaseSnapshots.has(path);
     }
 
-    addSnapshot(path, text) {
+    addSnapshot(path: string, text: string) {
         if (!this.hasSnapshot(path)) {
             this.textBaseSnapshots.set(path, text);
         }
     }
 
-    async updateAllSnapshotsFromDocument(getDocument) {
+    async updateAllSnapshotsFromDocument(getDocument: (path: string) => Promise<string>) {
         // need to fetch text from opened editors
         for (const [path,] of this.textBaseSnapshots) {
             try {
@@ -120,10 +136,10 @@ class EditDetector {
                 console.log(`Using saved version: cannot update snapshot on ${path}`)
             }
         }
-        this.shiftEdits();
+        this.shiftEdits(undefined);
     }
 
-    updateEdits(path, text) {
+    updateEdits(path: string, text: string) {
         // Compare old `editList` with new diff on a document
         // All new diffs should be added to edit list, but merge the overlapped/adjoined to the old ones of them 
         // Merge "-" (removed) diff into an overlapped/adjoined old edit
@@ -133,7 +149,7 @@ class EditDetector {
             this.textBaseSnapshots.get(path),
             text
         )
-        const oldEditsWithIdx = [];
+        const oldEditsWithIdx: { idx: number, edit: Edit }[] = [];
         const oldEditIndices = new Set();
         this.editList.forEach((edit, idx) => {
             if (edit.path === path) {
@@ -148,11 +164,11 @@ class EditDetector {
         oldEditsWithIdx.sort((edit1, edit2) => edit1.edit.s - edit2.edit.s);	// sort in starting line order
 
         const oldAdjustedEditsWithIdx = new Map();
-        const newEdits = [];
+        const newEdits: Edit[] = [];
         let lastLine = 1;
         let oldEditIdx = 0;
 
-        function mergeDiff(rmDiff, addDiff) {
+        function mergeDiff(rmDiff?: Change, addDiff?: Change) {
             const fromLine = lastLine;
             const toLine = lastLine + (rmDiff?.count ?? 0);
 
@@ -211,19 +227,19 @@ class EditDetector {
                     mergeDiff(diff, newDiffs[i + 1]);
                     ++i;
                 } else {
-                    mergeDiff(diff, null);
+                    mergeDiff(diff, undefined);
                 }
             } else if (diff.added) {
                 // deal with a "+" diff not following a "-" diff
-                mergeDiff(null, diff);
+                mergeDiff(undefined, diff);
             }
 
 			if (!(diff.added)) {
-				lastLine += diff.count;
+				lastLine += diff.count ?? 0;
 			}
         }
 
-        const oldAdjustedEdits = [];
+        const oldAdjustedEdits: Edit[] = [];
 		this.editList.forEach((edit, idx) => {
 			if (oldEditIndices.has(idx)) {
 				if (oldAdjustedEditsWithIdx.has(idx)) {
@@ -239,7 +255,7 @@ class EditDetector {
 
     // Shift editList if out of capacity
     // For every overflown edit, apply it and update the document snapshots on which the edits base
-    shiftEdits(numShifted) {
+    shiftEdits(numShifted?: number) {
         // filter all removed edits
         const numRemovedEdits = numShifted ?? this.editList.length - this.editLimit;
         if (numRemovedEdits <= 0) {
@@ -250,8 +266,10 @@ class EditDetector {
             numRemovedEdits
         ));
 		
-		function performEdits(doc, edits) {
-			const lines = doc.match(/[^\r\n]*(\r?\n|\r\n|$)/g);
+		function performEdits(doc: string, edits: Edit[]) {
+            const lines = doc.match(/[^\r\n]*(\r?\n|\r\n|$)/g);
+            if (!lines) return;
+
 			const addedLines = Array(lines.length).fill("");
 			for (const edit of edits) {
 				const s = edit.s - 1;  // zero-based starting line
@@ -313,7 +331,7 @@ class EditDetector {
     async getUpdatedEditList() {
         const liveGetter = liveFilesGetter();
         const openedDocuments = getOpenedFilePaths();
-        const docGetter = async (filePath) => {
+        const docGetter = async (filePath: string) => {
             return await liveGetter(openedDocuments, filePath);
         }
         await globalEditDetector.updateAllSnapshotsFromDocument(docGetter);
@@ -325,30 +343,27 @@ const globalEditDetector = new EditDetector();
 
 // BASIC FUNCTIONS
 
-function toDriveLetterLowerCasePath(filePath) {
-    const driveLetterRegEx = /([A-Z])(?=:(\/|\\))/;
-    return filePath.replace(driveLetterRegEx, (match, p1) => {
-        return p1.toLowerCase();
-    })
+function toDriveLetterLowerCasePath(filePath: string) {
+    return fs.realpathSync.native(filePath);
 }
 
 // Convert any-style path to POSIX-style path
-function toPosixPath(filePath) {
+function toPosixPath(filePath: string) {
     return osType == 'Windows_NT' ?
         filePath.replace(/\\/g, '/')
         : filePath;
 }
 
-function toAbsPath(rootPath, filePath) {
+function toAbsPath(rootPath: string, filePath: string) {
     return toPosixPath(path.join(rootPath, filePath));
 }
 
-function toRelPath(rootPath, filePath) {
+function toRelPath(rootPath: string, filePath: string) {
     return toPosixPath(path.relative(rootPath, filePath));
 }
 
-function getOpenedFilePaths() {
-    const openedPaths = new Set();
+function getOpenedFilePaths(): Set<string> {
+    const openedPaths: Set<string> = new Set();
     for (const tabGroup of vscode.window.tabGroups.all) {
         for (const tab of tabGroup.tabs) {
             if (tab.input instanceof vscode.TabInputText) {
@@ -364,7 +379,7 @@ function getActiveFilePath() {
     return filePath === undefined ? undefined : toPosixPath(filePath);
 }
 
-async function getLineInfoInDocument(path, lineNo) {
+async function getLineInfoInDocument(path: string, lineNo: number) {
     const doc = await vscode.workspace.openTextDocument(path);
     const textLine = doc.lineAt(lineNo);
     return {
@@ -374,25 +389,28 @@ async function getLineInfoInDocument(path, lineNo) {
 }
 
 function getRootPath() {
-    return toPosixPath(vscode.workspace.workspaceFolders[0].uri.fsPath);
+    const workspacePath = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
+    if (!workspacePath) {
+        throw new Error('No workspace folder is opened');
+    }
+    return toPosixPath(workspacePath);
 }
 
 async function readGlobFiles(useSnapshot = true) {
     const rootPath = getRootPath();
-    const fileList = [];
 
     // Use glob to exclude certain files and return a list of all valid files
     const filePathList = await globFiles(rootPath);
     const fileGetter = useSnapshot
-        ? async (filePath) => {
+        ? async (filePath: string) => {
             const liveGetter = liveFilesGetter();
             const openedPaths = getOpenedFilePaths();
             return await liveGetter(openedPaths, toDriveLetterLowerCasePath(filePath))
         }
-        : async (filePath) => fs.readFileSync(filePath, 'utf-8');
+        : async (filePath: string) => fs.readFileSync(filePath, 'utf-8');
     
 
-    async function readFileFromPathList(filePathList, contentList) {
+    async function readFileFromPathList(filePathList: string[], contentList: [string, string][]) {
         for (const filePath of filePathList) {
             try {
                 const stat = fs.statSync(filePath);
@@ -406,6 +424,7 @@ async function readGlobFiles(useSnapshot = true) {
         }
     }
 
+    const fileList: [string, string][] = [];
     await readFileFromPathList(filePathList, fileList);
     // Replace directly when reading files, instead of replacing later
     // if (useSnapshot) {
@@ -417,7 +436,7 @@ async function readGlobFiles(useSnapshot = true) {
 
 // Exact match is used here! Ensure the file paths and opened paths are in the same format
 function liveFilesGetter() {
-    return async (openedPaths, filePath) => 
+    return async (openedPaths: Set<string>, filePath: string) => 
         openedPaths.has(filePath)
             ? (await vscode.workspace.openTextDocument(vscode.Uri.file(filePath))).getText()
             : fs.readFileSync(filePath, 'utf-8');
@@ -425,10 +444,10 @@ function liveFilesGetter() {
 
 // ABOUT EDIT
 
-function detectEdit(prev, curr) {
+function detectEdit(prev: string, curr: string): SimpleEdit {
     // Split the strings into lists of strings by line
-    const prevSnapshotStrList = prev.match(/(.*?(?:\r\n|\n|\r|$))/g).slice(0, -1); // Keep the line break at the end of each line
-    const currSnapshotStrList = curr.match(/(.*?(?:\r\n|\n|\r|$))/g).slice(0, -1); // Keep the line break at the end of each line
+    const prevSnapshotStrList = prev.match(/(.*?(?:\r\n|\n|\r))|(.+$)/g) ?? []; // Keep the line break at the end of each line
+    const currSnapshotStrList = curr.match(/(.*?(?:\r\n|\n|\r))|(.+$)/g) ?? []; // Keep the line break at the end of each line
 
     // Find the line number where the difference starts from the beginning
     let start = 0;
@@ -453,7 +472,7 @@ function detectEdit(prev, curr) {
     };
 }
 
-function pushEdit(item) {
+function pushEdit(item: SimpleEdit) {
     editorState.prevEdits.push(item);
 
     if (editorState.prevEdits.length > 3) {
@@ -461,11 +480,11 @@ function pushEdit(item) {
     }
 }
 
-function getLocationAtRange(edits, document, range) {
+function getLocationAtRange(edits: NativeEdit[], document: vscode.TextDocument, range: vscode.Range) {
     const filePath = toPosixPath(document.uri.fsPath);
     const startPos = document.offsetAt(range.start);
     const endPos = document.offsetAt(range.end);
-    return edits.find((mod) => {
+    return edits.find((mod: NativeEdit) => {
         if (filePath == mod.targetFilePath && mod.startPos <= startPos && endPos <= mod.endPos) {
             let highlightedRange = new vscode.Range(document.positionAt(mod.startPos), document.positionAt(mod.endPos));
             const currentToBeReplaced = document.getText(highlightedRange).trim();
@@ -481,12 +500,15 @@ function getLocationAtRange(edits, document, range) {
 //	Try updating prevEdits
 // 	If there's new edits return prevEdits
 //  Else return null
-function updatePrevEdits(lineNo) {
+function updatePrevEdits(lineNo: number) {
     const line = lineNo;
     editorState.currCursorAtLine = line + 1; // VScode API starts counting lines from 0, while our line numbers start from 1, note the +- 1
     console.log(`==> Cursor position: Line ${editorState.prevCursorAtLine} -> ${editorState.currCursorAtLine}`);
-    editorState.currSnapshot = vscode.window.activeTextEditor.document.getText(); // Read the current text in the editor
+    editorState.currSnapshot = vscode.window.activeTextEditor?.document.getText(); // Read the current text in the editor
     if (editorState.prevCursorAtLine != editorState.currCursorAtLine && editorState.prevCursorAtLine != 0) { // When the pointer changes position and is not at the first position in the editor
+        if (!(editorState.prevSnapshot && editorState.currSnapshot)) {
+            return false;
+        }
         let edition = detectEdit(editorState.prevSnapshot, editorState.currSnapshot); // Detect changes compared to the previous snapshot
 
         if (edition.beforeEdit != edition.afterEdit) {
@@ -508,7 +530,7 @@ function getPrevEdits() {
 }
 
 // glob files with specific patterns
-async function globFiles(rootPath, globPatterns = []) {
+async function globFiles(rootPath: string, globPatterns: string[] = []) {
     // Built-in glob patterns
     const globPatternStr = (globPatterns instanceof Array && globPatterns.length > 0)
         ? globPatterns
@@ -529,17 +551,18 @@ async function globFiles(rootPath, globPatterns = []) {
     return pathList.concat(reincludedPathList);
 }
 
-function replaceCurrentSnapshot(fileList) {
-    const currentFile = fileList.find((file) => file[0] === getActiveFilePath);
+function replaceCurrentSnapshot(fileList: [string, string | undefined][]) {
+    const activeFilePath = getActiveFilePath();
+    const currentFile = fileList.find((file) => file[0] === activeFilePath);
     if (currentFile) {
         currentFile[1] = editorState.currSnapshot; // Use the unsaved content as the actual file content
     }
 }
 
-function initFileState(editor) {
+function initFileState(editor: vscode.TextEditor | undefined) {
     if (!editor) return;
-    editorState.inDiffEditor = (vscode.window.tabGroups.activeTabGroup.activeTab.input instanceof vscode.TabInputTextDiff);
-    editorState.language = vscode.window.activeTextEditor?.document?.languageId.toLowerCase();
+    editorState.inDiffEditor = (vscode.window.tabGroups.activeTabGroup.activeTab?.input instanceof vscode.TabInputTextDiff);
+    editorState.language = vscode.window.activeTextEditor?.document?.languageId.toLowerCase() ?? "unknown";
     statusBarItem.setStatusDefault(true);
 
     // update file snapshot

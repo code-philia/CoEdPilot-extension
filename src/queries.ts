@@ -1,10 +1,17 @@
 import { queryState } from './global-context';
 import { toRelPath, getActiveFilePath, toAbsPath, getLineInfoInDocument } from './file';
-import { queryDiscriminator, queryLocator, queryGenerator } from './model-client';
+import { queryDiscriminator, queryLocator, queryGenerator } from './client';
 import { statusBarItem } from './status-bar';
+import { EditType, SimpleEdit } from './base-types';
 
 // ------------ Extension States -------------
-async function queryLocationFromModel(rootPath, files, prevEdits, commitMessage, language) {
+async function queryLocationFromModel(
+    rootPath: string, 
+    files: [string, string][],
+    prevEdits: SimpleEdit[],
+    commitMessage: string, 
+    language: string
+) {
     /* 
         Discriminator:
         input:
@@ -40,9 +47,14 @@ async function queryLocationFromModel(rootPath, files, prevEdits, commitMessage,
             ]
         }
      */
+    const activeFileAbsPath = getActiveFilePath();
+    if (!activeFileAbsPath) {
+        return;
+    }
+    
     const activeFilePath = toRelPath(
         rootPath,
-        getActiveFilePath()
+        activeFileAbsPath
     );
 
     // convert all paths to relative paths
@@ -64,7 +76,7 @@ async function queryLocationFromModel(rootPath, files, prevEdits, commitMessage,
     };
     const discriminatorOutput = await queryDiscriminator(disc_input);
     console.log('==> Discriminated files to be analyzed:');
-    discriminatorOutput.data.forEach(file => {
+    discriminatorOutput.data.forEach((file: string) => {
         console.log('\t*' + file);
     });
     console.log('==> Total no. of files:', files.length);
@@ -97,7 +109,14 @@ async function queryLocationFromModel(rootPath, files, prevEdits, commitMessage,
     return rawLocations;
 }
 
-async function queryEditFromModel(fileContent, editType, atLines, prevEdits, commitMessage, language) {
+async function queryEditFromModel(
+    fileContent: string,
+    editType: EditType,
+    atLines: number[],
+    prevEdits: SimpleEdit[],
+    commitMessage: string,
+    language: string
+) {
     /* 	
         Generator:
         input:

@@ -3,8 +3,9 @@ import { toPosixPath } from './file';
 import { editorState } from './global-context';
 import { queryState } from './global-context';
 import { BaseComponent, numIn } from './base-component';
-import { editLocationView } from './activity-bar';
+import { editLocationView } from './location-tree';
 import path from 'path';
+import { NativeEditLocation } from './base-types';
 
 const replaceBackgroundColor = 'rgba(255,0,0,0.3)';
 const addBackgroundColor = 'rgba(0,255,0,0.3)';
@@ -12,6 +13,9 @@ const replaceIconPath = path.join(__dirname, '../media/edit-red.svg');
 const addIconPath = path.join(__dirname, '../media/add-green.svg');
 
 class LocationDecoration extends BaseComponent {
+	replaceDecorationType: vscode.TextEditorDecorationType;
+	addDecorationType: vscode.TextEditorDecorationType;
+
 	constructor() {
 		super();
 		this.replaceDecorationType = vscode.window.createTextEditorDecorationType({
@@ -29,14 +33,24 @@ class LocationDecoration extends BaseComponent {
 			gutterIconSize: "75%"
 		});
 		
-		this.disposable = vscode.Disposable.from(
-			vscode.window.onDidChangeActiveTextEditor(this.setLocationDecorations, this),
-			queryState.onDidChangeLocations(() => this.setLocationDecorations(vscode.window.activeTextEditor), this),
-			editLocationView.treeView.onDidChangeSelection(() => this.setLocationDecorations(vscode.window.activeTextEditor), this)
+		this.register(
+			vscode.window.onDidChangeActiveTextEditor(
+				(editor) => this.setLocationDecorations(editor, queryState.locations),
+				this
+			),
+			queryState.onDidChangeLocations(
+				() => this.setLocationDecorations(vscode.window.activeTextEditor, queryState.locations),
+				this
+			),
+			editLocationView.treeView.onDidChangeSelection(
+				() => this.setLocationDecorations(vscode.window.activeTextEditor, queryState.locations),
+				this
+			)
 		);
 	}
 
-	setLocationDecorations(editor) {
+	setLocationDecorations(editor?: vscode.TextEditor, locations?: NativeEditLocation[]) {
+		if (!editor || !locations) return;
 		if (editorState.inDiffEditor) return;
 
 		const uri = editor?.document?.uri;
@@ -45,10 +59,10 @@ class LocationDecoration extends BaseComponent {
 		const filePath = toPosixPath(uri.fsPath);
 		if (uri.scheme !== 'file') return undefined;
 
-		const decorationsForAlter = [];
-		const decorationsForAdd = [];
+		const decorationsForAlter: vscode.DecorationOptions[] = [];
+		const decorationsForAdd: vscode.DecorationOptions[] = [];
 	
-		queryState.locations
+		locations
 			.filter((loc) => loc.targetFilePath === filePath)
 			.map((loc) => {
 				let startLine = loc.atLines[0];

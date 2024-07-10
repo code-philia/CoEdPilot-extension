@@ -5,18 +5,41 @@ import path from 'path';
 import { BaseComponent } from './base-component';
 import { defaultLineBreak, editorState, queryState } from './global-context';
 
-class BaseTempFileProvider extends BaseComponent {
+class BaseTempFileProvider extends BaseComponent implements vscode.FileSystemProvider {
+    private _onDidChangeFile: vscode.EventEmitter<vscode.FileChangeEvent[]>;
+    onDidChangeFile: vscode.Event<vscode.FileChangeEvent[]>;
+    
     constructor() {
         super();
         this._onDidChangeFile = new vscode.EventEmitter();
         this.onDidChangeFile = this._onDidChangeFile.event;
     }
+    readDirectory(uri: vscode.Uri): [string, vscode.FileType][] | Thenable<[string, vscode.FileType][]> {
+        throw new Error('Method not implemented.');
+    }
+    createDirectory(uri: vscode.Uri): void | Thenable<void> {
+        throw new Error('Method not implemented.');
+    }
+    readFile(uri: vscode.Uri): Uint8Array | Thenable<Uint8Array> {
+        throw new Error('Method not implemented.');
+    }
+    writeFile(uri: vscode.Uri, content: Uint8Array, options: { readonly create: boolean; readonly overwrite: boolean; }): void | Thenable<void> {
+        throw new Error('Method not implemented.');
+    }
+    delete(uri: vscode.Uri, options: { readonly recursive: boolean; }): void | Thenable<void> {
+        throw new Error('Method not implemented.');
+    }
+    rename(oldUri: vscode.Uri, newUri: vscode.Uri, options: { readonly overwrite: boolean; }): void | Thenable<void> {
+        throw new Error('Method not implemented.');
+    }
+    copy?(source: vscode.Uri, destination: vscode.Uri, options: { readonly overwrite: boolean; }): void | Thenable<void> {
+        throw new Error('Method not implemented.');
+    }
+    watch(uri: vscode.Uri, options: { readonly recursive: boolean; readonly excludes: readonly string[]; }): vscode.Disposable {
+        throw new Error('Method not implemented.');
+    }
 
-    async readFile(uri) { return new Uint8Array(); }
-
-    // The following member functions are to complement the vscode.FileSystemProvider interface
-
-    async stat(uri) {
+    async stat(uri: vscode.Uri) {
         return {
             type: vscode.FileType.File,
             ctime: Date.now(),
@@ -25,24 +48,11 @@ class BaseTempFileProvider extends BaseComponent {
             name: uri.fsPath
         }
     }
-
-    watch(uri, options) { return { dispose: () => { } }; }
-
-    async readDirectory(uri) { return []; }
-
-    async createDirectory(uri) { }
-
-    async writeFile(uri, content, options) { }
-
-    async delete(uri, options) { }
-
-    async rename(oldUri, newUri, options) { }
-
-    async copy(source, destination, options) { }
-
 }
 
-class CompareTempFileProvider extends BaseTempFileProvider { // impletements vscode.FileSystemProvider
+class CompareTempFileProvider extends BaseTempFileProvider {
+    tempFiles: Map<string, Uint8Array>;
+    
     constructor() {
         super();
         this.tempFiles = new Map();
@@ -52,16 +62,21 @@ class CompareTempFileProvider extends BaseTempFileProvider { // impletements vsc
         );
     }
 
-    async writeFile(uri, content, options) {
+    async writeFile(uri: vscode.Uri, content: Uint8Array, options: { create: boolean; overwrite: boolean; } = { create: true, overwrite: true }) {
         this.tempFiles.set(uri.path, content);
     }
 
-    async readFile(uri) {
-        return this.tempFiles.get(uri.path);
+    async readFile(uri: vscode.Uri) {
+        const content = this.tempFiles.get(uri.path);
+        if (content !== undefined) {
+            return content
+        } else {
+            throw vscode.FileSystemError.FileNotFound(uri);
+        }
     }
 
     getAsyncWriter() {
-        return (async (path, str) => {
+        return (async (path: string, str: string) => {
             const encoder = new util.TextEncoder();
             const tempUri = vscode.Uri.parse(`temp:${path}`);
             await this.writeFile(tempUri, encoder.encode(str));
@@ -78,12 +93,34 @@ const diffTabSelectors = new Map();
  * Use a series of suggested edits to generate a live editable diff view for the user to make the decision
  */
 class EditSelector {
-    constructor(path, fromLine, toLine, edits, originWrite, isAdd = false) {
+    path: string;
+    fromLine: number;
+    toLine: number;
+    edits: string[];
+    tempWrite: (path: string, str: string) => Promise<vscode.Uri>;
+    isAdd: boolean;
+    originalContent: string;
+    modAt: number;
+    modifiedUri: vscode.Uri;
+
+    tempUri?: vscode.Uri;
+    document?: vscode.TextDocument;
+    id?: string;
+    pathId?: string;
+
+    constructor(
+        path: string,
+        fromLine: number,
+        toLine: number,
+        edits: string[],
+        tempWrite: (path: string, str: string) => Promise<vscode.Uri>,
+        isAdd: boolean = false
+    ) {
         this.path = path;
         this.fromLine = fromLine;
-        this.toLine = toLine;  // toLine is exclusive
+        this.toLine = toLine; // toLine is exclusive
         this.edits = edits;
-        this.tempWrite = originWrite ?? tempWrite;
+        this.tempWrite = tempWrite;
         this.isAdd = isAdd;
 
         this.originalContent = "";
@@ -108,7 +145,7 @@ class EditSelector {
      * Find the editor where the document is open then change its 
      * @param {*} replacement 
      */
-    async _performMod(replacement) {
+    async _performMod(replacement: string) {
         const x = this.originalContent.match(/\r?\n|\n/);
         const lineBreak = x?.at(0) ?? defaultLineBreak;
         const lines = this.originalContent.split(lineBreak);
@@ -126,10 +163,17 @@ class EditSelector {
         this._replaceDocument(modifiedText);
     }
 
-    async _replaceDocument(fullText) {
+    async _replaceDocument(fullText: string) {
+        if (!this.document) {
+            return;
+        }
+
         const editor = vscode.window.visibleTextEditors.find(
             (editor) => editor.document === this.document
         );
+        if (!editor) {
+            return;
+        }
         
         const fullRange = new vscode.Range(
             this.document.positionAt(0),
@@ -154,16 +198,12 @@ class EditSelector {
         diffTabSelectors.set(this.modifiedUri.toString(), this);
         // let removeSelectorEvent = null;
 
-        /**
-         * 
-         * @param {vscode.Tab} tab 
-         */
-        const tabMatch = (tab) => {
-            const input = tab.input;
-            return input instanceof vscode.TabInputTextDiff
-                && input.original.toString() == this.tempUri.toString()
-                && input.modified.toString() == this.modifiedUri.toString();
-        }
+        // const tabMatch = (tab: vscode.Tab) => {
+        //     const input = tab.input;
+        //     return input instanceof vscode.TabInputTextDiff
+        //         && input.original.toString() == this.tempUri.toString()
+        //         && input.modified.toString() == this.modifiedUri.toString();
+        // }
         // const event = tabGroups.onDidChangeTabs((e) => {
         //     if (e.closed.some(tabMatch) && !e.opened.some(tabMatch)) {
         //         diffTabSelectors.delete(activeTab);

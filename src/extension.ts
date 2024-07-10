@@ -2,13 +2,13 @@ import vscode from 'vscode';
 import { compareTempFileSystemProvider } from './compare-view';
 import { FileStateMonitor, initFileState } from './file';
 import { editorState, queryState } from './global-context';
-import { editLocationView } from './activity-bar';
-import { LocationDecoration } from './inline';
-import { registerBasicCommands, registerTopTaskCommands } from './extension-register';
+import { editLocationView } from './location-tree';
+import { LocationDecoration } from './location-decoration';
+import { registerBasicCommands, registerTopTaskCommands } from './comands';
 import { statusBarItem } from './status-bar';
-import { modelServerProcess } from './model-client';
+import { modelServerProcess } from './client';
 
-function activate(context) {
+function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(
 		editorState,
 		queryState,

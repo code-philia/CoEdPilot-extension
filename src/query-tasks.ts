@@ -7,6 +7,7 @@ import { EditSelector, diffTabSelectors, tempWrite } from './compare-view';
 import { registerCommand } from "./base-component";
 import { globalEditLock } from './global-context';
 import { statusBarItem } from './status-bar';
+import { EditType } from './base-types';
 
 async function predictLocation() {
     if (!isActiveEditorLanguageSupported()) {
@@ -36,7 +37,7 @@ async function predictLocation() {
     });
 }
 
-async function predictLocationIfHasEditAtSelectedLine(event) {
+async function predictLocationIfHasEditAtSelectedLine(event: vscode.TextEditorSelectionChangeEvent) {
     const hasNewEdits = updatePrevEdits(event.selections[0].active.line);
     if (hasNewEdits) {
         await predictLocation();
@@ -64,7 +65,7 @@ async function predictEdit() {
     
     const fromLine = selectedRange.start.line;
     let toLine = selectedRange.end.line;
-    let editType = "";
+    let editType: EditType;
 
     if (selectedRange.isEmpty) {
         editType = "add";
@@ -100,7 +101,7 @@ async function predictEdit() {
         );
         
         // Remove syntax-level unchanged replacements
-        queryResult.replacement = queryResult.replacement.filter((snippet) => snippet.trim() !== selectedContent.trim());
+        queryResult.replacement = queryResult.replacement.filter((snippet: string) => snippet.trim() !== selectedContent.trim());
 
         const selector = new EditSelector(
             toPosixPath(uri.fsPath),
@@ -154,13 +155,16 @@ class GenerateEditCommand extends BaseComponent{
             }
             return undefined;
         }
-        async function switchEdit(offset) {
+        async function switchEdit(offset: number) {
             const selector = getSelectorOfCurrentTab();
             selector && await selector.switchEdit(offset);
         }
         async function closeTab() {
             const tabGroups = vscode.window.tabGroups;
-            await tabGroups.close(tabGroups.activeTabGroup.activeTab, true);
+            const activeTab = tabGroups.activeTabGroup.activeTab;
+            if (activeTab) {
+                await tabGroups.close(tabGroups.activeTabGroup.activeTab, true);
+            }
         }
         async function clearEdit() {
             const selector = getSelectorOfCurrentTab();
