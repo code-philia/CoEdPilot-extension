@@ -1,6 +1,6 @@
 import axios from 'axios';
 import vscode from 'vscode';
-import { BaseComponent } from './base-component';
+import { BaseComponent } from '../utils/base-component';
 
 /**
  * 
@@ -18,7 +18,7 @@ function parseProxyUrl(proxyUrl: string) {
     }
 }
 
-let server_mock = false;
+let server_mock = true;
 
 class ModelServerProcess extends BaseComponent{
     apiUrl: string;

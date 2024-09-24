@@ -1,11 +1,11 @@
 import vscode from 'vscode';
-import { toPosixPath } from './file';
-import { editorState } from './global-context';
-import { queryState } from './global-context';
-import { BaseComponent, numIn } from './base-component';
-import { editLocationView } from './location-tree';
+import { toPosixPath } from '../utils/file-utils';
+import { editorState } from '../global-context';
+import { queryState } from '../global-context';
+import { BaseComponent, numIn } from '../utils/base-component';
+import { editLocationView } from '../views/location-tree-view';
 import path from 'path';
-import { NativeEditLocation } from './base-types';
+import { NativeEditLocation } from '../utils/base-types';
 
 const replaceBackgroundColor = 'rgba(255,0,0,0.3)';
 const addBackgroundColor = 'rgba(0,255,0,0.3)';

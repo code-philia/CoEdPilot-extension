@@ -1,13 +1,13 @@
 import vscode from 'vscode';
-import { getRootPath, readGlobFiles, updatePrevEdits, toPosixPath, globalEditDetector } from './file';
-import { editorState, isActiveEditorLanguageSupported, queryState } from './global-context';
+import { getRootPath, readGlobFiles, updatePrevEdits, toPosixPath, globalEditDetector } from '../utils/file-utils';
+import { editorState, isActiveEditorLanguageSupported, queryState } from '../global-context';
 import { queryLocationFromModel, queryEditFromModel } from './queries';
-import { BaseComponent } from './base-component';
-import { EditSelector, diffTabSelectors, tempWrite } from './compare-view';
-import { registerCommand } from "./base-component";
-import { globalEditLock } from './global-context';
-import { statusBarItem } from './status-bar';
-import { EditType } from './base-types';
+import { BaseComponent } from '../utils/base-component';
+import { EditSelector, diffTabSelectors, tempWrite } from '../views/compare-view';
+import { registerCommand } from "../utils/base-component";
+import { globalEditLock } from '../global-context';
+import { statusBarItem } from '../ui/progress-indicator';
+import { EditType } from '../utils/base-types';
 
 async function predictLocation() {
     if (!isActiveEditorLanguageSupported()) {

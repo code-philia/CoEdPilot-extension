@@ -1,6 +1,6 @@
 import vscode from 'vscode';
-import { BaseComponent } from './base-component';
-import { isActiveEditorLanguageSupported } from './global-context';
+import { BaseComponent } from '../utils/base-component';
+import { isActiveEditorLanguageSupported } from '../global-context';
 
 class ProgressDisplayStatusBarItem extends BaseComponent {
     item: vscode.StatusBarItem;

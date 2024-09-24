@@ -8,7 +8,7 @@ from tqdm import tqdm
 from torch.utils.data import DataLoader, TensorDataset
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from perf import Stopwatch
-from model_manager import load_model_with_cache
+from model_cache import load_model_with_cache
 
 MODEL_ROLE = "discriminator"
 OUTPUT_MAX = 100

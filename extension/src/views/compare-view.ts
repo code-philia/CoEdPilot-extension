@@ -2,8 +2,8 @@ import vscode from 'vscode';
 import crypto from 'crypto';
 import util from 'util';
 import path from 'path';
-import { BaseComponent } from './base-component';
-import { defaultLineBreak, editorState, queryState } from './global-context';
+import { BaseComponent } from '../utils/base-component';
+import { defaultLineBreak, editorState, queryState } from '../global-context';
 
 class BaseTempFileProvider extends BaseComponent implements vscode.FileSystemProvider {
     private _onDidChangeFile: vscode.EventEmitter<vscode.FileChangeEvent[]>;
@@ -39,13 +39,12 @@ class BaseTempFileProvider extends BaseComponent implements vscode.FileSystemPro
         throw new Error('Method not implemented.');
     }
 
-    async stat(uri: vscode.Uri) {
+    async stat(uri: vscode.Uri): Promise<vscode.FileStat> {
         return {
             type: vscode.FileType.File,
             ctime: Date.now(),
             mtime: Date.now(),
-            size: 0,
-            name: uri.fsPath
+            size: 0
         }
     }
 }
@@ -58,7 +57,7 @@ class CompareTempFileProvider extends BaseTempFileProvider {
         this.tempFiles = new Map();
 
         this.register(
-            vscode.workspace.registerFileSystemProvider("temp", this, { isReadonly: true })
+            vscode.workspace.registerFileSystemProvider("temp", this, { isReadonly: false })
         );
     }
 
@@ -180,6 +179,7 @@ class EditSelector {
             this.document.positionAt(this.document.getText().length)
         );
         
+        // TODO can we use this callback function to implement MOL "undo-rename-do" work?
         await editor.edit(editBuilder => {
             editBuilder.replace(fullRange, fullText)
         }, { undoStopBefore: false, undoStopAfter: false });
@@ -187,6 +187,7 @@ class EditSelector {
 
     async _showDiffView() {
         // Open a diff view to compare the original and the modified document
+        // TODO no longer show index of suggestion here, but as a CodeLens over the line of edit
         await vscode.commands.executeCommand('vscode.diff',
             this.tempUri,
             this.modifiedUri,

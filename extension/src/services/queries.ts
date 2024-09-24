@@ -1,7 +1,7 @@
 import { queryState } from './global-context';
-import { toRelPath, getActiveFilePath, toAbsPath, getLineInfoInDocument } from './file';
+import { toRelPath, getActiveFilePath, toAbsPath, getLineInfoInDocument } from './file-utils';
 import { queryDiscriminator, queryLocator, queryGenerator } from './client';
-import { statusBarItem } from './status-bar';
+import { statusBarItem } from './ui/progress-indicator';
 import { EditType, SimpleEdit } from './base-types';
 
 // ------------ Extension States -------------

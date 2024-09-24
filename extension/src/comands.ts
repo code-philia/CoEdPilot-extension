@@ -1,7 +1,7 @@
 import vscode from "vscode";
-import { PredictLocationCommand, GenerateEditCommand } from "./query-tasks";
-import { registerCommand, numIn } from "./base-component";
-import { globalEditDetector } from "./file";
+import { PredictLocationCommand, GenerateEditCommand } from "./services/query-tasks";
+import { registerCommand, numIn } from "./utils/base-component";
+import { globalEditDetector } from "./utils/file-utils";
 // import { addUserStatItem } from "./global-context";
 
 export function registerBasicCommands() {

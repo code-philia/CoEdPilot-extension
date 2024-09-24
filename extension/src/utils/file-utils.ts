@@ -4,9 +4,9 @@ import fs from 'fs';
 import path from 'path';
 import { glob } from 'glob';
 import { BaseComponent } from './base-component';
-import { editorState, isActiveEditorLanguageSupported, osType } from './global-context';
-import { statusBarItem } from './status-bar';
-import { Edit, NativeEdit, SimpleEdit } from './base-types';
+import { editorState, isActiveEditorLanguageSupported, osType } from '../global-context';
+import { statusBarItem } from '../ui/progress-indicator';
+import { Edit, SimpleEdit } from './base-types';
 
 type GlobPatterns = {
     exclude: string[],
@@ -480,22 +480,22 @@ function pushEdit(item: SimpleEdit) {
     }
 }
 
-function getLocationAtRange(edits: NativeEdit[], document: vscode.TextDocument, range: vscode.Range) {
-    const filePath = toPosixPath(document.uri.fsPath);
-    const startPos = document.offsetAt(range.start);
-    const endPos = document.offsetAt(range.end);
-    return edits.find((mod: NativeEdit) => {
-        if (filePath == mod.targetFilePath && mod.startPos <= startPos && endPos <= mod.endPos) {
-            let highlightedRange = new vscode.Range(document.positionAt(mod.startPos), document.positionAt(mod.endPos));
-            const currentToBeReplaced = document.getText(highlightedRange).trim();
-            if (currentToBeReplaced == mod.toBeReplaced.trim()) {
-                return true;
-            } else {
-                return false;
-            }
-        }
-    })
-}
+// function getLocationAtRange(edits: NativeEditLocation[], document: vscode.TextDocument, range: vscode.Range) {
+//     const filePath = toPosixPath(document.uri.fsPath);
+//     const startPos = document.offsetAt(range.start);
+//     const endPos = document.offsetAt(range.end);
+//     return edits.find((mod: NativeEditLocation) => {
+//         if (filePath == mod.targetFilePath && mod.startPos <= startPos && endPos <= mod.endPos) {
+//             let highlightedRange = new vscode.Range(document.positionAt(mod.startPos), document.positionAt(mod.endPos));
+//             const currentToBeReplaced = document.getText(highlightedRange).trim();
+//             if (currentToBeReplaced == mod.toBeReplaced.trim()) {
+//                 return true;
+//             } else {
+//                 return false;
+//             }
+//         }
+//     })
+// }
 
 //	Try updating prevEdits
 // 	If there's new edits return prevEdits
@@ -606,7 +606,6 @@ export {
     getLineInfoInDocument,
     detectEdit,
     pushEdit,
-    getLocationAtRange,
     updatePrevEdits,
     getPrevEdits,
     globFiles,

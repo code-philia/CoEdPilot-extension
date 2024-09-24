@@ -1,8 +1,8 @@
 import vscode from "vscode";
-import { BaseComponent } from "./base-component";
-import { registerCommand } from "./base-component";
+import { BaseComponent } from "./utils/base-component";
+import { registerCommand } from "./utils/base-component";
 import os from "os";
-import { LineBreak, NativeEditLocation, SimpleEdit } from "./base-types";
+import { LineBreak, NativeEditLocation, SimpleEdit } from "./utils/base-types";
 
 export const supportedLanguages = [
     "go",

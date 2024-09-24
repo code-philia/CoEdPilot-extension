@@ -1,9 +1,9 @@
 import vscode, { TreeItem, TreeItemCollapsibleState } from 'vscode';
 import path from 'path';
-import { queryState } from './global-context';
-import { BaseComponent } from './base-component';
-import { getRootPath, toRelPath } from './file';
-import { EditType, NativeEdit, NativeEditLocation } from './base-types';
+import { queryState } from '../global-context';
+import { BaseComponent } from '../utils/base-component';
+import { getRootPath, toRelPath } from '../utils/file-utils';
+import { EditType, NativeEditLocation } from '../utils/base-types';
 
 export class LocationTreeProvider implements vscode.TreeDataProvider<FileItem | ModItem>  {
     private _onDidChangeTreeData: vscode.EventEmitter<FileItem | undefined> = new vscode.EventEmitter<FileItem | undefined>();
@@ -126,7 +126,7 @@ export class LocationTreeProvider implements vscode.TreeDataProvider<FileItem | 
         }
     }
 
-    getFileItem(filePath: string, fileMods: NativeEdit[]) {
+    getFileItem(filePath: string, fileMods: NativeEditLocation[]) {
         const modListOnPath = fileMods;
         const fileName = path.basename(filePath); 
         var fileItem = new FileItem(

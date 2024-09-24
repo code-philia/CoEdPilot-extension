@@ -11,10 +11,13 @@ export type SimpleEdit = {
 
 export type NativeEditLocation = {
     targetFilePath: string;
-    toBeReplaced: string;
     editType: EditType;
     lineBreak: LineBreak;
     atLines: number[];
+    lineInfo: {
+        range: vscode.Range,
+        text: string
+    }
 };
 
 export type NativeEdit = {

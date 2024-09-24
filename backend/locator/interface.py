@@ -5,7 +5,7 @@ from tqdm import tqdm
 from torch.utils.data import DataLoader, SequentialSampler, TensorDataset
 from transformers import (RobertaConfig, RobertaModel, RobertaTokenizer)
 from perf import Stopwatch
-from model_manager import load_model_with_cache
+from model_cache import load_model_with_cache
 
 CODE_WINDOW_LENGTH = 10
 MODEL_ROLE = "locator"
