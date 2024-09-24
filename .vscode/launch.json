@@ -15,19 +15,20 @@
 				// "--remote=wsl+Ubuntu-22.04"
 			],
 			"outFiles": [
-				"${workspaceFolder}/out/**/*.js"
+				"${workspaceFolder}/extension/out/**/*.js"
 			],
+			"cwd": "${workspaceFolder}/extension/",
 			"preLaunchTask": "npm: watch"
 		},
 		{
 			"name": "Python server debugging",
-			"type": "python",
+			"type": "debugpy",
 			"request": "launch",
-			"program": "${workspaceFolder}/src/model_server/server.py",
+			"program": "${workspaceFolder}/backend/server.py",
 			"console": "integratedTerminal",
 			"justMyCode": true,
 			"env": {
-				"PYTHONPATH": "${workspaceFolder}/src/model_server"
+				"PYTHONPATH": "${workspaceFolder}/backend/"
 			}
 		},
 		{
@@ -36,7 +37,7 @@
 			"request": "launch",
 			"args": [
 				"--extensionDevelopmentPath=${workspaceFolder}",
-				"--extensionTestsPath=${workspaceFolder}/test/suite/index"
+				"--extensionTestsPath=${workspaceFolder}/extension/test/suite/index"
 			]
 		}
 	]
