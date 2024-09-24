@@ -1,6 +1,6 @@
 import axios from 'axios';
 import vscode from 'vscode';
-import { BaseComponent } from '../utils/base-component';
+import { DisposableComponent } from '../utils/base-component';
 
 /**
  * 
@@ -20,7 +20,7 @@ function parseProxyUrl(proxyUrl: string) {
 
 let server_mock = true;
 
-class ModelServerProcess extends BaseComponent{
+class ModelServerProcess extends DisposableComponent{
     apiUrl: string;
     proxy: {host: string, port: number} | undefined;
 

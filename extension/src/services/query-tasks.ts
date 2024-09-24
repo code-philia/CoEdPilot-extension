@@ -2,9 +2,8 @@ import vscode from 'vscode';
 import { getRootPath, readGlobFiles, updatePrevEdits, toPosixPath, globalEditDetector } from '../utils/file-utils';
 import { editorState, isActiveEditorLanguageSupported, queryState } from '../global-context';
 import { queryLocationFromModel, queryEditFromModel } from './queries';
-import { BaseComponent } from '../utils/base-component';
+import { DisposableComponent } from '../utils/base-component';
 import { EditSelector, diffTabSelectors, tempWrite } from '../views/compare-view';
-import { registerCommand } from "../utils/base-component";
 import { globalEditLock } from '../global-context';
 import { statusBarItem } from '../ui/progress-indicator';
 import { EditType } from '../utils/base-types';
@@ -122,7 +121,7 @@ async function predictEdit() {
     }
 }
 
-class PredictLocationCommand extends BaseComponent{
+class PredictLocationCommand extends DisposableComponent{
 	constructor() {
 		super();
 		this.register(
@@ -134,7 +133,7 @@ class PredictLocationCommand extends BaseComponent{
 	}
 }
 
-class GenerateEditCommand extends BaseComponent{
+class GenerateEditCommand extends DisposableComponent{
 	constructor() {
 		super();
         this.register(
@@ -175,18 +174,18 @@ class GenerateEditCommand extends BaseComponent{
             selector && await selector.acceptEdit();
         }
         return vscode.Disposable.from(
-            registerCommand("coEdPilot.lastSuggestion", async () => {
+            vscode.commands.registerCommand("coEdPilot.lastSuggestion", async () => {
                 await switchEdit(-1);
             }),
-            registerCommand("coEdPilot.nextSuggestion", async () => {
+            vscode.commands.registerCommand("coEdPilot.nextSuggestion", async () => {
                 await switchEdit(1);
             }),
-            registerCommand("coEdPilot.acceptEdit", async () => {
+            vscode.commands.registerCommand("coEdPilot.acceptEdit", async () => {
                 await acceptEdit();
                 await closeTab();
                 editorState.toPredictLocation = true;
             }),
-            registerCommand("coEdPilot.dismissEdit", async () => {
+            vscode.commands.registerCommand("coEdPilot.dismissEdit", async () => {
                 await clearEdit();
                 await closeTab();
             })

@@ -9,7 +9,7 @@ export type SimpleEdit = {
     beforeEdit: string
 }
 
-export type NativeEditLocation = {
+export type BackendApiEditLocation = {
     targetFilePath: string;
     editType: EditType;
     lineBreak: LineBreak;
@@ -20,7 +20,7 @@ export type NativeEditLocation = {
     }
 };
 
-export type NativeEdit = {
+export type BackendApiEdit = {
     atLines: number[],
     editType: EditType,
     endPos: number,

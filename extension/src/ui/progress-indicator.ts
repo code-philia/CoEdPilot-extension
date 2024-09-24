@@ -1,8 +1,8 @@
 import vscode from 'vscode';
-import { BaseComponent } from '../utils/base-component';
+import { DisposableComponent } from '../utils/base-component';
 import { isActiveEditorLanguageSupported } from '../global-context';
 
-class ProgressDisplayStatusBarItem extends BaseComponent {
+class ProgressDisplayStatusBarItem extends DisposableComponent {
     item: vscode.StatusBarItem;
     loadingIconId: string;
     busy: boolean;
@@ -17,7 +17,9 @@ class ProgressDisplayStatusBarItem extends BaseComponent {
         this.busy = false;
 
         this.register(
-            vscode.commands.registerCommand("coEdPilot.showCommands", () => { })
+            vscode.commands.registerCommand("coEdPilot.showCommands", () => {
+                // TODO showing a command context menu, to be implemented
+            })
         )
     }
 

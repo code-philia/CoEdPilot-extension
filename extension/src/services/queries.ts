@@ -1,8 +1,8 @@
-import { queryState } from './global-context';
-import { toRelPath, getActiveFilePath, toAbsPath, getLineInfoInDocument } from './file-utils';
+import { queryState } from '../global-context';
+import { toRelPath, getActiveFilePath, toAbsPath, getLineInfoInDocument } from '../utils/file-utils';
 import { queryDiscriminator, queryLocator, queryGenerator } from './client';
-import { statusBarItem } from './ui/progress-indicator';
-import { EditType, SimpleEdit } from './base-types';
+import { statusBarItem } from '../ui/progress-indicator';
+import { EditType, SimpleEdit } from '../utils/base-types';
 
 // ------------ Extension States -------------
 async function queryLocationFromModel(

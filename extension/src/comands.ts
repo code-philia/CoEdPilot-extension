@@ -1,20 +1,20 @@
 import vscode from "vscode";
 import { PredictLocationCommand, GenerateEditCommand } from "./services/query-tasks";
-import { registerCommand, numIn } from "./utils/base-component";
+import { limitNum } from "./utils/utils";
 import { globalEditDetector } from "./utils/file-utils";
 // import { addUserStatItem } from "./global-context";
 
 export function registerBasicCommands() {
 	return vscode.Disposable.from(
-		registerCommand('coEdPilot.openFileAtLine', async (filePath, fromLine, toLine) => {
+		vscode.commands.registerCommand('coEdPilot.openFileAtLine', async (filePath, fromLine, toLine) => {
 			const uri = vscode.Uri.file(filePath); // Replace with dynamic file path
 
 			const document = await vscode.workspace.openTextDocument(uri);
 			const editor = await vscode.window.showTextDocument(document);
 
 			const isOverflowed = toLine > document.lineCount - 1
-			fromLine = numIn(fromLine, 0, document.lineCount - 1);
-			toLine = numIn(toLine, 0, document.lineCount - 1);
+			fromLine = limitNum(fromLine, 0, document.lineCount - 1);
+			toLine = limitNum(toLine, 0, document.lineCount - 1);
 			const range = new vscode.Range(
 				document.lineAt(fromLine).range.start,
 				isOverflowed ? document.lineAt(toLine).range.end : document.lineAt(toLine).range.start,
@@ -23,7 +23,7 @@ export function registerBasicCommands() {
 			editor.selection = new vscode.Selection(range.start, range.end);
 			editor.revealRange(range, vscode.TextEditorRevealType.InCenter);
 		}),
-		registerCommand('coEdPilot.clearPrevEdits', async () => {
+		vscode.commands.registerCommand('coEdPilot.clearPrevEdits', async () => {
 			globalEditDetector.clearEditsAndSnapshots();
 			await vscode.window.showInformationMessage("Previous edits cleared!");
 			// addUserStatItem("clearPrevEdits");

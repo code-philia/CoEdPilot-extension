@@ -3,7 +3,7 @@ import { diffLines, Change } from 'diff';
 import fs from 'fs';
 import path from 'path';
 import { glob } from 'glob';
-import { BaseComponent } from './base-component';
+import { DisposableComponent } from './base-component';
 import { editorState, isActiveEditorLanguageSupported, osType } from '../global-context';
 import { statusBarItem } from '../ui/progress-indicator';
 import { Edit, SimpleEdit } from './base-types';
@@ -588,7 +588,7 @@ function initFileState(editor: vscode.TextEditor | undefined) {
     vscode.commands.executeCommand('setContext', 'coEdPilot:isLanguageSupported', isActiveEditorLanguageSupported());
 }
 
-class FileStateMonitor extends BaseComponent{
+class FileStateMonitor extends DisposableComponent{
     constructor() {
         super();
         this.register(

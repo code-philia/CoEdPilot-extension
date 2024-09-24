@@ -2,17 +2,18 @@ import vscode from 'vscode';
 import { toPosixPath } from '../utils/file-utils';
 import { editorState } from '../global-context';
 import { queryState } from '../global-context';
-import { BaseComponent, numIn } from '../utils/base-component';
+import { DisposableComponent } from '../utils/base-component';
+import { limitNum } from "../utils/utils";
 import { editLocationView } from '../views/location-tree-view';
 import path from 'path';
-import { NativeEditLocation } from '../utils/base-types';
+import { BackendApiEditLocation } from '../utils/base-types';
 
 const replaceBackgroundColor = 'rgba(255,0,0,0.3)';
 const addBackgroundColor = 'rgba(0,255,0,0.3)';
 const replaceIconPath = path.join(__dirname, '../media/edit-red.svg');
 const addIconPath = path.join(__dirname, '../media/add-green.svg');
 
-class LocationDecoration extends BaseComponent {
+class LocationDecoration extends DisposableComponent {
 	replaceDecorationType: vscode.TextEditorDecorationType;
 	addDecorationType: vscode.TextEditorDecorationType;
 
@@ -49,7 +50,7 @@ class LocationDecoration extends BaseComponent {
 		);
 	}
 
-	setLocationDecorations(editor?: vscode.TextEditor, locations?: NativeEditLocation[]) {
+	setLocationDecorations(editor?: vscode.TextEditor, locations?: BackendApiEditLocation[]) {
 		if (!editor || !locations) return;
 		if (editorState.inDiffEditor) return;
 
@@ -73,8 +74,8 @@ class LocationDecoration extends BaseComponent {
 				}
 
 				const document = editor.document;
-				startLine = numIn(startLine, 0, document.lineCount - 1);
-				endLine = numIn(endLine, 0, document.lineCount - 1);
+				startLine = limitNum(startLine, 0, document.lineCount - 1);
+				endLine = limitNum(endLine, 0, document.lineCount - 1);
 				
 				const startPos = editor.document.lineAt(startLine).range.start;
 				const endPos = editor.document.lineAt(endLine).range.end;

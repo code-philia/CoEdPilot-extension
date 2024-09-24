@@ -2,10 +2,10 @@ import vscode from 'vscode';
 import crypto from 'crypto';
 import util from 'util';
 import path from 'path';
-import { BaseComponent } from '../utils/base-component';
+import { DisposableComponent } from '../utils/base-component';
 import { defaultLineBreak, editorState, queryState } from '../global-context';
 
-class BaseTempFileProvider extends BaseComponent implements vscode.FileSystemProvider {
+class BaseTempFileProvider extends DisposableComponent implements vscode.FileSystemProvider {
     private _onDidChangeFile: vscode.EventEmitter<vscode.FileChangeEvent[]>;
     onDidChangeFile: vscode.Event<vscode.FileChangeEvent[]>;
     

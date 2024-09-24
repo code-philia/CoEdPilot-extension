@@ -1,6 +1,6 @@
 import vscode from "vscode";
 
-export class BaseComponent {
+export class DisposableComponent implements vscode.Disposable {
     private _disposables: vscode.Disposable[];
 
     constructor() {
@@ -14,16 +14,4 @@ export class BaseComponent {
     register(...disposables: vscode.Disposable[]) {
         this._disposables.push(...disposables);
     }
-}
-
-export function registerCommand(command: string, callback: (...args: any[]) => any, thisArg?: any) {
-    return vscode.commands.registerCommand(command, callback, thisArg);
-}
-
-export function numIn(x: number, lower: number, upper: number) {
-	if (x <= lower)
-		x = lower;
-	if (x >= upper)
-		x = upper;
-	return x;
 }

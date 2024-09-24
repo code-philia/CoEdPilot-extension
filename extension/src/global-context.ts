@@ -1,8 +1,7 @@
-import vscode from "vscode";
-import { BaseComponent } from "./utils/base-component";
-import { registerCommand } from "./utils/base-component";
 import os from "os";
-import { LineBreak, NativeEditLocation, SimpleEdit } from "./utils/base-types";
+import vscode from "vscode";
+import { DisposableComponent } from "./utils/base-component";
+import { LineBreak, BackendApiEditLocation, SimpleEdit } from "./utils/base-types";
 
 export const supportedLanguages = [
     "go",
@@ -57,9 +56,9 @@ class EditLock {
 
 export const globalEditLock = new EditLock();
 
-class QueryState extends BaseComponent {
+class QueryState extends DisposableComponent {
     commitMessage: string;
-    locations: NativeEditLocation[];
+    locations: BackendApiEditLocation[];
     locatedFilePaths: string[];
     onDidChangeLocations: vscode.Event<QueryState>;
     
@@ -78,12 +77,12 @@ class QueryState extends BaseComponent {
         this.onDidChangeLocations = this._onDidChangeLocations.event;
 
         this.register(
-            registerCommand('coEdPilot.inputMessage', this.inputCommitMessage, this),
+            vscode.commands.registerCommand('coEdPilot.inputMessage', this.inputCommitMessage, this),
             this._onDidChangeLocations
         );
     }
 
-    async updateLocations(locations: NativeEditLocation[]) {
+    async updateLocations(locations: BackendApiEditLocation[]) {
         this.locations = locations;
         this.locatedFilePaths = [...new Set(locations.map((loc) => loc.targetFilePath))];
         this._onDidChangeLocations.fire(this);
@@ -119,7 +118,7 @@ class QueryState extends BaseComponent {
 
 export const queryState = new QueryState();
 
-class EditorState extends BaseComponent {
+class EditorState extends DisposableComponent {
     prevCursorAtLine: number;
     currCursorAtLine: number;
     prevSnapshot?: string;

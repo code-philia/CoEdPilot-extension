@@ -1,9 +1,9 @@
 import vscode, { TreeItem, TreeItemCollapsibleState } from 'vscode';
 import path from 'path';
 import { queryState } from '../global-context';
-import { BaseComponent } from '../utils/base-component';
+import { DisposableComponent } from '../utils/base-component';
 import { getRootPath, toRelPath } from '../utils/file-utils';
-import { EditType, NativeEditLocation } from '../utils/base-types';
+import { EditType, BackendApiEditLocation } from '../utils/base-types';
 
 export class LocationTreeProvider implements vscode.TreeDataProvider<FileItem | ModItem>  {
     private _onDidChangeTreeData: vscode.EventEmitter<FileItem | undefined> = new vscode.EventEmitter<FileItem | undefined>();
@@ -26,7 +26,7 @@ export class LocationTreeProvider implements vscode.TreeDataProvider<FileItem | 
         this.notifyChangeofTree();
     }
 
-    refresh(modList: NativeEditLocation[]) {
+    refresh(modList: BackendApiEditLocation[]) {
         this.modTree = this.transformModTree(modList);
         this.notifyChangeofTree();
     }
@@ -91,7 +91,7 @@ export class LocationTreeProvider implements vscode.TreeDataProvider<FileItem | 
      */
     
     
-    transformModTree(modList: NativeEditLocation[]) {
+    transformModTree(modList: BackendApiEditLocation[]) {
         const categorizeByAttr = (arr: any[], attr: any) => 
             arr.reduce((acc, obj) => {
                 const key = obj[attr];
@@ -126,7 +126,7 @@ export class LocationTreeProvider implements vscode.TreeDataProvider<FileItem | 
         }
     }
 
-    getFileItem(filePath: string, fileMods: NativeEditLocation[]) {
+    getFileItem(filePath: string, fileMods: BackendApiEditLocation[]) {
         const modListOnPath = fileMods;
         const fileName = path.basename(filePath); 
         var fileItem = new FileItem(
@@ -241,7 +241,7 @@ class ModItem extends vscode.TreeItem {
     contextValue = 'mod';
 }
 
-class EditLocationView extends BaseComponent {
+class EditLocationView extends DisposableComponent {
     provider: LocationTreeProvider;
     treeView: vscode.TreeView<FileItem | TreeItem>;
 
