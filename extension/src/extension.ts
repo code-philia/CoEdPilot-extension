@@ -6,7 +6,7 @@ import { editLocationView } from './views/location-tree-view';
 import { LocationDecoration } from './ui/location-decoration';
 import { registerBasicCommands, registerTopTaskCommands } from './comands';
 import { statusBarItem } from './ui/progress-indicator';
-import { modelServerProcess } from './services/client';
+import { modelServerProcess } from './services/backend-requests';
 
 function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(

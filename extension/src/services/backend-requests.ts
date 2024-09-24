@@ -151,26 +151,26 @@ async function basicQuery(suffix: string, json_obj: any) {
     return await modelServerProcess.sendPostRequest(suffix, json_obj);
 }
 
-async function queryDiscriminator(json_obj: any) {
+async function postRequestToDiscriminator(json_obj: any) {
     if (server_mock)
         return await MockBackend.delayedResponse('disc', json_obj);
     return await basicQuery("discriminator", json_obj);
 }
 
-async function queryLocator(json_obj: any) {
+async function postRequestToLocator(json_obj: any) {
     if (server_mock)
         return await MockBackend.delayedResponse('loc', json_obj);
     return await basicQuery("range", json_obj);
 }
 
-async function queryGenerator(json_obj: any) {
+async function postRequestToGenerator(json_obj: any) {
     if (server_mock)
         return await MockBackend.delayedResponse('gen', json_obj);
     return await basicQuery("content", json_obj);
 }
 
 export {
-    queryDiscriminator,
-    queryLocator,
-    queryGenerator
+    postRequestToDiscriminator,
+    postRequestToLocator,
+    postRequestToGenerator
 };

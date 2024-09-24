@@ -1,11 +1,10 @@
 import { queryState } from '../global-context';
 import { toRelPath, getActiveFilePath, toAbsPath, getLineInfoInDocument } from '../utils/file-utils';
-import { queryDiscriminator, queryLocator, queryGenerator } from './client';
+import { postRequestToDiscriminator, postRequestToLocator, postRequestToGenerator } from './backend-requests';
 import { statusBarItem } from '../ui/progress-indicator';
 import { EditType, SimpleEdit } from '../utils/base-types';
 
-// ------------ Extension States -------------
-async function queryLocationFromModel(
+async function startLocationQueryProcess(
     rootPath: string, 
     files: [string, string][],
     prevEdits: SimpleEdit[],
@@ -74,13 +73,14 @@ async function queryLocationFromModel(
         prevEdits: prevEdits,
         language: language
     };
-    const discriminatorOutput = await queryDiscriminator(disc_input);
-    console.log('==> Discriminated files to be analyzed:');
-    discriminatorOutput.data.forEach((file: string) => {
-        console.log('\t*' + file);
-    });
-    console.log('==> Total no. of files:', files.length);
-    console.log('==> No. of files to be analyzed:', discriminatorOutput.data.length);
+    const discriminatorOutput = await postRequestToDiscriminator(disc_input);
+
+    // console.log('==> Discriminated files to be analyzed:');
+    // discriminatorOutput.data.forEach((file: string) => {
+    //     console.log('\t*' + file);
+    // });
+    // console.log('==> Total no. of files:', files.length);
+    // console.log('==> No. of files to be analyzed:', discriminatorOutput.data.length);
 
     // Send the selected files to the locator model for location prediction
     // const filteredFiles = files.filter(([filename, _]) => discriminatorOutput.data.includes(filename) || filename == activeFilePath);
@@ -97,7 +97,7 @@ async function queryLocationFromModel(
         language: language
     };
     statusBarItem.setStatusQuerying("locator");
-    const locatorOutput = await queryLocator(loc_input);
+    const locatorOutput = await postRequestToLocator(loc_input);
 
     // convert all paths back to absolute paths
     let rawLocations = locatorOutput.data;
@@ -109,7 +109,7 @@ async function queryLocationFromModel(
     return rawLocations;
 }
 
-async function queryEditFromModel(
+async function startEditQueryProcess(
     fileContent: string,
     editType: EditType,
     atLines: number[],
@@ -149,13 +149,13 @@ async function queryEditFromModel(
         atLines = atLines.map((l) => l > 0 ? l - 1 : 0);
     }
 
-    const output = await queryGenerator(input);
+    const output = await postRequestToGenerator(input);
     let edits = output.data;
     return edits; // Return newmodification
 }
 
 export {
-    queryLocationFromModel,
-    queryEditFromModel,
+    startLocationQueryProcess,
+    startEditQueryProcess,
     queryState
 };

@@ -1,7 +1,7 @@
 import vscode from 'vscode';
 import { getRootPath, readGlobFiles, updatePrevEdits, toPosixPath, globalEditDetector } from '../utils/file-utils';
 import { editorState, isActiveEditorLanguageSupported, queryState } from '../global-context';
-import { queryLocationFromModel, queryEditFromModel } from './queries';
+import { startLocationQueryProcess, startEditQueryProcess } from './query-processes';
 import { DisposableComponent } from '../utils/base-component';
 import { EditSelector, diffTabSelectors, tempWrite } from '../views/compare-view';
 import { globalEditLock } from '../global-context';
@@ -25,7 +25,7 @@ async function predictLocation() {
             console.log("++++++++++++ getting updates")
             const currentPrevEdits = await globalEditDetector.getUpdatedEditList();
             statusBarItem.setStatusQuerying("locator");
-            await queryLocationFromModel(rootPath, files, currentPrevEdits, commitMessage, editorState.language);
+            await startLocationQueryProcess(rootPath, files, currentPrevEdits, commitMessage, editorState.language);
             statusBarItem.setStatusDefault();
         } catch (err) {
             console.error(err);
@@ -90,7 +90,7 @@ async function predictEdit() {
     
     statusBarItem.setStatusQuerying("generator");
     try {
-        const queryResult = await queryEditFromModel(
+        const queryResult = await startEditQueryProcess(
             targetFileContent,
             editType,
             atLines,
