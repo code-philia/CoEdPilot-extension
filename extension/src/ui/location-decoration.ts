@@ -1,24 +1,25 @@
 import vscode from 'vscode';
 import { toPosixPath } from '../utils/file-utils';
-import { editorState } from '../global-context';
-import { queryState } from '../global-context';
-import { DisposableComponent } from '../utils/base-component';
+import { globalEditorState } from '../global-workspace-context';
 import { limitNum } from "../utils/utils";
-import { editLocationView } from '../views/location-tree-view';
 import path from 'path';
 import { BackendApiEditLocation } from '../utils/base-types';
+import { liveTextEditorEventHandler } from '../utils/vscode-utils';
 
 const replaceBackgroundColor = 'rgba(255,0,0,0.3)';
 const addBackgroundColor = 'rgba(0,255,0,0.3)';
 const replaceIconPath = path.join(__dirname, '../media/edit-red.svg');
 const addIconPath = path.join(__dirname, '../media/add-green.svg');
 
-class LocationDecoration extends DisposableComponent {
-	replaceDecorationType: vscode.TextEditorDecorationType;
-	addDecorationType: vscode.TextEditorDecorationType;
+export class LocationResultDecoration {
+	private replaceDecorationType: vscode.TextEditorDecorationType;
+	private addDecorationType: vscode.TextEditorDecorationType;
+	private eventHandler: liveTextEditorEventHandler;
+	private locations: BackendApiEditLocation[];
 
-	constructor() {
-		super();
+	constructor(locations: BackendApiEditLocation[]) {
+		this.locations = locations;
+
 		this.replaceDecorationType = vscode.window.createTextEditorDecorationType({
 			backgroundColor: replaceBackgroundColor,
 			isWholeLine: true,
@@ -33,26 +34,21 @@ class LocationDecoration extends DisposableComponent {
 			gutterIconPath: addIconPath,
 			gutterIconSize: "75%"
 		});
-		
-		this.register(
-			vscode.window.onDidChangeActiveTextEditor(
-				(editor) => this.setLocationDecorations(editor, queryState.locations),
-				this
-			),
-			queryState.onDidChangeLocations(
-				() => this.setLocationDecorations(vscode.window.activeTextEditor, queryState.locations),
-				this
-			),
-			editLocationView.treeView.onDidChangeSelection(
-				() => this.setLocationDecorations(vscode.window.activeTextEditor, queryState.locations),
-				this
-			)
+
+		this.eventHandler = new liveTextEditorEventHandler(
+			this.refreshLocationDecorations,
+			this.clearDecorations,
+			this
 		);
 	}
 
-	setLocationDecorations(editor?: vscode.TextEditor, locations?: BackendApiEditLocation[]) {
-		if (!editor || !locations) return;
-		if (editorState.inDiffEditor) return;
+	show() {
+		this.eventHandler.handle(vscode.window.activeTextEditor);
+	}
+
+	refreshLocationDecorations(editor?: vscode.TextEditor) {
+		if (!editor || !this.locations) return;
+		if (globalEditorState.inDiffEditor) return;
 
 		const uri = editor?.document?.uri;
 		if (!uri) return;
@@ -60,12 +56,12 @@ class LocationDecoration extends DisposableComponent {
 		const filePath = toPosixPath(uri.fsPath);
 		if (uri.scheme !== 'file') return undefined;
 
-		const decorationsForAlter: vscode.DecorationOptions[] = [];
-		const decorationsForAdd: vscode.DecorationOptions[] = [];
+		const decorationRangesForAlter: vscode.DecorationOptions[] = [];
+		const decorationRangesForAdd: vscode.DecorationOptions[] = [];
 	
-		locations
+		this.locations
 			.filter((loc) => loc.targetFilePath === filePath)
-			.map((loc) => {
+			.forEach((loc) => {
 				let startLine = loc.atLines[0];
 				let endLine = loc.atLines[loc.atLines.length - 1];
 				if (loc.editType === "add") {	// the model was designed to add content after the mark line
@@ -88,17 +84,22 @@ class LocationDecoration extends DisposableComponent {
 		
 				// Add decoration to array
 				if (loc.editType == 'add') {
-					decorationsForAdd.push(decoration);
+					decorationRangesForAdd.push(decoration);
 				} else {
-					decorationsForAlter.push(decoration);
+					decorationRangesForAlter.push(decoration);
 				}
 
 			});
-		editor.setDecorations(this.replaceDecorationType, decorationsForAlter);
-		editor.setDecorations(this.addDecorationType, decorationsForAdd);			
+		editor.setDecorations(this.replaceDecorationType, decorationRangesForAlter);
+		editor.setDecorations(this.addDecorationType, decorationRangesForAdd);			
+	}
+
+	clearDecorations(editor?: vscode.TextEditor) {
+		this.locations = [];
+		this.refreshLocationDecorations(editor);
+	}
+
+	dispose() {
+		this.eventHandler.dispose();
 	}
 }
-
-export {
-	LocationDecoration,
-};

@@ -1,4 +1,4 @@
-import { queryState } from '../global-context';
+import { globalQueryContext } from '../global-result-context';
 import { toRelPath, getActiveFilePath, toAbsPath, getLineInfoInDocument } from '../utils/file-utils';
 import { postRequestToDiscriminator, postRequestToLocator, postRequestToGenerator } from './backend-requests';
 import { statusBarItem } from '../ui/progress-indicator';
@@ -105,7 +105,7 @@ async function startLocationQueryProcess(
         loc.targetFilePath = toAbsPath(rootPath, loc.targetFilePath);
         loc.lineInfo = await getLineInfoInDocument(loc.targetFilePath, loc.atLines[0]);
     }
-    queryState.updateLocations(rawLocations);
+    globalQueryContext.updateLocations(rawLocations);
     return rawLocations;
 }
 
@@ -156,6 +156,5 @@ async function startEditQueryProcess(
 
 export {
     startLocationQueryProcess,
-    startEditQueryProcess,
-    queryState
+    startEditQueryProcess
 };

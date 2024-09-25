@@ -43,4 +43,15 @@ export type Edit = {
     addLine: number; // number of added lines
     addText: string | null; // added text, could be null
 };
+export const supportedLanguages = [
+    "go",
+    "python",
+    "typescript",
+    "javascript",
+    "java"
+];
+
+export function isLanguageSupported(lang: string) {
+    return supportedLanguages.includes(lang);
+}
 

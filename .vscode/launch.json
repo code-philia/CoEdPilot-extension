@@ -11,7 +11,7 @@
 			"request": "launch",
 			"args": [
 				"--extensionDevelopmentPath=${workspaceFolder}",
-				// "--disable-extensions",
+				"--disable-extensions",
 				// "--remote=wsl+Ubuntu-22.04"
 			],
 			"outFiles": [

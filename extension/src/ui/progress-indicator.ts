@@ -1,6 +1,6 @@
 import vscode from 'vscode';
 import { DisposableComponent } from '../utils/base-component';
-import { isActiveEditorLanguageSupported } from '../global-context';
+import { globalEditorState } from '../global-workspace-context';
 
 class ProgressDisplayStatusBarItem extends DisposableComponent {
     item: vscode.StatusBarItem;
@@ -30,14 +30,17 @@ class ProgressDisplayStatusBarItem extends DisposableComponent {
     setStatusDefault(quite = false) {
         if (quite && this.busy) return;
         this.busy = false;
-        const iconId = isActiveEditorLanguageSupported() ? "edit" : "circle-slash";
+        let iconId: string;
+        if (globalEditorState.isActiveEditorLanguageSupported()) {
+            iconId = "edit";
+            this.item.backgroundColor = undefined;
+            this.item.tooltip = "CoEdPilot is ready 🛫";
+        } else {
+            iconId = "circle-slash";
+            this.item.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
+            this.item.tooltip = "CoEdPilot doesn't support this language yet 💤";
+        }
         this.setItemText(iconId, "CoEdPilot");
-        this.item.backgroundColor = isActiveEditorLanguageSupported()
-            ? undefined
-            : new vscode.ThemeColor('statusBarItem.warningBackground');
-        this.item.tooltip = isActiveEditorLanguageSupported()
-            ? "CoEdPilot is ready 🛫"
-            : "CoEdPilot doesn't support this language yet 💤";
     } 
 
     setStatusLoadingFiles() {

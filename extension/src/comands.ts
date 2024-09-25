@@ -1,7 +1,7 @@
 import vscode from "vscode";
 import { PredictLocationCommand, GenerateEditCommand } from "./services/query-tasks";
 import { limitNum } from "./utils/utils";
-import { globalEditDetector } from "./utils/file-utils";
+import { globalEditDetector } from "./editor-state-monitor";
 // import { addUserStatItem } from "./global-context";
 
 export function registerBasicCommands() {

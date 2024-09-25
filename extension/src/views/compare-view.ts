@@ -3,7 +3,8 @@ import crypto from 'crypto';
 import util from 'util';
 import path from 'path';
 import { DisposableComponent } from '../utils/base-component';
-import { defaultLineBreak, editorState, queryState } from '../global-context';
+import { defaultLineBreak, globalQueryContext } from '../global-result-context';
+import { globalEditorState } from '../global-workspace-context';
 
 class BaseTempFileProvider extends DisposableComponent implements vscode.FileSystemProvider {
     private _onDidChangeFile: vscode.EventEmitter<vscode.FileChangeEvent[]>;
@@ -36,7 +37,7 @@ class BaseTempFileProvider extends DisposableComponent implements vscode.FileSys
         throw new Error('Method not implemented.');
     }
     watch(uri: vscode.Uri, options: { readonly recursive: boolean; readonly excludes: readonly string[]; }): vscode.Disposable {
-        throw new Error('Method not implemented.');
+        return { dispose: () => { } };
     }
 
     async stat(uri: vscode.Uri): Promise<vscode.FileStat> {
@@ -216,7 +217,7 @@ class EditSelector {
 
     async editDocumentAndShowDiff() {
         await this._performMod(this.edits[this.modAt]);
-        if (editorState.inDiffEditor) {     // refresh existed diff editor
+        if (globalEditorState.inDiffEditor) {     // refresh existed diff editor
             await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
         }
         await this._showDiffView();
@@ -234,16 +235,20 @@ class EditSelector {
     }
 
     async clearRelatedLocation() {
-        const locations = queryState.locations;
-        locations.forEach((loc, i) => {
-            const offset = loc.editType === "add" ? 1 : 0;
-            if (loc.atLines
-            && loc.atLines[0] + offset < this.toLine
-            && loc.atLines[loc.atLines.length - 1] + 1 + offset > this.fromLine) {
-                locations.splice(i, 1);
-            }
-            queryState._onDidChangeLocations.fire(queryState);
-        })
+        const locations = globalQueryContext.getLocations();
+        if (locations) {
+            const _locs = locations.slice();
+            _locs.forEach((loc, i) => {
+                const offset = loc.editType === "add" ? 1 : 0;
+                // TODO this detection of "applied edit" could be buggy？
+                if (loc.atLines
+                && loc.atLines[0] + offset < this.toLine
+                && loc.atLines[loc.atLines.length - 1] + 1 + offset > this.fromLine) {
+                    _locs.splice(i, 1);
+                }
+            })
+            globalQueryContext.updateLocations(locations);
+        }
     }
 
     async acceptEdit() {

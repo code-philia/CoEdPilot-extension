@@ -11,7 +11,7 @@ export class DisposableComponent implements vscode.Disposable {
         this._disposables.forEach((e) => e.dispose());
     }
 
-    register(...disposables: vscode.Disposable[]) {
+    protected register(...disposables: vscode.Disposable[]) {
         this._disposables.push(...disposables);
     }
 }

@@ -1,20 +1,22 @@
 import vscode from 'vscode';
-import { getRootPath, readGlobFiles, updatePrevEdits, toPosixPath, globalEditDetector } from '../utils/file-utils';
-import { editorState, isActiveEditorLanguageSupported, queryState } from '../global-context';
+import { getRootPath, readGlobFiles, updatePrevEdits, toPosixPath } from '../utils/file-utils';
+import { globalQueryContext } from '../global-result-context';
+import { globalEditorState } from '../global-workspace-context';
+import { globalEditDetector } from '../editor-state-monitor';
 import { startLocationQueryProcess, startEditQueryProcess } from './query-processes';
 import { DisposableComponent } from '../utils/base-component';
 import { EditSelector, diffTabSelectors, tempWrite } from '../views/compare-view';
-import { globalEditLock } from '../global-context';
+import { globalEditLock } from '../global-result-context';
 import { statusBarItem } from '../ui/progress-indicator';
 import { EditType } from '../utils/base-types';
 
 async function predictLocation() {
-    if (!isActiveEditorLanguageSupported()) {
-        vscode.window.showInformationMessage(`Predicting location canceled: language ${editorState.language} not supported yet.`);
+    if (!globalEditorState.isActiveEditorLanguageSupported()) {
+        vscode.window.showInformationMessage(`Predicting location canceled: language ${globalEditorState.language} not supported yet.`);
         return;
     }
-    return await globalEditLock.tryWithLockAsync(async () => {
-        const commitMessage = await queryState.requireCommitMessage();
+    return await globalEditLock.tryWithLock(async () => {
+        const commitMessage = await globalQueryContext.querySettings.requireCommitMessage();
         if (commitMessage === undefined) return;
 
         statusBarItem.setStatusLoadingFiles();
@@ -25,7 +27,7 @@ async function predictLocation() {
             console.log("++++++++++++ getting updates")
             const currentPrevEdits = await globalEditDetector.getUpdatedEditList();
             statusBarItem.setStatusQuerying("locator");
-            await startLocationQueryProcess(rootPath, files, currentPrevEdits, commitMessage, editorState.language);
+            await startLocationQueryProcess(rootPath, files, currentPrevEdits, commitMessage, globalEditorState.language);
             statusBarItem.setStatusDefault();
         } catch (err) {
             console.error(err);
@@ -44,12 +46,12 @@ async function predictLocationIfHasEditAtSelectedLine(event: vscode.TextEditorSe
 }
 
 async function predictEdit() {
-    if (!isActiveEditorLanguageSupported()) {
-        vscode.window.showInformationMessage(`Predicting edit canceled: language ${editorState.language} not supported yet.`);
+    if (!globalEditorState.isActiveEditorLanguageSupported()) {
+        vscode.window.showInformationMessage(`Predicting edit canceled: language ${globalEditorState.language} not supported yet.`);
         return;
     }
     
-    const commitMessage = await queryState.requireCommitMessage();
+    const commitMessage = await globalQueryContext.querySettings.requireCommitMessage();
     if (commitMessage === undefined) return;
     
     const activeEditor = vscode.window.activeTextEditor;
@@ -96,7 +98,7 @@ async function predictEdit() {
             atLines,
             await globalEditDetector.getUpdatedEditList(),
             commitMessage,
-            editorState.language
+            globalEditorState.language
         );
         
         // Remove syntax-level unchanged replacements
@@ -127,7 +129,7 @@ class PredictLocationCommand extends DisposableComponent{
 		this.register(
             vscode.commands.registerCommand("coEdPilot.predictLocations", predictLocation),
             vscode.commands.registerCommand("coEdPilot.clearLocations", async () => {
-                await queryState.clearLocations();
+                globalQueryContext.updateLocations(undefined);
             })
 		);
 	}
@@ -183,7 +185,7 @@ class GenerateEditCommand extends DisposableComponent{
             vscode.commands.registerCommand("coEdPilot.acceptEdit", async () => {
                 await acceptEdit();
                 await closeTab();
-                editorState.toPredictLocation = true;
+                globalEditorState.toPredictLocation = true;
             }),
             vscode.commands.registerCommand("coEdPilot.dismissEdit", async () => {
                 await clearEdit();
