@@ -20,7 +20,7 @@ class ProgressDisplayStatusBarItem extends DisposableComponent {
             vscode.commands.registerCommand("coEdPilot.showCommands", () => {
                 // TODO showing a command context menu, to be implemented
             })
-        )
+        );
     }
 
     setItemText(iconId: string, text: string) {

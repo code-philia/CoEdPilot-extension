@@ -83,7 +83,7 @@ export class LocationResultDecoration {
 				};
 		
 				// Add decoration to array
-				if (loc.editType == 'add') {
+				if (loc.editType === 'add') {
 					decorationRangesForAdd.push(decoration);
 				} else {
 					decorationRangesForAlter.push(decoration);

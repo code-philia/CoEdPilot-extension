@@ -86,8 +86,8 @@ async function startLocationQueryProcess(
     // const filteredFiles = files.filter(([filename, _]) => discriminatorOutput.data.includes(filename) || filename == activeFilePath);
     const filteredFiles = files.filter(([filename, _]) => discriminatorOutput.data.includes(filename));
 
-    console.log("==> Filtered files:")
-    console.log(filteredFiles)
+    console.log("==> Filtered files:");
+    console.log(filteredFiles);
 
     const loc_input = {
         files: filteredFiles,

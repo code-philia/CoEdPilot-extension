@@ -60,7 +60,7 @@ class EditDetector {
                 const text = await getDocument(path);
                 this.updateEdits(path, text);
             } catch (err) {
-                console.log(`Using saved version: cannot update snapshot on ${path}`)
+                console.warn(`Using saved version: cannot update snapshot on ${path}`);
             }
         }
         this.shiftEdits(undefined);
@@ -86,7 +86,7 @@ class EditDetector {
                 });
                 oldEditIndices.add(idx);
             }
-        })
+        });
         
         oldEditsWithIdx.sort((edit1, edit2) => edit1.edit.s - edit2.edit.s);	// sort in starting line order
 
@@ -267,7 +267,7 @@ class EditDetector {
             "afterEdit": edit.addText?.trim() ?? "",
             // "codeAbove": edit.codeAbove.trim(),
             // "codeBelow": edit.codeBelow.trim()
-        }))
+        }));
     }
 
     async getUpdatedEditList() {
@@ -275,7 +275,7 @@ class EditDetector {
         const openedDocuments = getOpenedFilePaths();
         const docGetter = async (filePath: string) => {
             return await liveGetter(openedDocuments, filePath);
-        }
+        };
         await this.updateAllSnapshotsFromDocument(docGetter);
         return await this.getEditList();
     }
@@ -312,7 +312,7 @@ export function updateEditorState(editor: vscode.TextEditor | undefined) {
     vscode.commands.executeCommand('setContext', 'coEdPilot:isLanguageSupported', globalEditorState.isActiveEditorLanguageSupported());
 }
 
-export class FileStateMonitor extends DisposableComponent{
+export class FileStateMonitor extends DisposableComponent {
     constructor() {
         super();
         this.register(

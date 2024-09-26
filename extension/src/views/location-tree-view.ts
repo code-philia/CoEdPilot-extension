@@ -36,7 +36,7 @@ export class LocationTreeDataProvider implements vscode.TreeDataProvider<FileIte
     }
 
     numOfLocation() {
-        if (this.modTree == null) return 0;
+        if (this.modTree === null) return 0;
 
         let num = 0;
         for (const fileItem of this.modTree) {
@@ -103,7 +103,7 @@ export class LocationTreeDataProvider implements vscode.TreeDataProvider<FileIte
 
         var modTree = [];
         for (const filePath in modListCategorizedByFilePath) {  
-            modTree.push(this.getFileItem(filePath, modListCategorizedByFilePath[filePath]))
+            modTree.push(this.getFileItem(filePath, modListCategorizedByFilePath[filePath]));
         }
 
         return modTree;
@@ -134,7 +134,7 @@ export class LocationTreeDataProvider implements vscode.TreeDataProvider<FileIte
             fileName,
             filePath,
             []
-        )
+        );
 
         for (const loc of modListOnPath) {
             let fromLine = loc.editType === "add" ? loc.atLines[0] + 1 : loc.atLines[0];
@@ -182,15 +182,15 @@ class ModItem extends vscode.TreeItem {
     toLine: number;
     lineContent: string;
     editType: EditType;
-    text: string
+    text: string;
 
     constructor(label: string, collapsibleState: TreeItemCollapsibleState, fileItem: FileItem, fromLine: number, toLine: number, lineContent: string, editType: EditType) {
         super(label, collapsibleState);
         this.collapsibleState = collapsibleState;
         this.fileItem = fileItem;
         this.fromLine = fromLine;
-        this.toLine = toLine
-        this.lineContent = lineContent
+        this.toLine = toLine;
+        this.lineContent = lineContent;
         this.editType = editType;
         this.text = `    ${this.lineContent.trim()}`;
 
@@ -204,13 +204,13 @@ class ModItem extends vscode.TreeItem {
                 this.fromLine,
                 editType === "add" ? this.fromLine : this.toLine  // edit of type "add" will only place the cursor at the starting of line
             ]
-        }
+        };
         
         // FIXME this way to get assets is alkward
         this.iconPath = {
             light: path.join(__filename, '..', '..', '..', 'assets', this.getIconFileName()),
             dark: path.join(__filename, '..', '..', '..', 'assets', this.getIconFileName()),
-        }
+        };
         this.label = this.getLabel();
     }
 
@@ -252,7 +252,7 @@ class EditLocationViewManager extends DisposableComponent {
         const treeViewOptions: vscode.TreeViewOptions<FileItem | ModItem> = {
             treeDataProvider: this.provider,
             showCollapseAll: true
-        }
+        };
         // TODO do not always display the treeview, but only when there are locations
         const treeView = vscode.window.createTreeView('editLocations', treeViewOptions);
         this.treeView = treeView;
@@ -266,7 +266,7 @@ class EditLocationViewManager extends DisposableComponent {
         this.treeView.badge = {
             tooltip: `${numOfLocation} possible edit locations`,
             value: numOfLocation
-        }
+        };
     }
 
     reloadLocations(locations: BackendApiEditLocation[]) {

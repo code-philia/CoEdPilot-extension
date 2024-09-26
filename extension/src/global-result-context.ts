@@ -54,7 +54,7 @@ class QuerySettings {
  * This class manages an successfully produced location result,
  * i.e., its data, ui, and lifecycle
  */
-class LocationResult{
+class LocationResult {
     private readonly locations: BackendApiEditLocation[] = [];
     
     private decoration: LocationResultDecoration;
@@ -77,7 +77,7 @@ class LocationResult{
     }
 }
 
-class QueryContext extends DisposableComponent{
+class QueryContext extends DisposableComponent {
     readonly querySettings: QuerySettings = new QuerySettings();
     private activeLocationResult?: LocationResult;
 

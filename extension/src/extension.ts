@@ -14,7 +14,7 @@ function activate(context: vscode.ExtensionContext) {
 		statusBarItem,
 		globalLocationViewManager,
 		modelServerProcess
-		)
+		);
 		
 	context.subscriptions.push(
 		registerBasicCommands(),

@@ -43,7 +43,7 @@ function parseIgnoreLinesToPatterns(lines: string[]) {
             isReverse = true;
         }
 
-        prefix = exp.indexOf('/') != exp.length ? '/' : '/**/';   // check if relative path
+        prefix = exp.indexOf('/') !== exp.length ? '/' : '/**/';   // check if relative path
 
         if (exp.endsWith('*')) {            // the same matching as glob
             suffix = '';
@@ -87,7 +87,7 @@ function toDriveLetterLowerCasePath(filePath: string) {
 
 // Convert any-style path to POSIX-style path
 function toPosixPath(filePath: string) {
-    return osType == 'Windows_NT' ?
+    return osType === 'Windows_NT' ?
         filePath.replace(/\\/g, '/')
         : filePath;
 }
@@ -123,7 +123,7 @@ async function getLineInfoInDocument(path: string, lineNo: number) {
     return {
         range: textLine.range,
         text: textLine.text
-    }
+    };
 }
 
 function getRootPath() {
@@ -143,7 +143,7 @@ async function readGlobFiles(useSnapshot = true) {
         ? async (filePath: string) => {
             const liveGetter = liveFilesGetter();
             const openedPaths = getOpenedFilePaths();
-            return await liveGetter(openedPaths, toDriveLetterLowerCasePath(filePath))
+            return await liveGetter(openedPaths, toDriveLetterLowerCasePath(filePath));
         }
         : async (filePath: string) => fs.readFileSync(filePath, 'utf-8');
     
@@ -249,13 +249,13 @@ function updatePrevEdits(lineNo: number) {
     globalEditorState.currCursorAtLine = line + 1; // VScode API starts counting lines from 0, while our line numbers start from 1, note the +- 1
     console.log(`==> Cursor position: Line ${globalEditorState.prevCursorAtLine} -> ${globalEditorState.currCursorAtLine}`);
     globalEditorState.currSnapshot = vscode.window.activeTextEditor?.document.getText(); // Read the current text in the editor
-    if (globalEditorState.prevCursorAtLine != globalEditorState.currCursorAtLine && globalEditorState.prevCursorAtLine != 0) { // When the pointer changes position and is not at the first position in the editor
+    if (globalEditorState.prevCursorAtLine !== globalEditorState.currCursorAtLine && globalEditorState.prevCursorAtLine !== 0) { // When the pointer changes position and is not at the first position in the editor
         if (!(globalEditorState.prevSnapshot && globalEditorState.currSnapshot)) {
             return false;
         }
         let edition = detectEdit(globalEditorState.prevSnapshot, globalEditorState.currSnapshot); // Detect changes compared to the previous snapshot
 
-        if (edition.beforeEdit != edition.afterEdit) {
+        if (edition.beforeEdit !== edition.afterEdit) {
             // Add the modification to prevEdit
             pushEdit(edition);
             console.log('==> Before edit:\n', edition.beforeEdit);

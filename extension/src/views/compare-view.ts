@@ -46,7 +46,7 @@ class BaseTempFileProvider extends DisposableComponent implements vscode.FileSys
             ctime: Date.now(),
             mtime: Date.now(),
             size: 0
-        }
+        };
     }
 }
 
@@ -69,7 +69,7 @@ class CompareTempFileProvider extends BaseTempFileProvider {
     async readFile(uri: vscode.Uri) {
         const content = this.tempFiles.get(uri.path);
         if (content !== undefined) {
-            return content
+            return content;
         } else {
             throw vscode.FileSystemError.FileNotFound(uri);
         }
@@ -182,7 +182,7 @@ class EditSelector {
         
         // TODO can we use this callback function to implement MOL "undo-rename-do" work?
         await editor.edit(editBuilder => {
-            editBuilder.replace(fullRange, fullText)
+            editBuilder.replace(fullRange, fullText);
         }, { undoStopBefore: false, undoStopAfter: false });
     }
 
@@ -246,7 +246,7 @@ class EditSelector {
                 && loc.atLines[loc.atLines.length - 1] + 1 + offset > this.fromLine) {
                     _locs.splice(i, 1);
                 }
-            })
+            });
             globalQueryContext.updateLocations(locations);
         }
     }

@@ -24,14 +24,14 @@ async function predictLocation() {
         const files = await readGlobFiles();
         // const currentPrevEdits = getPrevEdits();
         try {
-            console.log("++++++++++++ getting updates")
+            console.log("++++++++++++ getting updates");
             const currentPrevEdits = await globalEditDetector.getUpdatedEditList();
             statusBarItem.setStatusQuerying("locator");
             await startLocationQueryProcess(rootPath, files, currentPrevEdits, commitMessage, globalEditorState.language);
             statusBarItem.setStatusDefault();
         } catch (err) {
             console.error(err);
-            vscode.window.showErrorMessage("Oops! Something went wrong with the query request 😦")
+            vscode.window.showErrorMessage("Oops! Something went wrong with the query request 😦");
             statusBarItem.setStatustProblem("Some error occured when predicting locations");
             throw err;
         }
@@ -110,20 +110,20 @@ async function predictEdit() {
             toLine+1,
             queryResult.replacement,
             tempWrite,
-            editType == "add"
+            editType === "add"
         );
         await selector.init();
         await selector.editDocumentAndShowDiff();
         statusBarItem.setStatusDefault();
     } catch (err) {
         console.error(err);
-        vscode.window.showErrorMessage("Oops! Something went wrong with the query request 😦")
+        vscode.window.showErrorMessage("Oops! Something went wrong with the query request 😦");
         statusBarItem.setStatustProblem("Some error occured when predicting edits");
         throw err;
     }
 }
 
-class PredictLocationCommand extends DisposableComponent{
+class PredictLocationCommand extends DisposableComponent {
 	constructor() {
 		super();
 		this.register(
@@ -135,7 +135,7 @@ class PredictLocationCommand extends DisposableComponent{
 	}
 }
 
-class GenerateEditCommand extends DisposableComponent{
+class GenerateEditCommand extends DisposableComponent {
 	constructor() {
 		super();
         this.register(
@@ -191,7 +191,7 @@ class GenerateEditCommand extends DisposableComponent{
                 await clearEdit();
                 await closeTab();
             })
-        )
+        );
     }
 }
 

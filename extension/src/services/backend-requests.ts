@@ -20,7 +20,7 @@ function parseProxyUrl(proxyUrl: string) {
 
 let server_mock = true;
 
-class ModelServerProcess extends DisposableComponent{
+class ModelServerProcess extends DisposableComponent {
     apiUrl: string;
     proxy: {host: string, port: number} | undefined;
 
@@ -42,7 +42,7 @@ class ModelServerProcess extends DisposableComponent{
                     if (parseResult.protocol.includes("https")) {
                         port = 443;
                     } else {
-                        port = 80
+                        port = 80;
                     }
                 }
                 if (port) {
@@ -50,7 +50,7 @@ class ModelServerProcess extends DisposableComponent{
                     this.proxy = {
                         host: parseResult.host,
                         port: port 
-                    }
+                    };
                 }
             }
         }
@@ -61,7 +61,7 @@ class ModelServerProcess extends DisposableComponent{
                     this.apiUrl = this.getApiUrl();
                 }
             })
-        )
+        );
     }
 
     getApiUrl() {
@@ -75,7 +75,7 @@ class ModelServerProcess extends DisposableComponent{
     }
 
     async sendPostRequest(urlPath: string, jsonObject: object) {
-        console.log(`[ModelServer] Sending to ${this.toURL(urlPath)}`)
+        console.log(`[ModelServer] Sending to ${this.toURL(urlPath)}`);
         console.log(`[ModelServer] Sending request:`);
         console.log(jsonObject);
         const response = await axios.post(this.toURL(urlPath), jsonObject, {
@@ -106,7 +106,7 @@ class MockBackend {
     static async delayedResponse(res_type: string, json_obj: any) {
         await new Promise(resolve => {
             setTimeout(resolve, 1000);
-        })
+        });
         switch (res_type) {
             case "disc":
                 return { "data": json_obj.files.map((file_info: any[]) => file_info[0]).slice(0, 3) };
