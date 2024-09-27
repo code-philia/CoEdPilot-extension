@@ -102,8 +102,7 @@ As mentioned before, we respectively prepared 3 models (*file locator*(including
     * `dependency-analyzer/`: dependency anaylzer model, available in [Huggingface](https://huggingface.co/code-philia/dependency-analyzer);
     * `embedding_model.bin`: embedding model for file locator, available in [Huggingface](https://huggingface.co/code-philia/CoEdPilot-file-locator);
     * `reg_model.pickle`: , linear regression model, available in [Huggingface](https://huggingface.co/code-philia/CoEdPilot-file-locator);
-    * `locator_model.bin`: model for line locator, available in [Huggingface](https://huggingface.co/code-philia/CoEdPilot-line-locator);
-    * `generator_model.bin`: model for generator, available in [Huggingface](https://huggingface.co/code-philia/CoEdPilot-generator).
+    * `locator_model.bin` & `generator_model.bin`: We have updated our line locator & generator model to multilingual with better performance, the release is around the corner.
 
 2. To deploy models for one language, put its unzipped model folder **named with the language**.
     ```
@@ -113,6 +112,7 @@ As mentioned before, we respectively prepared 3 models (*file locator*(including
             {language}/
                 embedding_model.bin
                 reg_model.pickle
+            multilingual/
                 locator_model.bin
                 generator_model.bin
     ```

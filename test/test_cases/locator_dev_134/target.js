@@ -6,3 +6,4 @@
    "scripts": {
      "prepublish": "npm test && npm run build",
      "start": "node examples/server.js",
+     test

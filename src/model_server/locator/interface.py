@@ -1,11 +1,11 @@
 # import json
 import torch
-import math
+import json
 
-from .model import Seq2Seq
+from .model import Locator
 from tqdm import tqdm
 from torch.utils.data import DataLoader, SequentialSampler, TensorDataset
-from transformers import (RobertaConfig, RobertaModel, RobertaTokenizer)
+from transformers import (T5Config, T5ForConditionalGeneration, RobertaTokenizer)
 from perf import Stopwatch
 from model_manager import load_model_with_cache
 
@@ -114,13 +114,27 @@ def convert_examples_to_features(examples, tokenizer, stage=None):
 
 def load_model(model_path):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    config_class, model_class, tokenizer_class = (RobertaConfig, RobertaModel, RobertaTokenizer)
-    config = config_class.from_pretrained("microsoft/codebert-base")
-    tokenizer = tokenizer_class.from_pretrained("microsoft/codebert-base")
-    encoder = model_class.from_pretrained("microsoft/codebert-base", config=config)
-    model = Seq2Seq(encoder=encoder,config=config,
-                    beam_size=10,max_length=512,
-                    sos_id=tokenizer.cls_token_id,eos_id=tokenizer.sep_token_id,mask_id=tokenizer.mask_token_id)
+    # Load pre-training models
+    config_class, model_class, tokenizer_class = (T5Config, T5ForConditionalGeneration, RobertaTokenizer)
+    config = config_class.from_pretrained("salesforce/codet5-large")
+    tokenizer = tokenizer_class.from_pretrained("salesforce/codet5-large")
+    codeT5 = model_class.from_pretrained("salesforce/codet5-large") 
+    encoder = codeT5.encoder
+    
+    # add customization tokens
+    new_special_tokens = ["<inter-mask>",
+                          "<code_window>", "</code_window>", 
+                          "<prompt>", "</prompt>", 
+                          "<prior_edits>", "</prior_edits>",
+                          "<edit>", "</edit>",
+                          "<keep>", "<replace>", "<delete>",
+                          "<null>", "<insert>", "<block-split>",
+                          "</insert>","<replace-by>", "</replace-by>"]
+    tokenizer.add_tokens(new_special_tokens, special_tokens=True)
+    encoder.resize_token_embeddings(len(tokenizer))
+    config.vocab_size = len(tokenizer)
+    
+    model = Locator(encoder=encoder,config=config)
     model.load_state_dict(torch.load(model_path))
     model.to(device)
     return model, tokenizer, device
@@ -154,7 +168,7 @@ def merge_adjacent_removals(results):
 
     return merged_results
 
-def predict(json_input, language):
+def predict(json_input):
     '''
     Function: interface between locator and VScode extension
     Args:
@@ -183,6 +197,7 @@ def predict(json_input, language):
 
     stopwatch.start()
     # check model cache
+    language = "multilingual"
     model, tokenizer, device = load_model_with_cache(MODEL_ROLE, language, load_model)
     stopwatch.lap('load model')
 
@@ -191,15 +206,13 @@ def predict(json_input, language):
     commitMessage = json_input["commitMessage"]
     prevEdits = json_input["prevEdits"]
     results = []
-    # print("+++ Prev Edits:")
-    # print(json.dumps(prevEdits, indent=4))
 
     window_token_cnt = 0
     window_line_cnt = 0
     window_text = ""
     def try_feed_in_window(text):
         nonlocal window_token_cnt, window_line_cnt, window_text
-        masked_line = " <mask> " + text
+        masked_line = f"{tokenizer.mask_token}" + text
         masked_line_token_cnt = len(tokenizer.tokenize(masked_line))
         if window_token_cnt + masked_line_token_cnt < 508 and window_line_cnt < 10: # a conservative number for token number
             window_token_cnt += masked_line_token_cnt
@@ -210,13 +223,14 @@ def predict(json_input, language):
             return False
     def end_window(input_list):
         nonlocal prevEdits, commitMessage, window_token_cnt, window_line_cnt, window_text
-        model_input = window_text + ' </s> '  + commitMessage 
+        model_input = f"<code_window>{window_text}</code_window>" + "<prompt>" + commitMessage + "</prompt>"
+        model_input += "<prior_edits>"
         for prevEdit in prevEdits:
-            model_input +=' </s> replace ' + prevEdit["beforeEdit"] + ' add ' + prevEdit["afterEdit"]
+            beforeEdit = prevEdit["beforeEdit"].splitlines(keepends=True)
+            beforeEdit = "<replace>".join(beforeEdit)
+            model_input += "<edit>" + beforeEdit + "<replace-by>" + prevEdit["afterEdit"] +"</replace-by></edit>"
+        model_input += "</prior_edits>"
         input_list.append(model_input)
-        # with open(r"C:\Users\aaa\Desktop\edit-pilot\mark.txt", "a+", newline='') as f:
-        #     f.write(model_input)
-        #     f.write("\n")
         window_token_cnt = 0
         window_line_cnt = 0
         window_text = ""
@@ -230,20 +244,6 @@ def predict(json_input, language):
         targetFileLineNum = len(targetFileLines)
 
         model_inputs = []
-        # for windowIdx in range(math.ceil(targetFileLineNum/codeWindowLength)):
-        #     # 按照 codeWindowLength 将文件内容分割成 codeWindow
-        #     if windowIdx == math.ceil(targetFileLineNum/codeWindowLength)-1:
-        #         codeWindowLines = targetFileLines[windowIdx*codeWindowLength:]
-        #     else:
-        #         codeWindowLines = targetFileLines[windowIdx*codeWindowLength:(windowIdx+1)*codeWindowLength]
-        #     codeWindowLines = [" <mask> " + line for line in codeWindowLines]
-        #     codeWindow = ''.join(codeWindowLines)
-
-        #     # 将 CodeWindow， CommitMessage 和 prevEdit 合并为一个字符串，作为模型的输入
-        #     model_input = codeWindow + ' </s> '  + commitMessage 
-        #     for prevEdit in prevEdits:
-        #         model_input +=' </s> replace ' + prevEdit["beforeEdit"] + ' add ' + prevEdit["afterEdit"]
-        #     model_inputs.append(model_input)
 
         i = 0
         while i < targetFileLineNum:
@@ -259,7 +259,8 @@ def predict(json_input, language):
                 else:
                     end_window(model_inputs)
         if len(window_text) > 0:
-            end_window(model_inputs)
+            end_window(model_inputs) 
+        # print(json.dumps(model_inputs, indent=4))
         stopwatch.lap_by_task('assemble input text')
 
         # prepare model input (tensor format)
@@ -268,8 +269,7 @@ def predict(json_input, language):
         all_source_ids = torch.tensor([f.source_ids for f in eval_features], dtype=torch.long)
         all_source_mask = torch.tensor([f.source_mask for f in eval_features], dtype=torch.long)  
         all_target_ids = torch.tensor([f.target_ids for f in eval_features], dtype=torch.long)
-        all_target_mask = torch.tensor([f.target_mask for f in eval_features], dtype=torch.long)
-        eval_data = TensorDataset(all_source_ids,all_source_mask, all_target_ids,all_target_mask)   
+        eval_data = TensorDataset(all_source_ids,all_source_mask, all_target_ids)   
 
         eval_sampler = SequentialSampler(eval_data)
         eval_dataloader = DataLoader(eval_data, sampler=eval_sampler, batch_size=10, shuffle=False)
@@ -279,14 +279,14 @@ def predict(json_input, language):
         preds = []
         for batch in tqdm(eval_dataloader,total=len(eval_dataloader)):
             batch = tuple(t.to(device) for t in batch)
-            source_ids,source_mask,target_ids,target_mask= batch                  
+            source_ids,source_mask,target_ids = batch                  
             with torch.no_grad():
-                lm_logits = model(source_ids=source_ids,source_mask=source_mask,target_ids=target_ids,target_mask=target_mask, train=False).to('cpu')
+                lm_logits = model(source_ids=source_ids,source_mask=source_mask,target_ids=target_ids).to('cpu')
                 # extract masked edit operations
                 for i in range(lm_logits.shape[0]): # for sample within batch
                     output = []
                     for j in range(lm_logits.shape[1]): # for every token
-                        if source_ids[i][j]==tokenizer.mask_token_id: # if is masked
+                        if source_ids[i][j]==tokenizer.mask_token_id and torch.argmax(lm_logits[i][j]) > 0.75: # if is masked and pass threshold
                             output.append(tokenizer.decode(torch.argmax(lm_logits[i][j]),clean_up_tokenization_spaces=False))
                     preds.extend(output)
 
@@ -294,11 +294,9 @@ def predict(json_input, language):
             raise ValueError(f'The number of lines ({targetFileLineNum}) in the target file is not equal to the number of predictions ({len(preds)}).') # TODO: solve this problem when some lines are too long
         stopwatch.lap_by_task('infer result')
 
-        # print(f"+++ Target file lines:\n{''.join([preds[i] + '    ' + targetFileLines[i] for i in range(targetFileLineNum)])}")
-        # get the edit range
-        # text = ''
-        for i in range(targetFileLineNum):
-            if preds[i] != 'keep': # 如果模型输出的 editType 不是 keep，则该行需要被修改
+        # print(json.dumps(preds, indent=4))
+        for i, pred in enumerate(preds):
+            if pred != '<keep>': # 如果模型输出的 editType 不是 keep，则该行需要被修改
                 if targetFileLines[i].endswith('\r\n'):
                     lineBreak = '\r\n'
                 elif targetFileLines[i].endswith('\n'):
@@ -310,16 +308,11 @@ def predict(json_input, language):
                 
                 results.append({
                     "targetFilePath": targetFilePath,
-                    # "prevEdits": prevEdits,
-                    # "toBeReplaced": normalize_string(targetFileLines[i].rstrip("\n\r")), # 高亮的部分不包括行尾的换行符
-                    # "startPos": len(text),
-                    # "endPos": len(text)+len(targetFileLines[i].rstrip("\n\r")), # 高亮的部分不包括行尾的换行符
-                    "editType": preds[i],
+                    "editType": "replace" if pred == "<replace>" else "add",
                     "lineBreak": lineBreak,
                     "atLines": [i] # 行数从 0 开始
                 })
             
-            # text += targetFileLines[i]
         stopwatch.lap_by_task('prepare result')
 
     results = merge_adjacent_removals(results)

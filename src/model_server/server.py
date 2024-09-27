@@ -26,7 +26,7 @@ def make_400_response(err_msg):
     response.charset = "utf-8"
     return response
 
-def run_predict(predict_name, predict_func):
+def run_predict(predict_name, predict_func, multi_lang=False):
     print(f">>> Running {predict_name}")
     json_str = request.data.decode('utf-8')
     input_json = json.loads(json_str)
@@ -37,7 +37,10 @@ def run_predict(predict_name, predict_func):
     
     if DEBUG:
         print(f">>> {predict_name} inferencing: \n${json.dumps(input_json, indent=4)}")
-    result = predict_func(input_json, language)
+    if multi_lang:
+        result = predict_func(input_json)
+    else:
+        result = predict_func(input_json, language)
 
     if DEBUG:
         print(f">>> {predict_name} output: \n${json.dumps(result, indent=4)}")
@@ -50,11 +53,11 @@ def run_discriminator():
 
 @app.route('/range', methods=['POST'])
 def run_range():
-    return run_predict('locator', loc_predict)
+    return run_predict('locator', loc_predict, multi_lang=True)
 
 @app.route('/content', methods=['POST'])
 def run_content():
-    return run_predict('generator', gen_predict)
+    return run_predict('generator', gen_predict, multi_lang=True)
 
 if __name__ == '__main__':
     # app.run(host='0.0.0.0', port=5001, debug=True)
