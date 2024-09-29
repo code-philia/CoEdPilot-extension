@@ -2,6 +2,9 @@ import vscode from "vscode";
 import { PredictLocationCommand, GenerateEditCommand } from "./services/query-tasks";
 import { limitNum } from "./utils/utils";
 import { globalEditDetector } from "./editor-state-monitor";
+import { FileEdits } from "./utils/base-types";
+import { createVirtualModifiedFileUri } from "./views/compare-view";
+import { readFileSync } from "fs";
 // import { addUserStatItem } from "./global-context";
 
 export function registerBasicCommands() {
@@ -27,7 +30,8 @@ export function registerBasicCommands() {
 			globalEditDetector.clearEditsAndSnapshots();
 			await vscode.window.showInformationMessage("Previous edits cleared!");
 			// addUserStatItem("clearPrevEdits");
-		})
+		}),
+		vscode.commands.registerCommand('coEdPilot.openRefactorPreview', openRefactorPreview)
 	);
 }
 
@@ -36,4 +40,81 @@ export function registerTopTaskCommands() {
 		new PredictLocationCommand(),
 		new GenerateEditCommand()
 	);
+}
+
+// TODO move this to utils
+// Assume: if there is a line break at last, there should be a line of length 0 at the end
+class FileOffsetCounter {
+	readonly linesLength: number[];
+	readonly linesAccumulativeLength: number[];
+
+	constructor(text: string) {
+		const linePattern = /.*?(\r\n?|\n|$)/g;  // empty new line at end when it ends with line break
+		const lines = text.match(linePattern) ?? [];
+		this.linesLength = [];
+		this.linesAccumulativeLength = [];
+		let ac = 0;
+		for (const l of lines) {
+			this.linesLength.push(l.length);
+			this.linesAccumulativeLength.push(ac);
+			ac += l.length;
+		}
+	}
+	
+	countFileOffset(pos: vscode.Position) {
+		const ll = this.linesLength;
+		const l = pos.line;
+		const c = pos.character;
+		if (l > ll.length) return undefined;
+		if (c > ll[l]) return undefined;
+
+		const lal = this.linesAccumulativeLength;
+		return lal[l] + c;
+	}
+}
+
+// TODO consider using primitive implementation of code action preview
+// TODO add cache for the resolved file diffs and virtual files
+// TODO assume refactorEdits[0] is the edit that is done now, but we cannot guarantee, need check
+async function openRefactorPreview(refactorEdits: FileEdits[]) {
+	// const rangeEditClassified: Map<string, FileEdits[]> = new Map();
+	// for (const rangeEdit of refactorEdits) {
+	// 	const editUriString = rangeEdit.location.uri.toString();
+	// 	const matchedClass = rangeEditClassified.get(editUriString);
+	// 	if (matchedClass) {
+	// 		matchedClass.push(rangeEdit);
+	// 	} else {
+	// 		rangeEditClassified.set(editUriString, [rangeEdit]);
+	// 	}
+	// }
+	
+	const changes: [vscode.Uri, vscode.Uri, vscode.Uri][] = [];
+	for (const [originalFileUri, rangeEdits] of refactorEdits) {
+		const originalContent = readFileSync(originalFileUri.fsPath, { encoding: 'utf-8' });
+
+		const replacements: [number, number, string][] = [];
+		const offsetCounter = new FileOffsetCounter(originalContent);
+		for (const edit of rangeEdits) {
+			const s = offsetCounter.countFileOffset(edit.range.start);
+			const e = offsetCounter.countFileOffset(edit.range.end);
+			const text = edit.newText;
+			if (s && e) {
+				replacements.push([s, e, text]);
+			}
+		}
+		
+		let modifiedContent = '';
+		let lastStop = 0;
+		let textEnd = originalContent.length;
+		for (const [start, end, repl] of replacements) {
+			modifiedContent += originalContent.slice(lastStop, start) + repl;
+			lastStop = end;
+		}
+		modifiedContent += originalContent.slice(lastStop, textEnd);
+		
+		const modifiedProxyFileUri = await createVirtualModifiedFileUri(originalFileUri, modifiedContent);
+		changes.push([originalFileUri, originalFileUri, modifiedProxyFileUri]);
+	}
+	// TODO prevent multiple tabs opened
+	vscode.commands.executeCommand('vscode.changes', 'Preview', changes);
 }

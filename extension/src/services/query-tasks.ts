@@ -129,7 +129,7 @@ class PredictLocationCommand extends DisposableComponent {
 		this.register(
             vscode.commands.registerCommand("coEdPilot.predictLocations", predictLocation),
             vscode.commands.registerCommand("coEdPilot.clearLocations", async () => {
-                globalQueryContext.updateLocations(undefined);
+                globalQueryContext.clearResults();
             })
 		);
 	}

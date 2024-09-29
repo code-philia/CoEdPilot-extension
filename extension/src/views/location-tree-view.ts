@@ -2,7 +2,7 @@ import vscode, { TreeItem, TreeItemCollapsibleState } from 'vscode';
 import path from 'path';
 import { DisposableComponent } from '../utils/base-component';
 import { getRootPath, toRelPath } from '../utils/file-utils';
-import { EditType, BackendApiEditLocation } from '../utils/base-types';
+import { EditType, BackendApiEditLocation, FileEdits } from '../utils/base-types';
 
 export class LocationTreeDataProvider implements vscode.TreeDataProvider<FileItem | ModItem>  {
     private _onDidChangeTreeData: vscode.EventEmitter<FileItem | undefined> = new vscode.EventEmitter<FileItem | undefined>();
@@ -27,6 +27,17 @@ export class LocationTreeDataProvider implements vscode.TreeDataProvider<FileIte
 
     reloadData(modList: BackendApiEditLocation[]) {
         this.modTree = this.buildModTree(modList);
+        this.notifyChangeofTree();
+    }
+
+    // TODO reimplement this in another provider class
+    async reloadRefactorData(editList: FileEdits[]) {
+        const workspaceFolderPath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+        if (!workspaceFolderPath) {
+            return [];
+        }
+
+        this.modTree = this.buildRefactorTree(editList);
         this.notifyChangeofTree();
     }
 
@@ -109,6 +120,16 @@ export class LocationTreeDataProvider implements vscode.TreeDataProvider<FileIte
         return modTree;
     }
 
+    buildRefactorTree(editList: FileEdits[]) {
+        var modTree = [];
+        for (const [uri, edits] of editList) {
+            // TODO the conversion here is lossy
+            modTree.push(this.getRefactorFileItem(uri, edits, editList));
+        }
+
+        return modTree;
+    }
+
     getChildren(element?: FileItem) {
         if (element) {
             return element.mods;
@@ -154,11 +175,47 @@ export class LocationTreeDataProvider implements vscode.TreeDataProvider<FileIte
 
         return fileItem;
     }
+
+    // TODO use another tree view implementation
+    // All ModItems of the refactor tree points to one (single) refactor review command
+    getRefactorFileItem(fileUri: vscode.Uri, inFileEdits: vscode.TextEdit[], refactorEdits: FileEdits[]) {
+        const fileName = path.basename(fileUri.fsPath);
+        // TODO the relPath could be incorrect if there are multiple workspace folders
+        const relPath = path.relative(vscode.workspace.workspaceFolders?.[0].uri.fsPath ?? '', fileUri.fsPath);
+        var fileItem = new FileItem(
+            fileName,
+            vscode.TreeItemCollapsibleState.Expanded,
+            fileName,
+            relPath,
+            []
+        );
+
+        for (const edit of inFileEdits) {
+            // TODO don't use fromLine toLine, use range. Though it is no impact here
+            let fromLine = edit.range.start.line;
+            let toLine = edit.range.end.line;
+            fileItem.mods.push(
+                new ModItem(
+                    `Line ${fromLine + 1}`,
+                    vscode.TreeItemCollapsibleState.None,
+                    fileItem,
+                    fromLine,
+                    toLine,
+                    edit.newText.split('\n')[0],     // this is inefficient, should be readLine
+                    'replace',
+                    true,
+                    refactorEdits
+                )
+            );
+        }
+
+        return fileItem;
+    }
 }
 
 class FileItem extends vscode.TreeItem {
     fileName: string;
-    filePath: string;
+    filePath: string;   // TODO don't use relative path here. Resolve absolute path, i.e., use a relative path with context linked to specific workspace folder
     mods: ModItem[];
 
     constructor(label: string, collapsibleState: TreeItemCollapsibleState, fileName: string, filePath: string, mods: ModItem[]) {
@@ -184,7 +241,7 @@ class ModItem extends vscode.TreeItem {
     editType: EditType;
     text: string;
 
-    constructor(label: string, collapsibleState: TreeItemCollapsibleState, fileItem: FileItem, fromLine: number, toLine: number, lineContent: string, editType: EditType) {
+    constructor(label: string, collapsibleState: TreeItemCollapsibleState, fileItem: FileItem, fromLine: number, toLine: number, lineContent: string, editType: EditType, isRefactor: boolean = true, refactorEdits: FileEdits[] | undefined = undefined) {
         super(label, collapsibleState);
         this.collapsibleState = collapsibleState;
         this.fileItem = fileItem;
@@ -196,15 +253,23 @@ class ModItem extends vscode.TreeItem {
 
         this.tooltip = `Line ${this.fromLine}`; // match real line numbers in the gutter
         this.description = this.text;
-        this.command = {
-            command: 'coEdPilot.openFileAtLine',
-            title: '',
-            arguments: [
-                this.fileItem.filePath,
-                this.fromLine,
-                editType === "add" ? this.fromLine : this.toLine  // edit of type "add" will only place the cursor at the starting of line
-            ]
-        };
+        if (isRefactor && refactorEdits) {
+            this.command = {
+                command: 'coEdPilot.openRefactorPreview',
+                title: 'Open Refactor View',
+                arguments: [refactorEdits]
+            };
+        } else {
+            this.command = {
+                command: 'coEdPilot.openFileAtLine',
+                title: '',
+                arguments: [
+                    this.fileItem.filePath,
+                    this.fromLine,
+                    editType === "add" ? this.fromLine : this.toLine  // edit of type "add" will only place the cursor at the starting of line
+                ]
+            };
+        }
         
         // FIXME this way to get assets is alkward
         this.iconPath = {
@@ -282,3 +347,44 @@ class EditLocationViewManager extends DisposableComponent {
 }
 
 export const globalLocationViewManager = new EditLocationViewManager();
+
+class RefactorPreviewViewManager implements vscode.Disposable {
+    provider: LocationTreeDataProvider;
+    treeView: vscode.TreeView<FileItem | TreeItem>;
+
+    constructor() {
+        this.provider = new LocationTreeDataProvider();
+        
+        const treeViewOptions: vscode.TreeViewOptions<FileItem | ModItem> = {
+            treeDataProvider: this.provider,
+            showCollapseAll: true
+        };
+        // TODO do not always display the treeview, but only when there are locations
+        const treeView = vscode.window.createTreeView('editLocations', treeViewOptions);
+        this.treeView = treeView;
+    }
+
+    setUpBadge(numOfLocation: number) {
+        this.treeView.badge = {
+            tooltip: `${numOfLocation} possible edit locations`,
+            value: numOfLocation
+        };
+    }
+
+    reloadLocations(locations: FileEdits[]) {
+        this.provider.reloadRefactorData(locations);
+        this.setUpBadge(locations.length);
+        Promise.resolve(async () => {
+            if (!this.treeView.visible) {
+                await vscode.commands.executeCommand('editLocations.focus');
+            }
+            await this.treeView.reveal(this.provider.modTree[0], { expand: 2 });
+        });
+    }
+
+    dispose() {
+        this.treeView.dispose();
+    }
+}
+
+export const globalRefactorPreviewViewManager = new RefactorPreviewViewManager();

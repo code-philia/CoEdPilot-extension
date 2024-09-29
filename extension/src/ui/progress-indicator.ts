@@ -65,4 +65,6 @@ class ProgressDisplayStatusBarItem extends DisposableComponent {
     }
 }
 
+// FIXME global variables (even inside module) could cause annoying cyclic import error
+// (when its class used before its initialization, could yield undefined error)
 export const statusBarItem = new ProgressDisplayStatusBarItem();

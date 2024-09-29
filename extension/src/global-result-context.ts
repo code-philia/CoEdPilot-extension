@@ -1,9 +1,12 @@
 import os from "os";
 import vscode from "vscode";
 import { DisposableComponent } from "./utils/base-component";
-import { LineBreak, BackendApiEditLocation } from "./utils/base-types";
+import { LineBreak, BackendApiEditLocation, SingleLineEdit, FileEdits } from "./utils/base-types";
 import { LocationResultDecoration } from "./ui/location-decoration";
-import { globalLocationViewManager } from "./views/location-tree-view";
+import { globalLocationViewManager, globalRefactorPreviewViewManager } from "./views/location-tree-view";
+import { findFirstDiffPos } from "./utils/utils";
+import { getLineInfoInDocument } from "./utils/file-utils";
+import { diffWords } from "diff";
 
 // TODO consider using/transfering to `async-lock` for this
 class EditLock {
@@ -72,14 +75,110 @@ class LocationResult {
 
     dispose() {
         this.decoration.dispose();
-        // TODO there could be multiple sets of locations, use a manager class for each
+        // TODO there could be multiple sets of locations existing at the same time
+        // use a manager class for each
         globalLocationViewManager.reloadLocations([]);
     }
 }
 
+class SingleRefactorResult {
+    private readonly refactorOperation: RefactorOperation;
+    
+    private edits: FileEdits[] = [];
+
+    constructor(refactorOperation: RefactorOperation) {
+        this.refactorOperation = refactorOperation;
+    }
+    
+    async resolve() {
+        this.edits = await this.refactorOperation.resolveLocations();
+        globalRefactorPreviewViewManager.reloadLocations(this.edits);
+    }
+
+    dispose() {
+        globalRefactorPreviewViewManager.reloadLocations([]);
+    }
+}
+
+// abstract class RefactorType {
+//     resolve() { };
+// }
+
+export async function createRenameRefactor(file: string, line: number, beforeText: string, afterText: string): Promise<RenameRefactor | undefined> {
+    const currentWorkspaceFolderUri = vscode.workspace.workspaceFolders?.[0].uri;
+    if (!currentWorkspaceFolderUri) return undefined;
+    const fileUri = vscode.Uri.joinPath(currentWorkspaceFolderUri, file);
+
+    // TODO this location does not contain line break
+    const location = new vscode.Location(fileUri, (await getLineInfoInDocument(fileUri.fsPath, line)).range);
+    return new RenameRefactor({
+        location,
+        beforeContent: beforeText,
+        afterContent: afterText
+    });
+}
+
+class RenameRefactor {
+    private readonly firstRename: SingleLineEdit;
+
+    constructor(firstRename: SingleLineEdit) {
+        this.firstRename = firstRename;
+    }
+
+    async resolveLocations(): Promise<FileEdits[]> {
+        // simulate an edit to find the reference
+        const { location: loc, beforeContent: bc, afterContent: ac } = this.firstRename;
+
+        const editor = await vscode.window.showTextDocument(loc.uri);
+        if (!editor) return [];
+
+        const lineNum = loc.range.start.line;
+        const line = editor.document.lineAt(lineNum);
+
+        const firstDiffPos = findFirstDiffPos(bc, ac);
+        if (firstDiffPos > line.range.end.character) return [];
+
+        const diffs = diffWords(bc, ac);
+        const firstReplacedWord = diffs.find(d => d.added)?.value;
+        if (!firstReplacedWord) return [];
+        
+        let getEditsResolve: any;
+        const getEditsPromise = new Promise((res) => {
+            getEditsResolve = res;
+        }).then((editEntries: any) => {
+            // TODO filtering the first as "edited rename" is not accurate, need check
+            const refactorEdits: FileEdits[] = editEntries;
+            const firstFileEdits = refactorEdits[0];
+            if (firstFileEdits) {
+                firstFileEdits[1] = firstFileEdits[1].slice(1);
+            }
+            return editEntries;
+        });
+
+        await editor.edit((editBuilder) => {
+            editBuilder.replace(line.range, bc);
+        });
+
+        // find that it returns WorkspaceEdit here, we use it instead of our own RangeEdit
+        const targetWorkspaceEdit: vscode.WorkspaceEdit = await vscode.commands.executeCommand('vscode.executeDocumentRenameProvider',
+            loc.uri, line.range.start.translate(0, firstDiffPos), firstReplacedWord
+        );
+        getEditsResolve(targetWorkspaceEdit.entries());
+
+        await editor.edit((editBuilder) => {
+            editBuilder.replace(line.range, ac);
+        });
+
+        return await getEditsPromise;
+        // const doc = vscode.workspace.
+    }
+}
+type RefactorOperation = RenameRefactor;
+
 class QueryContext extends DisposableComponent {
     readonly querySettings: QuerySettings = new QuerySettings();
     private activeLocationResult?: LocationResult;
+    private activeRefactorResult?: SingleRefactorResult;
 
     constructor() {
         super();
@@ -90,16 +189,25 @@ class QueryContext extends DisposableComponent {
         );
     }
 
+    clearResults() {
+        this.activeLocationResult?.dispose();
+        this.activeRefactorResult?.dispose();
+    }
+
     getLocations() {
         return this.activeLocationResult?.getLocations();
     }
 
-    updateLocations(locations?: BackendApiEditLocation[]) {
+    updateLocations(locations: BackendApiEditLocation[]) {
         // cannot use destructor() here due to JavaScript nature
-        this.activeLocationResult?.dispose();
-        if (locations) { 
-            this.activeLocationResult = new LocationResult(locations);
-        }
+        this.clearResults();
+        this.activeLocationResult = new LocationResult(locations);
+    }
+
+    updateRefactor(refactor: RefactorOperation) {
+        this.clearResults();
+        this.activeRefactorResult = new SingleRefactorResult(refactor);
+        this.activeRefactorResult.resolve();
     }
 }
 
@@ -118,4 +226,4 @@ export const defaultLineBreaks: { [key: string]: LineBreak } = {
     'Darwin': '\r',
     'Linux': '\n'
 };
-export const defaultLineBreak: string = defaultLineBreaks[osType] ?? '\n';
+export const defaultLineBreak: LineBreak = defaultLineBreaks[osType] ?? '\n';

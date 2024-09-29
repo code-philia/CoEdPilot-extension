@@ -35,6 +35,17 @@ export type BackendApiEdit = {
     }
 };
 
+export type SingleLineEdit = {
+    location: vscode.Location,  // always the beginning of the line
+    beforeContent: string, 
+    afterContent: string
+};
+// export type RangeEdit = {
+//     location: vscode.Location,
+//     afterContent: string
+// }
+export type FileEdits = [vscode.Uri, vscode.TextEdit[]];
+
 export type Edit = {
     path: string; // the file path
     s: number; // starting line

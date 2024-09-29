@@ -89,6 +89,10 @@ const compareTempFileSystemProvider = new CompareTempFileProvider();
 const tempWrite = compareTempFileSystemProvider.getAsyncWriter();
 const diffTabSelectors = new Map();
 
+export async function createVirtualModifiedFileUri(originalUri: vscode.Uri, text: string) {
+   return await tempWrite(originalUri.fsPath, text);
+}
+
 /**
  * Use a series of suggested edits to generate a live editable diff view for the user to make the decision
  */

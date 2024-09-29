@@ -140,6 +140,18 @@ class MockBackend {
                             ]
                     }
                 };
+            case "rename-loc":
+                return {
+                    "type": "rename",
+                    "data": [
+                        {
+                            "file": "a.py",
+                            "line": 2,
+                            "beforeText": "def ad(a, b):",
+                            "afterText": "def add(a, b):"
+                        },
+                    ]
+                };
         }
     }
 }
@@ -159,7 +171,7 @@ async function postRequestToDiscriminator(json_obj: any) {
 
 async function postRequestToLocator(json_obj: any) {
     if (server_mock)
-        return await MockBackend.delayedResponse('loc', json_obj);
+        return await MockBackend.delayedResponse('rename-loc', json_obj);
     return await basicQuery("range", json_obj);
 }
 

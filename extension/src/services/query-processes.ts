@@ -1,4 +1,4 @@
-import { globalQueryContext } from '../global-result-context';
+import { createRenameRefactor, globalQueryContext } from '../global-result-context';
 import { toRelPath, getActiveFilePath, toAbsPath, getLineInfoInDocument } from '../utils/file-utils';
 import { postRequestToDiscriminator, postRequestToLocator, postRequestToGenerator } from './backend-requests';
 import { statusBarItem } from '../ui/progress-indicator';
@@ -98,15 +98,30 @@ async function startLocationQueryProcess(
     };
     statusBarItem.setStatusQuerying("locator");
     const locatorOutput = await postRequestToLocator(loc_input);
-
-    // convert all paths back to absolute paths
-    let rawLocations = locatorOutput.data;
-    for (const loc of rawLocations) {
-        loc.targetFilePath = toAbsPath(rootPath, loc.targetFilePath);
-        loc.lineInfo = await getLineInfoInDocument(loc.targetFilePath, loc.atLines[0]);
+ 
+    if (locatorOutput.type === 'rename') {
+        const refactorInfo = locatorOutput.data[0];
+        const renameRefactor = await createRenameRefactor(
+            refactorInfo.file,
+            refactorInfo.line,
+            refactorInfo.beforeText,
+            refactorInfo.afterText
+        );
+        if (renameRefactor) {
+            globalQueryContext.updateRefactor(renameRefactor);
+        }
+        return renameRefactor;
+    } else {
+        // convert all paths back to absolute paths
+        let rawLocations = locatorOutput.data;
+        for (const loc of rawLocations) {
+            loc.targetFilePath = toAbsPath(rootPath, loc.targetFilePath);
+            loc.lineInfo = await getLineInfoInDocument(loc.targetFilePath, loc.atLines[0]);
+        }
+        // TODO add failure processing if there are no locations in response
+        globalQueryContext.updateLocations(rawLocations);
+        return rawLocations;
     }
-    globalQueryContext.updateLocations(rawLocations);
-    return rawLocations;
 }
 
 async function startEditQueryProcess(
