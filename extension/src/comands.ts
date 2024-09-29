@@ -42,7 +42,7 @@ export function registerTopTaskCommands() {
 	);
 }
 
-// TODO move this to utils
+// TODO move this to utils, and upgrade implementing this as a virtual text document, which can also be used when reverting an edit of rename
 // Assume: if there is a line break at last, there should be a line of length 0 at the end
 class FileOffsetCounter {
 	readonly linesLength: number[];
@@ -73,10 +73,22 @@ class FileOffsetCounter {
 	}
 }
 
-// TODO consider using primitive implementation of code action preview
-// TODO add cache for the resolved file diffs and virtual files
+const internalOpenMultiDiffEditorCommand = '_workbench.openMultiDiffEditor';
+interface OpenMultiFileDiffEditorOptions {
+	title: string;
+	multiDiffSourceUri?: vscode.Uri;
+	resources?: { originalUri: vscode.Uri; modifiedUri: vscode.Uri }[];
+}
+
+export interface UniqueRefactorEditsSet {
+	id: string,
+	edits: FileEdits[]
+} 
+
+// TODO consider using primitive implementation of code action preview (this seems to have been hidden internally :<) (the command is visible, but the context of command is hidden)
+// TODO add cache for the resolved file diffs and virtual files, so that we don't need to re-calculate and re-store them again
 // TODO assume refactorEdits[0] is the edit that is done now, but we cannot guarantee, need check
-async function openRefactorPreview(refactorEdits: FileEdits[]) {
+async function openRefactorPreview(refactorEditSet: UniqueRefactorEditsSet) {
 	// const rangeEditClassified: Map<string, FileEdits[]> = new Map();
 	// for (const rangeEdit of refactorEdits) {
 	// 	const editUriString = rangeEdit.location.uri.toString();
@@ -88,8 +100,8 @@ async function openRefactorPreview(refactorEdits: FileEdits[]) {
 	// 	}
 	// }
 	
-	const changes: [vscode.Uri, vscode.Uri, vscode.Uri][] = [];
-	for (const [originalFileUri, rangeEdits] of refactorEdits) {
+	const changes: [vscode.Uri, vscode.Uri][] = [];
+	for (const [originalFileUri, rangeEdits] of refactorEditSet.edits) {
 		const originalContent = readFileSync(originalFileUri.fsPath, { encoding: 'utf-8' });
 
 		const replacements: [number, number, string][] = [];
@@ -106,6 +118,7 @@ async function openRefactorPreview(refactorEdits: FileEdits[]) {
 		let modifiedContent = '';
 		let lastStop = 0;
 		let textEnd = originalContent.length;
+		// do all replacements at a time, preventing offset problems
 		for (const [start, end, repl] of replacements) {
 			modifiedContent += originalContent.slice(lastStop, start) + repl;
 			lastStop = end;
@@ -113,8 +126,12 @@ async function openRefactorPreview(refactorEdits: FileEdits[]) {
 		modifiedContent += originalContent.slice(lastStop, textEnd);
 		
 		const modifiedProxyFileUri = await createVirtualModifiedFileUri(originalFileUri, modifiedContent);
-		changes.push([originalFileUri, originalFileUri, modifiedProxyFileUri]);
+		changes.push([originalFileUri, modifiedProxyFileUri]);
 	}
-	// TODO prevent multiple tabs opened
-	vscode.commands.executeCommand('vscode.changes', 'Preview', changes);
+	const options: OpenMultiFileDiffEditorOptions = {
+		title: 'Preview',
+		multiDiffSourceUri: vscode.Uri.parse(`temp-id:/${refactorEditSet.id}`), // just used as a unique identifier
+		resources: changes.map(([originalUri, modifiedUri]) => ({ originalUri, modifiedUri }))
+	};
+	vscode.commands.executeCommand(internalOpenMultiDiffEditorCommand, options);
 }

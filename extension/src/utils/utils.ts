@@ -13,3 +13,7 @@ export function findFirstDiffPos(a: string, b: string) {
     while (a[i] === b[i]) i++;
     return i;
 }
+
+export function generateTimeSepcificId() {
+    return new Date().getTime().toString() + Math.floor(Math.random() * 1000).toString();
+}

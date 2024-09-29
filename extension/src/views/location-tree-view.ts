@@ -3,6 +3,8 @@ import path from 'path';
 import { DisposableComponent } from '../utils/base-component';
 import { getRootPath, toRelPath } from '../utils/file-utils';
 import { EditType, BackendApiEditLocation, FileEdits } from '../utils/base-types';
+import { UniqueRefactorEditsSet } from '../comands';
+import { generateTimeSepcificId } from '../utils/utils';
 
 export class LocationTreeDataProvider implements vscode.TreeDataProvider<FileItem | ModItem>  {
     private _onDidChangeTreeData: vscode.EventEmitter<FileItem | undefined> = new vscode.EventEmitter<FileItem | undefined>();
@@ -122,9 +124,13 @@ export class LocationTreeDataProvider implements vscode.TreeDataProvider<FileIte
 
     buildRefactorTree(editList: FileEdits[]) {
         var modTree = [];
+        const refactorEditsSet: UniqueRefactorEditsSet = {
+            id: generateTimeSepcificId(),
+            edits: editList
+        };
         for (const [uri, edits] of editList) {
-            // TODO the conversion here is lossy
-            modTree.push(this.getRefactorFileItem(uri, edits, editList));
+            // TODO The conversion here is lossy, see implementation below. Use a data->resolve way for this, rewriting getTreeItem method.
+            modTree.push(this.getRefactorFileItem(uri, edits, refactorEditsSet));
         }
 
         return modTree;
@@ -178,7 +184,7 @@ export class LocationTreeDataProvider implements vscode.TreeDataProvider<FileIte
 
     // TODO use another tree view implementation
     // All ModItems of the refactor tree points to one (single) refactor review command
-    getRefactorFileItem(fileUri: vscode.Uri, inFileEdits: vscode.TextEdit[], refactorEdits: FileEdits[]) {
+    getRefactorFileItem(fileUri: vscode.Uri, inFileEdits: vscode.TextEdit[], refactorEditsSet: UniqueRefactorEditsSet) {
         const fileName = path.basename(fileUri.fsPath);
         // TODO the relPath could be incorrect if there are multiple workspace folders
         const relPath = path.relative(vscode.workspace.workspaceFolders?.[0].uri.fsPath ?? '', fileUri.fsPath);
@@ -204,7 +210,7 @@ export class LocationTreeDataProvider implements vscode.TreeDataProvider<FileIte
                     edit.newText.split('\n')[0],     // this is inefficient, should be readLine
                     'replace',
                     true,
-                    refactorEdits
+                    refactorEditsSet
                 )
             );
         }
@@ -241,7 +247,7 @@ class ModItem extends vscode.TreeItem {
     editType: EditType;
     text: string;
 
-    constructor(label: string, collapsibleState: TreeItemCollapsibleState, fileItem: FileItem, fromLine: number, toLine: number, lineContent: string, editType: EditType, isRefactor: boolean = true, refactorEdits: FileEdits[] | undefined = undefined) {
+    constructor(label: string, collapsibleState: TreeItemCollapsibleState, fileItem: FileItem, fromLine: number, toLine: number, lineContent: string, editType: EditType, isRefactor: boolean = true, refactorEdits: UniqueRefactorEditsSet | undefined = undefined) {
         super(label, collapsibleState);
         this.collapsibleState = collapsibleState;
         this.fileItem = fileItem;
