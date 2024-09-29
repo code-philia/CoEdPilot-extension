@@ -257,7 +257,7 @@ class ModItem extends vscode.TreeItem {
         this.editType = editType;
         this.text = `    ${this.lineContent.trim()}`;
 
-        this.tooltip = `Line ${this.fromLine}`; // match real line numbers in the gutter
+        this.tooltip = `Line ${this.fromLine + 1}`; // match real line numbers in the gutter
         this.description = this.text;
         if (isRefactor && refactorEdits) {
             this.command = {
@@ -340,15 +340,13 @@ class EditLocationViewManager extends DisposableComponent {
         };
     }
 
-    reloadLocations(locations: BackendApiEditLocation[]) {
+    async reloadLocations(locations: BackendApiEditLocation[]) {
         this.provider.reloadData(locations);
         this.setUpBadge(locations.length);
-        Promise.resolve(async () => {
-            if (!this.treeView.visible) {
-                await vscode.commands.executeCommand('editLocations.focus');
-            }
-            await this.treeView.reveal(this.provider.modTree[0], { expand: 2 });
-        });
+        if (!this.treeView.visible) {
+            await vscode.commands.executeCommand('editLocations.focus');
+        }
+        await this.treeView.reveal(this.provider.modTree[0], { expand: 2 });
     }
 }
 
@@ -377,15 +375,13 @@ class RefactorPreviewViewManager implements vscode.Disposable {
         };
     }
 
-    reloadLocations(locations: FileEdits[]) {
+    async reloadLocations(locations: FileEdits[]) {
         this.provider.reloadRefactorData(locations);
         this.setUpBadge(locations.length);
-        Promise.resolve(async () => {
-            if (!this.treeView.visible) {
-                await vscode.commands.executeCommand('editLocations.focus');
-            }
-            await this.treeView.reveal(this.provider.modTree[0], { expand: 2 });
-        });
+        if (!this.treeView.visible) {
+            await vscode.commands.executeCommand('editLocations.focus');
+        }
+        await this.treeView.reveal(this.provider.modTree[0], { expand: 2 });
     }
 
     dispose() {
