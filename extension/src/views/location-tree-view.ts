@@ -360,7 +360,7 @@ class RefactorPreviewViewManager implements vscode.Disposable {
             showCollapseAll: true
         };
         // TODO do not always display the treeview, but only when there are locations
-        const treeView = vscode.window.createTreeView('editLocations', treeViewOptions);
+        const treeView = vscode.window.createTreeView('Refactor', treeViewOptions);
         this.treeView = treeView;
     }
 

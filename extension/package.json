@@ -175,8 +175,11 @@
       "coEdPilot": [
         {
           "id": "editLocations",
-          "name": "Suggested Locations",
-          "contextualTitle": "CoEdPilot"
+          "name": "Suggested Edit Locations"
+        },
+        {
+          "id": "Refactor",
+          "name": "Suggested Refactoring"
         }
       ]
     },
