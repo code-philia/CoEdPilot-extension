@@ -142,6 +142,7 @@ class RenameRefactor {
         const firstReplacedWord = diffs.find(d => d.added)?.value;
         if (!firstReplacedWord) return [];
         
+        // TODO Due to writing this as async/await, setting a promise seems to be unnecessary
         let getEditsResolve: any;
         const getEditsPromise = new Promise((res) => {
             getEditsResolve = res;
@@ -155,18 +156,35 @@ class RenameRefactor {
             return editEntries;
         });
 
-        await editor.edit((editBuilder) => {
-            editBuilder.replace(line.range, bc);
-        });
+        // show a progress message
+        await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: "Simulating rename..." }, async () => {
 
-        // find that it returns WorkspaceEdit here, we use it instead of our own RangeEdit
-        const targetWorkspaceEdit: vscode.WorkspaceEdit = await vscode.commands.executeCommand('vscode.executeDocumentRenameProvider',
-            loc.uri, line.range.start.translate(0, firstDiffPos), firstReplacedWord
-        );
-        getEditsResolve(targetWorkspaceEdit.entries());
+            await editor.edit((editBuilder) => {
+                editBuilder.replace(line.range, bc);
+            }, {
+                undoStopBefore: false,
+                undoStopAfter: false
+            });
 
-        await editor.edit((editBuilder) => {
-            editBuilder.replace(line.range, ac);
+            // const linePattern = /.*?(\r\n?|\n|$)/g;  // empty new line at end when it ends with line break
+            // const virtualDoc = editor.document.getText().match(linePattern) ?? [];  // this is not possible to be null / empty array, just a prevention
+            // virtualDoc[loc.range.start.line] = bc;
+            // const virtualDocText = virtualDoc.join('');
+            // const modifiedProxyFileUri = await createVirtualModifiedFileUri(loc.uri, virtualDocText);
+            // console.log(`text: ${(await vscode.workspace.openTextDocument(modifiedProxyFileUri)).getText()}`);
+
+            // find that it returns WorkspaceEdit here, we use it instead of our own RangeEdit
+            const targetWorkspaceEdit: vscode.WorkspaceEdit = await vscode.commands.executeCommand('vscode.executeDocumentRenameProvider',
+                loc.uri, line.range.start.translate(0, firstDiffPos), firstReplacedWord
+            );
+            getEditsResolve(targetWorkspaceEdit.entries());
+
+            await editor.edit((editBuilder) => {
+                editBuilder.replace(line.range, ac);
+            }, {
+                undoStopBefore: false,
+                undoStopAfter: false
+            });
         });
 
         return await getEditsPromise;
