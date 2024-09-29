@@ -244,14 +244,14 @@ class EditSelector {
             const _locs = locations.slice();
             _locs.forEach((loc, i) => {
                 const offset = loc.editType === "add" ? 1 : 0;
-                // TODO this detection of "applied edit" could be buggy？
+                // TODO this detection of "applied edit" could be buggy？Especially when the URI is different
                 if (loc.atLines
                 && loc.atLines[0] + offset < this.toLine
                 && loc.atLines[loc.atLines.length - 1] + 1 + offset > this.fromLine) {
                     _locs.splice(i, 1);
                 }
+                globalQueryContext.updateLocations(_locs);
             });
-            globalQueryContext.updateLocations(locations);
         }
     }
 
