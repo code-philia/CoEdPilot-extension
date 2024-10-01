@@ -1,12 +1,16 @@
 import os
+import json
+import warnings
+import configparser
+
 from flask import Flask, config, request, make_response
 from waitress import serve
 from discriminator.interface import predict as disc_predict
 from locator.interface import predict as loc_predict
 from generator.interface import predict as gen_predict
-import json
-import configparser
+from transformers import logging
 
+logging.set_verbosity_error()
 app = Flask(__name__)
 
 DEBUG = False

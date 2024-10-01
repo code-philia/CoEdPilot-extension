@@ -101,13 +101,26 @@ def predict(json_input):
         else:
             codeWindow += f"<keep>{targetFileLines[lineIdx]}"
     
-    model_input = f"<code_window>{codeWindow}</code_window><prompt>{commitMessage}</prompt><prior_edit>"
+    model_input = f"<code_window>{codeWindow}</code_window><prompt>{commitMessage}</prompt><prior_edits>"
     for prevEdit in prevEdits:
-        beforeEditLines = prevEdit["beforeEdit"].splitlines(keepends=True)
-        beforeEdit = "<replace>".join(beforeEditLines)
-        model_input += f"<edit>{beforeEdit}<replace-by>{prevEdit['afterEdit']}</replace-by></edit>"
-    model_input += "</prior_edit>"
+        codeAbove = prevEdit["codeAbove"].splitlines(keepends=True)
+        codeAbove = "".join(["<keep>" + loc for loc in codeAbove])
+        beforeEdit = prevEdit["beforeEdit"].splitlines(keepends=True)
+        if len(beforeEdit) == 0:
+            editType = "insert"
+        else:
+            editType = "replace"
+        beforeEdit = "".join(["<replace>" + loc for loc in beforeEdit])
+        codeBelow = prevEdit["codeBelow"].splitlines(keepends=True)
+        codeBelow = "".join(["<keep>" + loc for loc in codeBelow])
+        
+        if editType == "replace":
+            model_input += "<edit>" + codeAbove + "<replace-by>" + prevEdit["afterEdit"] +"</replace-by>" + beforeEdit + codeBelow + "</edit>"
+        else:
+            model_input += "<edit>" + codeAbove + "<insert>" + prevEdit["afterEdit"] + "</insert>" + codeBelow + "</edit>"
+    model_input += "</prior_edits>"
     
+    # print("Generator input:")
     # print(json.dumps(model_input, indent=4))
     encoded_source_seq = tokenizer(model_input, padding="max_length", truncation=True, max_length=512)
     source_ids = encoded_source_seq["input_ids"]

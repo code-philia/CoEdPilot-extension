@@ -226,10 +226,23 @@ def predict(json_input):
         model_input = f"<code_window>{window_text}</code_window>" + "<prompt>" + commitMessage + "</prompt>"
         model_input += "<prior_edits>"
         for prevEdit in prevEdits:
+            codeAbove = prevEdit["codeAbove"].splitlines(keepends=True)
+            codeAbove = "".join(["<keep>" + loc for loc in codeAbove])
             beforeEdit = prevEdit["beforeEdit"].splitlines(keepends=True)
-            beforeEdit = "<replace>".join(beforeEdit)
-            model_input += "<edit>" + beforeEdit + "<replace-by>" + prevEdit["afterEdit"] +"</replace-by></edit>"
+            if len(beforeEdit) == 0:
+                editType = "insert"
+            else:
+                editType = "replace"
+            beforeEdit = "".join(["<replace>" + loc for loc in beforeEdit])
+            codeBelow = prevEdit["codeBelow"].splitlines(keepends=True)
+            codeBelow = "".join(["<keep>" + loc for loc in codeBelow])
+            
+            if editType == "replace":
+                model_input += "<edit>" + codeAbove + "<replace-by>" + prevEdit["afterEdit"] +"</replace-by>" + beforeEdit + codeBelow + "</edit>"
+            else:
+                model_input += "<edit>" + codeAbove + "<insert>" + prevEdit["afterEdit"] + "</insert>" + codeBelow + "</edit>"
         model_input += "</prior_edits>"
+        
         input_list.append(model_input)
         window_token_cnt = 0
         window_line_cnt = 0
@@ -260,6 +273,7 @@ def predict(json_input):
                     end_window(model_inputs)
         if len(window_text) > 0:
             end_window(model_inputs) 
+        # print("Locator input text:")
         # print(json.dumps(model_inputs, indent=4))
         stopwatch.lap_by_task('assemble input text')
 
@@ -286,7 +300,7 @@ def predict(json_input):
                 for i in range(lm_logits.shape[0]): # for sample within batch
                     output = []
                     for j in range(lm_logits.shape[1]): # for every token
-                        if source_ids[i][j]==tokenizer.mask_token_id and torch.argmax(lm_logits[i][j]) > 0.75: # if is masked and pass threshold
+                        if source_ids[i][j]==tokenizer.mask_token_id and torch.argmax(lm_logits[i][j]) > 0.95: # if is masked and pass threshold
                             output.append(tokenizer.decode(torch.argmax(lm_logits[i][j]),clean_up_tokenization_spaces=False))
                     preds.extend(output)
 
