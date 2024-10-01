@@ -53,10 +53,6 @@ class LocationDecoration extends BaseComponent {
 			.map((loc) => {
 				let startLine = loc.atLines[0];
 				let endLine = loc.atLines[loc.atLines.length - 1];
-				if (loc.editType === "add") {	// the model was designed to add content after the mark line
-					startLine += 1;
-					endLine += 1;
-				}
 
 				const document = editor.document;
 				startLine = numIn(startLine, 0, document.lineCount - 1);

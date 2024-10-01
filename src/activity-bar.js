@@ -130,8 +130,8 @@ class LocationTreeProvider  {
         )
 
         for (const loc of modListOnPath) {
-            let fromLine = loc.editType === "add" ? loc.atLines[0] + 1 : loc.atLines[0];
-            let toLine = loc.editType === "add" ? loc.atLines[loc.atLines.length - 1] + 2 : loc.atLines[loc.atLines.length - 1] + 1;
+            let fromLine = loc.atLines[0];
+            let toLine = loc.atLines.at(-1) + 1; // fromLine is inclusive, and toLine is exclusive
             fileItem.mods.push(
                 new ModItem(
                     `Line ${fromLine + 1}`,
@@ -179,15 +179,19 @@ class ModItem extends vscode.TreeItem {
         this.lineContent = lineContent
         this.text = `    ${this.lineContent.trim()}`;
 
-        this.tooltip = `Line ${this.fromLine}`; // match real line numbers in the gutter
+        this.tooltip = `Line ${this.fromLine + 1}`;
         this.description = this.text;
         this.command = {
             command: 'coEdPilot.openFileAtLine',
             title: '',
-            arguments: [
+            arguments: editType === "add" ? [
                 this.fileItem.filePath,
                 this.fromLine,
-                editType === "add" ? this.fromLine : this.toLine  // edit of type "add" will only place the cursor at the starting of line
+                this.toLine  // edit of type "add" will only place the cursor at the starting of line
+            ] : [
+                this.fileItem.filePath,
+                this.toLine,
+                this.toLine
             ]
         }
         
