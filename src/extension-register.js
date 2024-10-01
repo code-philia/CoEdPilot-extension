@@ -19,6 +19,11 @@ export function registerBasicCommands() {
 
 			editor.selection = new vscode.Selection(range.start, range.end);
 			editor.revealRange(range, vscode.TextEditorRevealType.InCenter);
+		}),
+		registerCommand('coEdPilot.clearPrevEdits', async () => {
+			globalEditDetector.clearEditsAndSnapshots();
+			await vscode.window.showInformationMessage("Previous edits cleared!");
+			addUserStatItem("clearPrevEdits");
 		})
 	);
 }

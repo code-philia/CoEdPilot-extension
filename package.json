@@ -40,7 +40,8 @@
       {
         "command": "coEdPilot.inputMessage",
         "category": "CoEdPilot",
-        "title": "Change Edit Description"
+        "title": "Change Edit Description",
+        "icon": "$(comment)"
       },
       {
         "title": "Last Suggestion",
@@ -69,12 +70,14 @@
       {
         "title": "Predict Locations",
         "category": "CoEdPilot",
-        "command": "coEdPilot.predictLocations"
+        "command": "coEdPilot.predictLocations",
+        "icon": "$(list-tree)"
       },
       {
         "title": "Generate Edits",
         "category": "CoEdPilot",
-        "command": "coEdPilot.generateEdits"
+        "command": "coEdPilot.generateEdits",
+        "icon": "$(edit)"
       },
       {
         "title": "Show Commands",
@@ -84,6 +87,11 @@
         "title": "Clear Locations",
         "command": "coEdPilot.clearLocations",
         "icon": "$(close)"
+      },
+      {
+        "title": "Clear Edit Memory",
+        "command": "coEdPilot.clearPrevEdits",
+        "icon": "$(history)"
       }
     ],
     "menus": {
@@ -124,6 +132,26 @@
           "command": "coEdPilot.dismiss-edit",
           "group": "navigation@-1",
           "when": "coEdPilot:isEditDiff"
+        },
+        {
+          "command": "coEdPilot.predictLocations",
+          "group": "navigation@-99",
+          "when": "editorFocus && (!(coEdPilot:isEditDiff))"
+        },
+        {
+          "command": "coEdPilot.generateEdits",
+          "group": "navigation@-98",
+          "when": "editorFocus && (!(coEdPilot:isEditDiff))"
+        },
+        {
+          "command": "coEdPilot.inputMessage",
+          "group": "navigation@-97",
+          "when": "editorFocus && (!(coEdPilot:isEditDiff))"
+        },
+        {
+          "command": "coEdPilot.clearPrevEdits",
+          "group": "navigation@-96",
+          "when": "(!(coEdPilot:isEditDiff))"
         }
       ],
       "view/title": [
