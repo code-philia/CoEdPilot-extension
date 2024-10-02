@@ -92,6 +92,26 @@
         "title": "Clear Edit Memory",
         "command": "coEdPilot.clearPrevEdits",
         "icon": "$(history)"
+      },
+      {
+        "title": "Set Sorting By Line Number",
+        "command": "coEdPilot.setLocationSortByLineNumber",
+        "icon": "$(star-full)"
+      },
+      {
+        "title": "Set Sorting By Confidence",
+        "command": "coEdPilot.setLocationSortByConfidence",
+        "icon": "$(list-ordered)"
+      },
+      {
+        "title": "Set Ascending",
+        "command": "coEdPilot.setLocationSortAsc",
+        "icon": "$(triangle-down)"
+      },
+      {
+        "title": "Set Descending",
+        "command": "coEdPilot.setLocationSortDesc",
+        "icon": "$(triangle-up)"
       }
     ],
     "menus": {
@@ -159,6 +179,26 @@
           "command": "coEdPilot.clearLocations",
           "when": "view == editLocations",
           "group": "navigation"
+        },
+        {
+          "command": "coEdPilot.setLocationSortByLineNumber",
+          "when": "view == editLocations && coEdPilot.locationSortCriterion == 'confidence'",
+          "group": "navigation@-3"
+        },
+        {
+          "command": "coEdPilot.setLocationSortByConfidence",
+          "when": "view == editLocations && coEdPilot.locationSortCriterion == 'lineNumber'",
+          "group": "navigation@-4"
+        },
+        {
+          "command": "coEdPilot.setLocationSortAsc",
+          "when": "view == editLocations && coEdPilot.locationSortOrder == 'desc'",
+          "group": "navigation@-1"
+        },
+        {
+          "command": "coEdPilot.setLocationSortDesc",
+          "when": "view == editLocations && coEdPilot.locationSortOrder == 'asc'",
+          "group": "navigation@-2"
         }
       ]
     },

@@ -35,7 +35,8 @@ async function queryLocationFromModel(rootPath, files, prevEdits, commitMessage,
                     "toBeReplaced":     str, the content to be replaced, 
                     "editType":         str, the type of edit, add or remove,
                     "lineBreak":        str, '\n', '\r' or '\r\n',
-                    "atLines":           number, line number (beginning from 1) of the location
+                    "atLines":          number, line number (beginning from 1) of the location,
+                    "confidence":       number, fload point confidence within [0, 1]
                 }, ...
             ]
         }

@@ -54,12 +54,94 @@ class ModelServerProcess extends BaseComponent{
 
 // const res_jsons = JSON.parse(fs.readFileSync(path.join(srcDir, '../mock/mock_json_res.json'), { encoding:'utf-8' }));
 
+// function copyObj(obj) {
+//     return JSON.parse(JSON.stringify(obj));
+// }
 // class MockBackend {
-//     static async delayedResponse(res_type) {
+//     static resultCache = undefined;
+
+//     static async delayedResponse(res_type, req) {
 //         await new Promise(resolve => {
 //             setTimeout(resolve, 1000);
-//         })
-//         return JSON.parse(JSON.stringify(res_jsons[res_type])); // deep clone necessary here
+//         });
+//         if (this.resultCache === undefined) {
+//             this.resultCache = await this.getLocatorMockResponse()
+//         }
+//         if (res_type === 'disc') {
+//             return copyObj(this.resultCache.discriminatorResponse);
+//         } else if (res_type === 'loc') {
+//             return copyObj(this.resultCache.locatorResponse);
+//         } else {
+//             return undefined;
+//         }
+//     }
+
+//     static async getLocatorMockResponse() {
+//         const workspaceFolders = vscode.workspace.workspaceFolders;
+//         if (!workspaceFolders) {
+//             return;
+//         }
+    
+//         const rootPath = workspaceFolders[0].uri.fsPath;
+//         const files = await vscode.workspace.findFiles('**/*');
+    
+//         let targetFilePath = null;
+//         let fileContent = null;
+    
+//         for (const file of files) {
+//             const filePath = file.fsPath;
+//             try {
+//                 const content = fs.readFileSync(filePath, 'utf-8');
+//                 targetFilePath = filePath;
+//                 fileContent = content.split('\n');
+//                 break;
+//             } catch (err) {
+//                 // Not a UTF-8 decodable file, continue to the next file
+//                 continue;
+//             }
+//         }
+    
+//         if (!targetFilePath || !fileContent) {
+//             return;
+//         }
+
+//         const relativeTargetFilePath = vscode.workspace.asRelativePath(targetFilePath);
+
+//         const discriminatorResponse = {
+//             data: [relativeTargetFilePath, fileContent]
+//         };
+    
+//         const selectedLines = [];
+//         const lineCount = fileContent.length;
+//         const numLinesToSelect = Math.floor(Math.random() * 3) + 3; // Randomly select 3-5 lines
+    
+//         for (let i = 0; i < numLinesToSelect; i++) {
+//             const lineIndex = Math.floor(Math.random() * lineCount);
+//             // prevent duplicated lines
+//             if (selectedLines.some(line => line.atLines.includes(lineIndex))) {
+//                 continue;
+//             }
+
+//             const editType = Math.random() > 0.5 ? 'add' : 'replace';
+//             selectedLines.push({
+//                 targetFilePath: relativeTargetFilePath,
+//                 toBeReplaced: fileContent[lineIndex],
+//                 editType,
+//                 lineBreak: '\n',
+//                 atLines: [lineIndex],
+//                 confidence: Math.random()
+//             });
+//         }
+    
+//         const locatorResponse = {
+//             data: selectedLines
+//         };
+    
+//         console.log(locatorResponse);
+//         return {
+//             discriminatorResponse,
+//             locatorResponse
+//         };
 //     }
 // }
 
