@@ -155,7 +155,8 @@ def predict(json_input):
             replacements=[]
             for pred in preds[0]: # batch_size=1
                 replacements.append(tokenizer.decode(pred, skip_special_tokens=True,clean_up_tokenization_spaces=False))
-    # print(json.dumps(replacements, indent=4))
+    # remove the line break at the end of each replacement
+    replacements = [s.strip("\n\r") for s in replacements]
     stopwatch.lap('infer result')
 
     result["replacement"] = replacements
