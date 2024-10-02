@@ -162,6 +162,9 @@ def merge_adjacent_removals(results):
 
     for mod in sorted_results:
         if len(merged_results) > 0 and can_merge(merged_results[-1], mod):
+            merged_length = len(merged_results[-1]["atLines"])
+            mod_length = len(mod["atLines"])
+            merged_results[-1]["confidence"] = merged_length * merged_results[-1]["confidence"] + mod_length * mod["confidence"] / (merged_length + mod_length)
             merged_results[-1]["atLines"].append(mod["atLines"][0])
         else:
             merged_results.append(mod)
@@ -291,6 +294,8 @@ def predict(json_input):
         # run model
         model.eval() 
         preds = []
+        confidences = []
+        softmax = torch.nn.Softmax(dim=-1)
         for batch in tqdm(eval_dataloader,total=len(eval_dataloader)):
             batch = tuple(t.to(device) for t in batch)
             source_ids,source_mask,target_ids = batch                  
@@ -299,17 +304,28 @@ def predict(json_input):
                 # extract masked edit operations
                 for i in range(lm_logits.shape[0]): # for sample within batch
                     output = []
+                    confidence = []
                     for j in range(lm_logits.shape[1]): # for every token
-                        if source_ids[i][j]==tokenizer.mask_token_id and torch.argmax(lm_logits[i][j]) > 0.95: # if is masked and pass threshold
-                            output.append(tokenizer.decode(torch.argmax(lm_logits[i][j]),clean_up_tokenization_spaces=False))
+                        softmax_output = softmax(lm_logits[i][j])
+                        if source_ids[i][j]==tokenizer.mask_token_id: # decode masked edit operation token
+                            if torch.max(softmax_output) > 0.70: # for <replace> & <insert>, they must pass a threshold
+                                max_confidence_token_idx = torch.argmax(softmax_output)
+                                output.append(tokenizer.decode(max_confidence_token_idx,clean_up_tokenization_spaces=False))
+                                confidence.append(softmax_output[max_confidence_token_idx].item())
+                            else:
+                                output.append("<keep>")
+                                confidence.append(1.0)
                     preds.extend(output)
+                    confidences.extend(confidence)
 
         if len(preds) != targetFileLineNum:
             raise ValueError(f'The number of lines ({targetFileLineNum}) in the target file is not equal to the number of predictions ({len(preds)}).') # TODO: solve this problem when some lines are too long
+        if len(confidences) != targetFileLineNum:
+            raise ValueError(f'The number of lines ({targetFileLineNum}) in the target file is not equal to the number of confidences ({len(confidences)}).')
         stopwatch.lap_by_task('infer result')
 
         # print(json.dumps(preds, indent=4))
-        for i, pred in enumerate(preds):
+        for i, (pred, conf) in enumerate(zip(preds, confidences)):
             if pred != '<keep>': # 如果模型输出的 editType 不是 keep，则该行需要被修改
                 if targetFileLines[i].endswith('\r\n'):
                     lineBreak = '\r\n'
@@ -324,7 +340,8 @@ def predict(json_input):
                     "targetFilePath": targetFilePath,
                     "editType": "replace" if pred == "<replace>" else "add",
                     "lineBreak": lineBreak,
-                    "atLines": [i] # 行数从 0 开始
+                    "atLines": [i], # 行数从 0 开始
+                    "confidence": conf
                 })
             
         stopwatch.lap_by_task('prepare result')
