@@ -29,7 +29,7 @@ async function predictLocation() {
             statusBarItem.setStatusDefault();
         } catch (err) {
             console.error(err);
-            statusBarItem.setStatustProblem("Some error occured when predicting locations");
+            statusBarItem.setStatusProblem("Some error occured when predicting locations");
             throw err;
         }
     });
@@ -127,7 +127,7 @@ async function predictEdit() {
         statusBarItem.setStatusDefault();
     } catch (err) {
         console.error(err);
-        statusBarItem.setStatustProblem("Some error occured when predicting edits");
+        statusBarItem.setStatusProblem("Some error occured when predicting edits");
         throw err;
     }
 }
