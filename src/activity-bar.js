@@ -186,12 +186,12 @@ class ModItem extends vscode.TreeItem {
             title: '',
             arguments: editType === "add" ? [
                 this.fileItem.filePath,
-                this.fromLine,
+                this.toLine,
                 this.toLine  // edit of type "add" will only place the cursor at the starting of line
             ] : [
                 this.fileItem.filePath,
-                this.toLine,
-                this.toLine
+                this.fromLine,
+                this.toLine  
             ]
         }
         
