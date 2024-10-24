@@ -31,7 +31,7 @@ def load_model(model_path):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = RobertaModel.from_pretrained("huggingface/CodeBERTa-small-v1")
     tokenizer = RobertaTokenizer.from_pretrained("huggingface/CodeBERTa-small-v1")
-    model.load_state_dict(torch.load(model_path))
+    model.load_state_dict(torch.load(model_path, map_location=device))
     model.to(device)
     return model, tokenizer, device
 
