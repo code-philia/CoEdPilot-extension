@@ -4,6 +4,10 @@
   "description": "A code co-edit helper.",
   "version": "0.1.0",
   "publisher": "Code Philia",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/code-philia/CoEdPilot-extension.git"
+  },
   "engines": {
     "vscode": "^1.78.0"
   },
@@ -19,7 +23,7 @@
   ],
   "main": "./out/extension",
   "contributes": {
-    "configuration":[
+    "configuration": [
       {
         "title": "CoEdPilot",
         "properties": {
@@ -168,24 +172,26 @@
   },
   "scripts": {
     "test": "node ./test/suite/test.js",
-    "watch": "tsc --watch --allowJs -p jsconfig.json"
+    "watch": "tsc --watch --allowJs -p jsconfig.json",
+    "build": "tsc --build jsconfig.json",
+    "package": "yarn build && yes | vsce package --no-yarn"
   },
   "devDependencies": {
+    "@types/diff": "^5.0.8",
     "@types/glob": "^8.1.0",
     "@types/mocha": "^10.0.1",
     "@types/node": "16.x",
     "@types/vscode": "^1.78.0",
-    "@vscode/test-electron": "^2.3.0",
-    "@types/diff": "^5.0.8",
-    "@vscode/test-cli": "^0.0.4"
+    "@vscode/test-cli": "^0.0.4",
+    "@vscode/test-electron": "^2.3.0"
   },
   "dependencies": {
     "@vscode/test-electron": "^2.3.0",
     "axios": "^1.6.0",
+    "diff": "^5.1.0",
     "glob": "^10.3.10",
     "mocha": "^10.2.0",
     "typescript": "^5.0.4",
-    "diff": "^5.1.0",
     "vscode-languageserver": "^8.1.0"
   }
 }
