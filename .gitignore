@@ -9,3 +9,5 @@ out/
 models/**
 mock/
 !models/MODEL.md
+jsconfig.tsbuildinfo
+.yarn/install-state.gz
