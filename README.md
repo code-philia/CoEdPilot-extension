@@ -59,7 +59,7 @@ Once performing a prediction on a line, a diff view is shown for switching ↔�
 4. Manually `Change Edit Description`: **right-click** and select it in the menu. By default the input box will automatically show at query **whenever the edit description is empty.**
 
 
-4. After the model generates possible edits at that range, a difference tab with pop up for you to switch to different edits or edit the code. **There are buttons on the top right corner of the difference tab to accept, dismiss or switch among generated edits.**
+5. After the model generates possible edits at that range, a difference tab with pop up for you to switch to different edits or edit the code. **There are buttons on the top right corner of the difference tab to accept, dismiss or switch among generated edits.**
 
 
 ## 🕹️ Run Extension
@@ -97,6 +97,16 @@ python -m pip install -r requirements.txt
 #### Step 2: Download models into the project directory
 
 As mentioned before, we respectively prepared 3 models (*file locator*(including embedding model, dependency analyzer and a regression model), *line locator*, and *generator*) for each language. Supported languages are `go`, `python`, `java`, `typescript` and `javascript`.
+
+You have 2 ways to prepare models. Choose one.
+
+**Method 1: Use init-server script**
+
+Just execute `python3 ./init-server.py` and follow the language you want to run.
+
+Example: `python3 ./init-server.py typescript`
+
+**Method 2: Download manually**
 
 1. Download and rename **models for different languages** and **dependency analyzer** from [Huggingface Collections](https://huggingface.co/collections/code-philia/coedpilot-65ee9df1b5e3b11755547205). 
     * `dependency-analyzer/`: dependency anaylzer model, available in [Huggingface](https://huggingface.co/code-philia/dependency-analyzer);
