@@ -125,10 +125,6 @@ def load_model(model_path):
     model.to(device)
     return model, tokenizer, device
 
-def load_model_cache():
-    global model, tokenizer, device
-    model, tokenizer, device = load_model()
-
 def normalize_string(s):
     if type(s) != str:
         return s
