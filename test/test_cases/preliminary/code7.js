@@ -31,4 +31,3 @@ describe('Comp624Component', () => {
     expect(component).toBeTruthy();
   });
 });
-primary

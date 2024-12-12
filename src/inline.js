@@ -50,7 +50,7 @@ class LocationDecoration extends BaseComponent {
 	
 		queryState.locations
 			.filter((loc) => loc.targetFilePath === filePath)
-			.map((loc) => {
+			.forEach((loc) => {
 				let startLine = loc.atLines[0];
 				let endLine = loc.atLines[loc.atLines.length - 1];
 				if (loc.editType === "add") {	// the model was designed to add content after the mark line
