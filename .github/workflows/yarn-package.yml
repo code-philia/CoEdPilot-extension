@@ -36,6 +36,6 @@ jobs:
     - name: package
       run: |
         cd ${{ github.workspace }}
-        yarn package
+        yarn && yarn package
         
   
