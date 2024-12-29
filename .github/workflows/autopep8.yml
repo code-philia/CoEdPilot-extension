@@ -1,0 +1,48 @@
+# https://github.com/talented-watermelon/CoEdPilot/blob/main/.github/workflows/autopep8.yml
+
+name: Python CI with autopep8
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+  workflow_dispatch:
+  
+
+jobs:
+  autopep8:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10.13'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Install autopep8
+        run: |
+          pip install autopep8
+
+      - name: Run autopep8 to fix PEP 8 issues
+        run: |
+          autopep8 --in-place --aggressive --recursive .
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name "autopep8-bot"
+          git config --global user.email "autopep8-bot@fake-addr-dont-email-me.sjtu.edu.cn"
+          git add .
+          git commit -m "Fix PEP 8 issues"
+
+          git push
+        if: ${{ success() }}
