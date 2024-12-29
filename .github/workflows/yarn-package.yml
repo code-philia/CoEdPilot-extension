@@ -1,0 +1,40 @@
+name: Yarn Package
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+    
+  workflow_dispatch:
+  
+  
+jobs:
+  build:
+    name: "Yarn Package"
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    - name: see environment
+      run: |
+        lsb_release -a
+        uname -a
+        g++ -v
+        cat /proc/meminfo
+        cat /proc/cpuinfo
+    - name: install softwares
+      run: |
+        sudo apt update
+        sudo apt install -y nodejs node-yarnpkg
+    - name: check yarn
+      run: |
+        node -v
+        npm -v
+        yarn -v
+    - name: package
+      run: |
+        cd ${{ github.workspace }}
+        yarn package
+        
+  
