@@ -16,4 +16,12 @@ jobs:
       fail-fast: false
       matrix:
         language: ['javascript-typescript', 'python']
+
+    steps:
+    - name: Init CodeQL
+      uses: github/codeql-action/init@v2
+      with:
+        languages: ${{ matrix.language }}
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v2
   
