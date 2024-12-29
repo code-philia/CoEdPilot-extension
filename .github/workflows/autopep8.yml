@@ -5,9 +5,6 @@ on:
   push:
     branches:
       - main
-  pull_request:
-    branches:
-      - main
 
   workflow_dispatch:
   
@@ -38,7 +35,7 @@ jobs:
           git config --global user.name "autopep8-bot"
           git config --global user.email "autopep8-bot@fake-addr-dont-email-me.sjtu.edu.cn"
           git add .
-          git commit -m "Fix PEP 8 issues"
+          git commit -m "Fix PEP 8 issues [no ci]"
 
           git push
         if: ${{ success() }}
