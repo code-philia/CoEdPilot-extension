@@ -139,11 +139,15 @@ def load_model(model_path):
 
 
 def normalize_string(s):
-
-
-if not isinstance(s,     if)        return s
-   # 当检测到 s 含有 ' 时，进行转义
-   if s.find("'") != -1:
+# if not isinstance(s,     if)        return s
+#    # 当检测到 s 含有 ' 时，进行转义
+#    if s.find("'") != -1:
+#         s = s.replace("'", "\'")
+#     return s
+    if not isinstance(s, str):
+        return s
+    # 当检测到 s 含有 ' 时，进行转义
+    if s.find("'") != -1:
         s = s.replace("'", "\'")
     return s
 
