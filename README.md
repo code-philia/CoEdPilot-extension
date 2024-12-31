@@ -164,6 +164,39 @@ For basic remote backend deployment:
 + Use that port in `server.ini` then run the backend `server.py`.
 + When using the extension, set `coEdPilot.queryUrl` in VS Code settings (press `Ctrl + ,` then search) to the proper connectable IP of the server.
 
+## 🐳 Deploy Backend Models with Docker
+
+You can create a Docker image and start a Docker container according to the following steps to isolate the environment and simplify the backend model deployment.
+
+1. Navigate to the root directory of the CoEdPilot-extension project.
+
+2. Create the Docker image:
+
+   ```bash
+   docker build -t coedpilot-extension --build-arg MIRROR_SOURCE=https://pypi.tuna.tsinghua.edu.cn/simple --build-arg LANG=python .
+   ```
+
+   This command supports two `build-arg` parameters:
+
+   - `MIRROR_SOURCE`: Specifies the mirror source for installing Python dependencies, e.g., `--build-arg MIRROR_SOURCE=https://pypi.tuna.tsinghua.edu.cn/simple`. If this argument is not provided, the mirror source will not be used for installing Python dependencies.
+   - `LANG`: Specifies the model for different languages, e.g., `--build-arg LANG=javascript`. The supported languages are go, python, java, typescript, and javascript. If this argument is not provided, the default model language will be Python.
+
+3. Start the Docker container:
+
+   ```bash
+   docker run -p 5003:5003 coedpilot-extension
+   ```
+
+   > [!note]
+   >
+   > If you are deploying Docker in WSL, you need to first install the [NVIDIA Container Toolkit](https://learn.microsoft.com/en-us/windows/wsl/tutorials/gpu-compute), and then start the Docker container with the following command:
+   >
+   > ```bash
+   > docker run --gpus all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 -p 5003:5003 coedpilot-extension
+   > ```
+
+Now, the backend model is up and running. You can proceed to run the extension to use CoEdPilot-Extension.
+
 ## ❓ Issues
 
 The project is still in development, not fully tested on different platforms. 
