@@ -189,12 +189,11 @@ You can create a Docker image and start a Docker container according to the foll
    docker run -p 5003:5003 coedpilot-extension
    ```
 
-   > [!note]
-   > If you are deploying Docker in WSL, you need to first install the [NVIDIA Container Toolkit](https://learn.microsoft.com/en-us/windows/wsl/tutorials/gpu-compute), and then start the Docker container with the following command:
-   >
-   > ```bash
-   > docker run --gpus all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 -p 5003:5003 coedpilot-extension
-   > ```
+4. If you are deploying Docker in WSL, you need to first install the [NVIDIA Container Toolkit](https://learn.microsoft.com/en-us/windows/wsl/tutorials/gpu-compute), and then start the Docker container with the following command:
+
+   ```bash
+   docker run --gpus all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 -p 5003:5003 coedpilot-extension
+   ```
 
 Now, the backend model is up and running. You can proceed to run the extension to use CoEdPilot-Extension.
 
