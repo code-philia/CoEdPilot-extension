@@ -1,6 +1,8 @@
 # ✏️ CoEdPilot
 
-CoEdPilot is a Visual Studio Code extension that features automatic code edit recommendations.
+CoEdPilot is a Visual Studio Code extension that features automatic code edit recommendations, proposed by the paper "*CoEdPilot: Recommending Code Edits with Learned Prior Edit Relevance, Project-wise Awareness, and Interactive Nature*" by Chenyan Liu, Yufan Cai, Yun Lin, Yuhuan Huang, Yunrui Pei, Bo Jiang, Ping Yang, Jin Song Dong, and Hong Mei. Presented at ISSTA'24. 
+
+If you are interested in the training and evaluation of the backend models, please refer to the [CoEdPilot](https://github.com/code-philia/CoEdPilot) repository.
 
 ## 🚀 Demo
 > [!NOTE]
@@ -145,7 +147,7 @@ In the project root directory, install Node packages
 npm install
 ```
 
-> [!NOTE]
+> [!NOTE] 
 > Require Node.js (version >= 16). If Node.js not installed, please follow [Node.js official website](https://nodejs.org/en/download) to intall.
 
 #### Step 2: Run extension using VS Code development host
@@ -188,7 +190,6 @@ You can create a Docker image and start a Docker container according to the foll
    ```
 
    > [!note]
-   >
    > If you are deploying Docker in WSL, you need to first install the [NVIDIA Container Toolkit](https://learn.microsoft.com/en-us/windows/wsl/tutorials/gpu-compute), and then start the Docker container with the following command:
    >
    > ```bash
