@@ -1,7 +1,7 @@
-import { queryState } from './global-context';
-import { toRelPath, getActiveFilePath, toAbsPath, getLineInfoInDocument } from './file';
-import { queryDiscriminator, queryLocator, queryGenerator } from './model-client';
-import { statusBarItem } from './status-bar';
+import { queryState } from "./global-context";
+import { toRelPath, getActiveFilePath, toAbsPath, getLineInfoInDocument } from "./file";
+import { queryDiscriminator, queryLocator, queryGenerator } from "./model-client";
+import { statusBarItem } from "./status-bar";
 
 // ------------ Extension States -------------
 async function queryLocationFromModel(rootPath, files, prevEdits, commitMessage, language) {
@@ -34,7 +34,7 @@ async function queryLocationFromModel(rootPath, files, prevEdits, commitMessage,
                     "targetFilePath":   str, filePath,
                     "toBeReplaced":     str, the content to be replaced, 
                     "editType":         str, the type of edit, add or remove,
-                    "lineBreak":        str, '\n', '\r' or '\r\n',
+                    "lineBreak":        str, "\n", "\r" or "\r\n",
                     "atLines":           number, line number (beginning from 1) of the location
                 }, ...
             ]
@@ -63,18 +63,18 @@ async function queryLocationFromModel(rootPath, files, prevEdits, commitMessage,
         language: language
     };
     const discriminatorOutput = await queryDiscriminator(disc_input);
-    console.log('==> Discriminated files to be analyzed:');
+    console.log("==> Discriminated files to be analyzed:");
     discriminatorOutput.data.forEach(file => {
-        console.log('\t*' + file);
+        console.log("\t*" + file);
     });
-    console.log('==> Total no. of files:', files.length);
-    console.log('==> No. of files to be analyzed:', discriminatorOutput.data.length);
+    console.log("==> Total no. of files:", files.length);
+    console.log("==> No. of files to be analyzed:", discriminatorOutput.data.length);
 
     // Send the selected files to the locator model for location prediction
     const filteredFiles = files.filter(([filename, _]) => discriminatorOutput.data.includes(filename) || filename == activeFilePath);
 
-    console.log("==> Filtered files:")
-    console.log(filteredFiles)
+    console.log("==> Filtered files:");
+    console.log(filteredFiles);
 
     const loc_input = {
         files: filteredFiles,
@@ -111,7 +111,7 @@ async function queryEditFromModel(fileContent, editType, atLines, prevEdits, com
         {
             "data": 
             { 
-                "editType":         string, 'remove', 'add'
+                "editType":         string, "remove", "add"
                 "replacement":      list of strings, replacement content   
             }
         } 

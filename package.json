@@ -170,11 +170,13 @@
       }
     ]
   },
+  "type": "module",
   "scripts": {
     "test": "node ./test/suite/test.js",
     "watch": "tsc --watch --allowJs -p jsconfig.json",
     "build": "tsc --build jsconfig.json",
-    "package": "yarn build && yes | vsce package --no-yarn"
+    "package": "yarn build && yes | vsce package --no-yarn",
+    "lint": "eslint ."
   },
   "devDependencies": {
     "@types/diff": "^5.0.8",
@@ -189,6 +191,7 @@
     "@vscode/test-electron": "^2.3.0",
     "axios": "^1.6.0",
     "diff": "^5.1.0",
+    "eslint": "^9.19.0",
     "glob": "^10.3.10",
     "mocha": "^10.2.0",
     "typescript": "^5.0.4",

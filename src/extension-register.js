@@ -4,7 +4,7 @@ import { registerCommand, numIn } from "./base-component";
 
 export function registerBasicCommands() {
 	return vscode.Disposable.from(
-		registerCommand('coEdPilot.openFileAtLine', async (filePath, fromLine, toLine) => {
+		registerCommand("coEdPilot.openFileAtLine", async (filePath, fromLine, toLine) => {
 			const uri = vscode.Uri.file(filePath); // Replace with dynamic file path
 
 			const document = await vscode.workspace.openTextDocument(uri);
@@ -15,7 +15,7 @@ export function registerBasicCommands() {
 			const range = new vscode.Range(
 				editor.document.lineAt(fromLine).range.start,
 				editor.document.lineAt(toLine).range.start,
-			)
+			);
 
 			editor.selection = new vscode.Selection(range.start, range.end);
 			editor.revealRange(range, vscode.TextEditorRevealType.InCenter);

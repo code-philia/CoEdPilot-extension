@@ -1,15 +1,15 @@
-import vscode from 'vscode';
-import { toPosixPath } from './file';
-import { editorState } from './global-context';
-import { queryState } from './global-context';
-import { BaseComponent, numIn } from './base-component';
-import { editLocationView } from './activity-bar';
-import path from 'path';
+import vscode from "vscode";
+import { toPosixPath } from "./file";
+import { editorState } from "./global-context";
+import { queryState } from "./global-context";
+import { BaseComponent, numIn } from "./base-component";
+import { editLocationView } from "./activity-bar";
+import path from "path";
 
-const replaceBackgroundColor = 'rgba(255,0,0,0.3)';
-const addBackgroundColor = 'rgba(0,255,0,0.3)';
-const replaceIconPath = path.join(__dirname, '../media/edit-red.svg');
-const addIconPath = path.join(__dirname, '../media/add-green.svg');
+const replaceBackgroundColor = "rgba(255,0,0,0.3)";
+const addBackgroundColor = "rgba(0,255,0,0.3)";
+const replaceIconPath = path.join(__dirname, "../media/edit-red.svg");
+const addIconPath = path.join(__dirname, "../media/add-green.svg");
 
 class LocationDecoration extends BaseComponent {
 	constructor() {
@@ -43,7 +43,7 @@ class LocationDecoration extends BaseComponent {
 		if (!uri) return;
 
 		const filePath = toPosixPath(uri.fsPath);
-		if (uri.scheme !== 'file') return undefined;
+		if (uri.scheme !== "file") return undefined;
 
 		const decorationsForAlter = [];
 		const decorationsForAdd = [];
@@ -72,7 +72,7 @@ class LocationDecoration extends BaseComponent {
 				};
 		
 				// Add decoration to array
-				if (loc.editType == 'add') {
+				if (loc.editType == "add") {
 					decorationsForAdd.push(decoration);
 				} else {
 					decorationsForAlter.push(decoration);

@@ -1,24 +1,24 @@
-import vscode from 'vscode';
-import { diffLines } from 'diff';
-import fs, { open } from 'fs';
-import path from 'path';
-import { glob } from 'glob';
-import { BaseComponent } from './base-component';
-import { editorState, osType } from './global-context';
-import { statusBarItem } from './status-bar';
+import vscode from "vscode";
+import { diffLines } from "diff";
+import fs, { open } from "fs";
+import path from "path";
+import { glob } from "glob";
+import { BaseComponent } from "./base-component";
+import { editorState, osType } from "./global-context";
+import { statusBarItem } from "./status-bar";
 
 let gitignorePatterns = {
-    'exclude': [],
-    'permExclude': [], // permanently exclude a directory, unable to re-include
-    'include': []
+    "exclude": [],
+    "permExclude": [], // permanently exclude a directory, unable to re-include
+    "include": []
 };
 
 function parseIgnoreLinesToPatterns(lines) {
     // Like Git, we only glob files in the patterns
     let patterns = {
-        'exclude': [],
-        'permExclude': [], // permanently exclude a directory, unable to re-include
-        'include': []
+        "exclude": [],
+        "permExclude": [], // permanently exclude a directory, unable to re-include
+        "include": []
     };
 
     let exp = "";
@@ -30,27 +30,27 @@ function parseIgnoreLinesToPatterns(lines) {
 
     for (const line of lines) {
         exp = line.trim();
-        if (!exp || exp.startsWith('#')) continue;
+        if (!exp || exp.startsWith("#")) continue;
         
         let isReverse = false;
-        if (exp.startsWith('!')) {
+        if (exp.startsWith("!")) {
             exp = exp.slice(1).trim();
             isReverse = true;
         }
 
-        prefix = exp.indexOf('/') != exp.length ? '/' : '/**/';   // check if relative path
+        prefix = exp.indexOf("/") != exp.length ? "/" : "/**/";   // check if relative path
 
-        if (exp.endsWith('*')) {            // the same matching as glob
-            suffix = '';
-            isReverse ? addPattern('include') : addPattern('exclude');
-        } else if (exp.endsWith('/')) {     // matches directory only
-            suffix = '**';
-            isReverse ? addPattern('include') : addPattern('permExclude');      // permanently exclude
+        if (exp.endsWith("*")) {            // the same matching as glob
+            suffix = "";
+            isReverse ? addPattern("include") : addPattern("exclude");
+        } else if (exp.endsWith("/")) {     // matches directory only
+            suffix = "**";
+            isReverse ? addPattern("include") : addPattern("permExclude");      // permanently exclude
         } else {                            // matches all files
-            suffix = '/**';
-            isReverse ? addPattern('include') : addPattern('permExclude');      // permanently exclude if it's a directory
-            suffix = '';
-            isReverse ? addPattern('include') : addPattern('exclude');
+            suffix = "/**";
+            isReverse ? addPattern("include") : addPattern("permExclude");      // permanently exclude if it"s a directory
+            suffix = "";
+            isReverse ? addPattern("include") : addPattern("exclude");
         }
     }
 
@@ -61,8 +61,8 @@ function parseIgnoreLinesToPatterns(lines) {
 try {
     const gitignoreText = fs.readFileSync(path.join(
         vscode.workspace.workspaceFolders[0].uri.fsPath,
-        '.gitignore'
-    ), 'utf-8');
+        ".gitignore"
+    ), "utf-8");
     const gitignoreLines = gitignoreText.match(/[^\r\n]+/g);
     gitignorePatterns = parseIgnoreLinesToPatterns(gitignoreLines);
 } catch (err) {
@@ -110,7 +110,7 @@ class EditDetector {
                 const text = await getDocument(path);
                 this.updateEdits(path, text);
             } catch (err) {
-                console.log(`Using saved version: cannot update snapshot on ${path}`)
+                console.log(`Using saved version: cannot update snapshot on ${path}`);
             }
         }
         this.shiftEdits();
@@ -125,7 +125,7 @@ class EditDetector {
         const newDiffs = diffLines(
             this.textBaseSnapshots.get(path),
             text
-        )
+        );
         const oldEditsWithIdx = [];
         const oldEditIndices = new Set();
         this.editList.forEach((edit, idx) => {
@@ -136,7 +136,7 @@ class EditDetector {
                 });
                 oldEditIndices.add(idx);
             }
-        })
+        });
         
         oldEditsWithIdx.sort((edit1, edit2) => edit1.edit.s - edit2.edit.s);	// sort in starting line order
 
@@ -162,15 +162,15 @@ class EditDetector {
             };
 
             // Find context
-            const lines = text.split('\n');
+            const lines = text.split("\n");
             const startAbove = Math.max(0, fromLine - 4);
             const endAbove = fromLine - 1;
             const startBelow = toLine;
             const endBelow = Math.min(lines.length, toLine + 3);
 
             // Get the lines above and below
-            newEdit.codeAbove = lines.slice(startAbove, endAbove).join('\n');
-            newEdit.codeBelow = lines.slice(startBelow, endBelow).join('\n');
+            newEdit.codeAbove = lines.slice(startAbove, endAbove).join("\n");
+            newEdit.codeBelow = lines.slice(startBelow, endBelow).join("\n");
 
             // skip all old edits between this diff and the last diff
             while (
@@ -315,7 +315,7 @@ class EditDetector {
             "afterEdit": edit.addText?.trim() ?? "",
             "codeAbove": edit.codeAbove.trim(),
             "codeBelow": edit.codeBelow.trim()
-        }))
+        }));
     }
 
     async getUpdatedEditList() {
@@ -323,7 +323,7 @@ class EditDetector {
         const openedDocuments = getOpenedFilePaths();
         const docGetter = async (filePath) => {
             return await liveGetter(openedDocuments, filePath);
-        }
+        };
         await globalEditDetector.updateAllSnapshotsFromDocument(docGetter);
         return await globalEditDetector.getEditList();
     }
@@ -337,13 +337,13 @@ function toDriveLetterLowerCasePath(filePath) {
     const driveLetterRegEx = /([A-Z])(?=:(\/|\\))/;
     return filePath.replace(driveLetterRegEx, (match, p1) => {
         return p1.toLowerCase();
-    })
+    });
 }
 
 // Convert any-style path to POSIX-style path
 function toPosixPath(filePath) {
-    return osType == 'Windows_NT' ?
-        filePath.replace(/\\/g, '/')
+    return osType == "Windows_NT" ?
+        filePath.replace(/\\/g, "/")
         : filePath;
 }
 
@@ -378,7 +378,7 @@ async function getLineInfoInDocument(path, lineNo) {
     return {
         range: textLine.range,
         text: textLine.text
-    }
+    };
 }
 
 function getRootPath() {
@@ -395,9 +395,9 @@ async function readGlobFiles(useSnapshot = true) {
         ? async (filePath) => {
             const liveGetter = liveFilesGetter();
             const openedPaths = getOpenedFilePaths();
-            return await liveGetter(openedPaths, toDriveLetterLowerCasePath(filePath))
+            return await liveGetter(openedPaths, toDriveLetterLowerCasePath(filePath));
         }
-        : async (filePath) => fs.readFileSync(filePath, 'utf-8');
+        : async (filePath) => fs.readFileSync(filePath, "utf-8");
     
 
     async function readFileFromPathList(filePathList, contentList) {
@@ -428,7 +428,7 @@ function liveFilesGetter() {
     return async (openedPaths, filePath) => 
         openedPaths.has(filePath)
             ? (await vscode.workspace.openTextDocument(vscode.Uri.file(filePath))).getText()
-            : fs.readFileSync(filePath, 'utf-8');
+            : fs.readFileSync(filePath, "utf-8");
 }
 
 // ABOUT EDIT
@@ -451,12 +451,12 @@ function detectEdit(prev, curr) {
     }
 
     // Combine the remaining lines into strings
-    const beforeEdit = prevSnapshotStrList.slice(start, prevSnapshotStrList.length - end).join('');
-    const afterEdit = currSnapshotStrList.slice(start, currSnapshotStrList.length - end).join('');
+    const beforeEdit = prevSnapshotStrList.slice(start, prevSnapshotStrList.length - end).join("");
+    const afterEdit = currSnapshotStrList.slice(start, currSnapshotStrList.length - end).join("");
 
     // Find context 
-    const codeAbove = prevSnapshotStrList.slice(Math.max(0, start - 3), start).join('');
-    const codeBelow = prevSnapshotStrList.slice(prevSnapshotStrList.length - end, Math.min(prevSnapshotStrList.length, prevSnapshotStrList.length - end + 3)).join('');
+    const codeAbove = prevSnapshotStrList.slice(Math.max(0, start - 3), start).join("");
+    const codeBelow = prevSnapshotStrList.slice(prevSnapshotStrList.length - end, Math.min(prevSnapshotStrList.length, prevSnapshotStrList.length - end + 3)).join("");
 
     // Return the result
     return {
@@ -489,7 +489,7 @@ function getLocationAtRange(edits, document, range) {
                 return false;
             }
         }
-    })
+    });
 }
 
 //	Try updating prevEdits
@@ -506,8 +506,8 @@ function updatePrevEdits(lineNo) {
         if (edition.beforeEdit != edition.afterEdit) {
             // Add the modification to prevEdit
             pushEdit(edition);
-            console.log('==> Before edit:\n', edition.beforeEdit);
-            console.log('==> After edit:\n', edition.afterEdit);
+            console.log("==> Before edit:\n", edition.beforeEdit);
+            console.log("==> After edit:\n", edition.afterEdit);
             editorState.prevSnapshot = editorState.currSnapshot;
             return true;
         }
@@ -526,7 +526,7 @@ async function globFiles(rootPath, globPatterns = []) {
     // Built-in glob patterns
     const globPatternStr = (globPatterns instanceof Array && globPatterns.length > 0)
         ? globPatterns
-        : '/**/*';
+        : "/**/*";
 
     const pathList = await glob(globPatternStr, {
         root: rootPath,
@@ -567,15 +567,15 @@ function initFileState(editor) {
     if (editorState.inDiffEditor) {
         const input = vscode.window.tabGroups.activeTabGroup?.activeTab?.input;
         isEditDiff = (input instanceof vscode.TabInputTextDiff)
-            && input.original.scheme === 'temp'
-            && input.modified.scheme === 'file';
+            && input.original.scheme === "temp"
+            && input.modified.scheme === "file";
     }
 
     if (vscode.workspace.getConfiguration("coEdPilot").get("predictLocationOnEditAcception") && editorState.toPredictLocation) {
         vscode.commands.executeCommand("coEdPilot.predictLocations");
         editorState.toPredictLocation = false;
     }
-    vscode.commands.executeCommand('setContext', 'coEdPilot:isEditDiff', isEditDiff);
+    vscode.commands.executeCommand("setContext", "coEdPilot:isEditDiff", isEditDiff);
 }
 
 class FileStateMonitor extends BaseComponent{

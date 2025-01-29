@@ -1,12 +1,12 @@
-import vscode from 'vscode';
-import { compareTempFileSystemProvider } from './compare-view';
-import { FileStateMonitor, initFileState } from './file';
-import { editorState, queryState } from './global-context';
-import { editLocationView } from './activity-bar';
-import { LocationDecoration } from './inline';
-import { registerBasicCommands, registerTopTaskCommands } from './extension-register';
-import { statusBarItem } from './status-bar';
-import { modelServerProcess } from './model-client';
+import vscode from "vscode";
+import { compareTempFileSystemProvider } from "./compare-view";
+import { FileStateMonitor, initFileState } from "./file";
+import { editorState, queryState } from "./global-context";
+import { editLocationView } from "./activity-bar";
+import { LocationDecoration } from "./inline";
+import { registerBasicCommands, registerTopTaskCommands } from "./extension-register";
+import { statusBarItem } from "./status-bar";
+import { modelServerProcess } from "./model-client";
 
 function activate(context) {
 
@@ -19,7 +19,7 @@ function activate(context) {
 		statusBarItem,
 		editLocationView,
 		modelServerProcess
-	)
+	);
 
 	context.subscriptions.push(
 		registerBasicCommands(),
@@ -31,7 +31,7 @@ function activate(context) {
 		new LocationDecoration(),	
 	);
 
-	console.log('==> Congratulations, your extension is now active!');
+	console.log("==> Congratulations, your extension is now active!");
 }
 
 function deactivate() {

@@ -1,7 +1,7 @@
-import axios from 'axios';
-import fs from 'fs';
-import vscode from 'vscode';
-import { BaseComponent } from './base-component';
+import axios from "axios";
+import fs from "fs";
+import vscode from "vscode";
+import { BaseComponent } from "./base-component";
 
 // const regPortInfo = /PORT:[0-9]+/;
 
@@ -16,7 +16,7 @@ class ModelServerProcess extends BaseComponent{
                     this.apiUrl = this.getAPIUrl();
                 }
             })
-        )
+        );
     }
 
     getAPIUrl() {
@@ -28,22 +28,22 @@ class ModelServerProcess extends BaseComponent{
     }
 
     async sendPostRequest(urlPath, jsonObject) {
-        console.log(`[ModelServer] Sending to ${this.toURL(urlPath)}`)
-        console.log(`[ModelServer] Sending request:`);
+        console.log("[ModelServer] Sending to ${this.toURL(urlPath)}");
+        console.log("[ModelServer] Sending request:");
         console.log(jsonObject);
         const response = await axios.post(this.toURL(urlPath), jsonObject, {
             headers: {
-                'Content-Type': 'application/json',
+                "Content-Type": "application/json",
             },
             timeout: 100000
         });
-        if (response.statusText === 'OK') {
-            console.log(`[ModelServer] Received response:`);
+        if (response.statusText === "OK") {
+            console.log("[ModelServer] Received response:");
             console.log(response.data);
             // DEBUGGING
             // fs.writeFileSync(
-            //     path.join(srcDir, '../mock/backend_response.json'),
-            //     JSON.stringify(response.data), { flag: 'a' }
+            //     path.join(srcDir, "../mock/backend_response.json"),
+            //     JSON.stringify(response.data), { flag: "a" }
             // );
             return response.data;
         } else {
@@ -52,7 +52,7 @@ class ModelServerProcess extends BaseComponent{
     }
 }
 
-// const res_jsons = JSON.parse(fs.readFileSync(path.join(srcDir, '../mock/mock_json_res.json'), { encoding:'utf-8' }));
+// const res_jsons = JSON.parse(fs.readFileSync(path.join(srcDir, "../mock/mock_json_res.json"), { encoding:"utf-8" }));
 
 // class MockBackend {
 //     static async delayedResponse(res_type) {
@@ -66,23 +66,23 @@ class ModelServerProcess extends BaseComponent{
 export const modelServerProcess = new ModelServerProcess();
 
 async function basicQuery(suffix, json_obj) {
-    // fs.writeFileSync('../backend_request.json', JSON.stringify(json_obj), {flag: 'a'});
+    // fs.writeFileSync("../backend_request.json", JSON.stringify(json_obj), {flag: "a"});
     return await modelServerProcess.sendPostRequest(suffix, json_obj);
 }
 
 async function queryDiscriminator(json_obj) {
     return await basicQuery("discriminator", json_obj);
-    // return await MockBackend.delayedResponse('disc');
+    // return await MockBackend.delayedResponse("disc");
 }
 
 async function queryLocator(json_obj) {
     return await basicQuery("range", json_obj);
-    // return await MockBackend.delayedResponse('loc');
+    // return await MockBackend.delayedResponse("loc");
 }
 
 async function queryGenerator(json_obj) {
     return await basicQuery("content", json_obj);
-    // return await MockBackend.delayedResponse('gen');
+    // return await MockBackend.delayedResponse("gen");
 }
 
 export {

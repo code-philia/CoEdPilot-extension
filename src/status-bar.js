@@ -1,12 +1,12 @@
-import vscode from 'vscode';
-import { BaseComponent } from './base-component';
-import { isLanguageSupported } from './global-context';
+import vscode from "vscode";
+import { BaseComponent } from "./base-component";
+import { isLanguageSupported } from "./global-context";
 
 class ProgressDisplayStatusBarItem extends BaseComponent {
     constructor() {
         super();
         this.loadingIconId = "loading~spin";
-        this.item = vscode.window.createStatusBarItem('coEdPilot.progressDisplay', vscode.StatusBarAlignment.Right, 1000);
+        this.item = vscode.window.createStatusBarItem("coEdPilot.progressDisplay", vscode.StatusBarAlignment.Right, 1000);
         this.setStatusDefault();
         this.item.show();
         this.item.command = "coEdPilot.showCommands";
@@ -14,7 +14,7 @@ class ProgressDisplayStatusBarItem extends BaseComponent {
 
         this.register(
             vscode.commands.registerCommand("coEdPilot.showCommands", () => { })
-        )
+        );
     }
 
     setItemText(iconId, text) {
@@ -28,7 +28,7 @@ class ProgressDisplayStatusBarItem extends BaseComponent {
         this.setItemText(iconId, "CoEdPilot");
         this.item.backgroundColor = isLanguageSupported()
             ? undefined
-            : new vscode.ThemeColor('statusBarItem.warningBackground');
+            : new vscode.ThemeColor("statusBarItem.warningBackground");
         this.item.tooltip = isLanguageSupported()
             ? "CoEdPilot is ready 🛫"
             : "CoEdPilot doesn't support this language yet 💤";
@@ -51,7 +51,7 @@ class ProgressDisplayStatusBarItem extends BaseComponent {
     setStatustProblem(errorMessage) {
         this.busy = true;
         this.setItemText("close", "CoEdPilot");
-        this.item.backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
+        this.item.backgroundColor = new vscode.ThemeColor("statusBarItem.errorBackground");
         this.item.tooltip = errorMessage;
     }
 }
