@@ -258,7 +258,7 @@ function testEditDetectorBasic() {
 	assert.equal(edit.path, baseVersion.path);
 	assert.equal(edit.s, 4);
 	assert.equal(edit.rmLine, 3);
-	assert.equal(edit.rmText, "of this software and associated documentation files (the 'Software'), to deal\r\nin the Software without restriction, including without limitation the rights\r\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\r\n");
+	assert.equal(edit.rmText, 'of this software and associated documentation files (the "Software"), to deal\r\nin the Software without restriction, including without limitation the rights\r\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\r\n');
 	assert.equal(edit.addLine, 0);
 	assert.equal(edit.addText, null);
 
@@ -293,7 +293,7 @@ function testEditDetectorBasic() {
 	assert.equal(edit.path, baseVersion.path);
 	assert.equal(edit.s, 4);
 	assert.equal(edit.rmLine, 1);
-	assert.equal(edit.rmText, "of this software and associated documentation files (the 'Software'), to deal\r\n");
+	assert.equal(edit.rmText, 'of this software and associated documentation files (the "Software"), to deal\r\n');
 	assert.equal(edit.addLine, 0);
 	assert.equal(edit.addText, null);
 

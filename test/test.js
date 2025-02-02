@@ -7,7 +7,7 @@ import vscode from 'vscode';
 const COMMAND = 'code-actions-sample.command';
 
 function activate(context) {
-	console.log('ha')
+	console.log('ha');
 	context.subscriptions.push(
 		vscode.languages.registerCodeActionsProvider('javascript', new Emojizer(), {
 			providedCodeActionKinds: Emojizer.providedCodeActionKinds
