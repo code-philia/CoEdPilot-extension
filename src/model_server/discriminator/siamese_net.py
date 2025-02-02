@@ -11,7 +11,12 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 
 def train_embedding_model(model: RobertaModel, train_dataloader: DataLoader, dev_dataloader: DataLoader,
                           lr: float, epochs: int, lang: str) -> None:
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if torch.cuda.is_available():
+        device = torch.device('cuda')
+    elif torch.backends.mps.is_available():
+        device = torch.device('mps')
+    else:
+        device = torch.device('cpu')
     model.to(device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
@@ -62,7 +67,10 @@ def train_embedding_model(model: RobertaModel, train_dataloader: DataLoader, dev
                         attn_masks[max_similarity_idx + 1].detach(),
                         label.detach()]
                 )
-        torch.cuda.empty_cache()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        elif torch.backends.mps.is_available():
+            torch.mps.empty_cache()
 
         # 2. train the model with the most similar pair
         core_dataloader = DataLoader(core_dataset, batch_size=16, shuffle=True)
@@ -154,7 +162,12 @@ def load_siamese_data(
 
 def evaluate_embedding_model(
         model: RobertaModel, dataloader: DataLoader, mode: str) -> np.array:
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if torch.cuda.is_available():
+        device = torch.device('cuda')
+    elif torch.backends.mps.is_available():
+        device = torch.device('mps')
+    else:
+        device = torch.device('cpu')
     model.to(device)
     model.eval()
 

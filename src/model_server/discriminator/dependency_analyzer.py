@@ -43,11 +43,17 @@ def load_model_and_tokenizer():
         'dependency-analyzer')
     model_path = os.path.join(model_dir, 'pytorch_model.bin')
 
+    if torch.cuda.is_available():
+        device = torch.device('cuda')
+    elif torch.backends.mps.is_available():
+        device = torch.device('mps')
+    else:
+        device = torch.device('cpu')
     tokenizer = RobertaTokenizerFast.from_pretrained('microsoft/codebert-base')
     special_tokens = ['<from>', '<to>']
     tokenizer.add_tokens(special_tokens, special_tokens=True)
     model = DependencyAnalyzer(match_tokenizer=tokenizer)
-    model.load_state_dict(torch.load(model_path))
+    model.load_state_dict(torch.load(model_path, map_location=device))
     return model, tokenizer
 
 
@@ -56,6 +62,8 @@ class DependencyClassifier:
         self.model, self.tokenizer = load_model_and_tokenizer()
         if torch.cuda.is_available():
             self.model.to(torch.device('cuda'))
+        elif torch.backends.mps.is_available():
+            self.model.to(torch.device('mps'))
 
     def construct_pair(self, code_1: str, code_2: str):
         return '<from>' + code_1 + '<to>' + code_2
@@ -70,6 +78,8 @@ class DependencyClassifier:
         token_input = self.tokenizer(text, return_tensors='pt')
         if torch.cuda.is_available():
             token_input = token_input.to(torch.device('cuda'))
+        elif torch.backends.mps.is_available():
+            token_input = token_input.to(torch.device('mps'))
 
         with torch.no_grad():
             outputs = self.model(
@@ -81,8 +91,12 @@ class DependencyClassifier:
 
     def batch_gen(self, corpus_pair: 'list[str]'):
         sigmoid = nn.Sigmoid()
-        device = torch.device(
-            'cuda') if torch.cuda.is_available() else torch.device('cpu')
+        if torch.cuda.is_available():
+            device = torch.device('cuda')
+        elif torch.backends.mps.is_available():
+            device = torch.device('mps')
+        else:
+            device = torch.device('cpu')
         token_input = self.tokenizer(
             corpus_pair,
             return_tensors='pt',
@@ -110,8 +124,6 @@ class DependencyClassifier:
 
 def cal_dep_score(hunk: dict, file_content: str,
                   dependency_analyzer: DependencyClassifier):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
     def split2window_str(lines):
         windows = []
         for i in range(len(lines) // 10 + 1):

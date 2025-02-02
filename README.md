@@ -104,9 +104,11 @@ You have 2 ways to prepare models. Choose one.
 
 **Method 1: Use init-server script**
 
-Just execute `python3 ./init-server.py` and follow the language you want to run.
+Select <language> from `go`, `python`, `java`, `typescript` and `javascript` to download models for the language.
 
-Example: `python3 ./init-server.py typescript`
+```bash
+python init-server.py <language>
+```
 
 **Method 2: Download manually**
 
@@ -168,14 +170,18 @@ For basic remote backend deployment:
 
 ## 🐳 Deploy Backend Models with Docker
 
+> [!IMPORTANT]
+>   * This deployment method is not fully tested. Please feel free to raise issues if you encounter any problems.
+>   * MacOS is unable to use MPS acceleration via Docker, hence the following instructions are not applicable to MacOS.
+
 You can create a Docker image and start a Docker container according to the following steps to isolate the environment and simplify the backend model deployment.
 
 1. Navigate to the root directory of the CoEdPilot-extension project.
 
-2. Create the Docker image:
+2. Create the Docker image (For Linux / Windows with WSL):
 
    ```bash
-   docker build -t coedpilot-extension --build-arg MIRROR_SOURCE=https://pypi.tuna.tsinghua.edu.cn/simple --build-arg LANG=python .
+   docker build -t coedpilot-extension --build-arg MIRROR_SOURCE=<MIRROR_SOURCE> --build-arg LANG=<LANG> .
    ```
 
    This command supports two `build-arg` parameters:
@@ -183,19 +189,45 @@ You can create a Docker image and start a Docker container according to the foll
    - `MIRROR_SOURCE`: Specifies the mirror source for installing Python dependencies, e.g., `--build-arg MIRROR_SOURCE=https://pypi.tuna.tsinghua.edu.cn/simple`. If this argument is not provided, the mirror source will not be used for installing Python dependencies.
    - `LANG`: Specifies the model for different languages, e.g., `--build-arg LANG=javascript`. The supported languages are go, python, java, typescript, and javascript. If this argument is not provided, the default model language will be Python.
 
-3. Start the Docker container:
+3. Start the Docker container without GPU acceleration (Not recommended 👎):
 
    ```bash
    docker run -p 5003:5003 coedpilot-extension
    ```
 
-4. If you are deploying Docker in WSL, you need to first install the [NVIDIA Container Toolkit](https://learn.microsoft.com/en-us/windows/wsl/tutorials/gpu-compute), and then start the Docker container with the following command:
+4. Start the Docker container with GPU acceleration (Recommended 👍):
+   * Your system **must have an NVIDIA GPU** with the **correct drivers installed**.
+   * Install the [NVIDIA Container Toolkit](https://learn.microsoft.com/en-us/windows/wsl/tutorials/gpu-compute).
+
+   and then start the Docker container with the following command:
 
    ```bash
    docker run --gpus all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 -p 5003:5003 coedpilot-extension
    ```
 
 Now, the backend model is up and running. You can proceed to run the extension to use CoEdPilot-Extension.
+
+After the usage, you may follow the following command to stop and remove the Docker container and image.
+
+5. ⚠️ Stop the Docker container:
+
+   ```bash
+   docker stop $(docker ps -a -q --filter ancestor=coedpilot-extension)
+   ```
+
+   This command stops all running containers based on the `coedpilot-extension` image.
+
+6. ⚠️ Remove the Docker container:
+
+   ```bash
+   docker rm $(docker ps -a -q --filter ancestor=coedpilot-extension)
+   ```
+
+7. ⚠️ Remove the Docker image:
+
+   ```bash
+   docker rmi coedpilot-extension
+   ```
 
 ## ❓ Issues
 

@@ -258,7 +258,7 @@ function testEditDetectorBasic() {
 	assert.equal(edit.path, baseVersion.path);
 	assert.equal(edit.s, 4);
 	assert.equal(edit.rmLine, 3);
-	assert.equal(edit.rmText, "of this software and associated documentation files (the 'Software'), to deal\r\nin the Software without restriction, including without limitation the rights\r\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\r\n");
+	assert.equal(edit.rmText, 'of this software and associated documentation files (the "Software"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n');
 	assert.equal(edit.addLine, 0);
 	assert.equal(edit.addText, null);
 
@@ -268,21 +268,21 @@ function testEditDetectorBasic() {
 	assert.equal(edit.rmLine, 0);
 	assert.equal(edit.rmText, null);
 	assert.equal(edit.addLine, 1);
-	assert.equal(edit.addText, "aaa\r\n");
+	assert.equal(edit.addText, "aaa\n");
 
 	edit = detector.editList[2];
 	assert.equal(edit.path, baseVersion.path);
 	assert.equal(edit.s, 15);
 	assert.equal(edit.rmLine, 2);
-	assert.equal(edit.rmText, "FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\r\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\r\n");
+	assert.equal(edit.rmText, "FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n");
 	assert.equal(edit.addLine, 1);
-	assert.equal(edit.addText, "bbb\r\n");
+	assert.equal(edit.addText, "bbb\n");
 
 	edit = detector.editList[3];
 	assert.equal(edit.path, baseVersion.path);
 	assert.equal(edit.s, 18);
 	assert.equal(edit.rmLine, 1);
-	assert.equal(edit.rmText, "OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\r\n");
+	assert.equal(edit.rmText, "OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n");
 	assert.equal(edit.addLine, 0);
 	assert.equal(edit.addText, null);
 
@@ -293,7 +293,7 @@ function testEditDetectorBasic() {
 	assert.equal(edit.path, baseVersion.path);
 	assert.equal(edit.s, 4);
 	assert.equal(edit.rmLine, 1);
-	assert.equal(edit.rmText, "of this software and associated documentation files (the 'Software'), to deal\r\n");
+	assert.equal(edit.rmText, 'of this software and associated documentation files (the "Software"), to deal\n');
 	assert.equal(edit.addLine, 0);
 	assert.equal(edit.addText, null);
 
@@ -303,7 +303,7 @@ function testEditDetectorBasic() {
 	assert.equal(edit.rmLine, 0);
 	assert.equal(edit.rmText, null);
 	assert.equal(edit.addLine, 2);
-	assert.equal(edit.addText, "aaa\r\nbbb\r\n");
+	assert.equal(edit.addText, "aaa\nbbb\n");
 
 	edit = detector.editList[2];
 	assert.equal(edit.path, baseVersion.path);
@@ -311,13 +311,13 @@ function testEditDetectorBasic() {
 	assert.equal(edit.rmLine, 0);
 	assert.equal(edit.rmText, null);
 	assert.equal(edit.addLine, 1);
-	assert.equal(edit.addText, "ccc\r\n");
+	assert.equal(edit.addText, "ccc\n");
 
 	edit = detector.editList[3];
 	assert.equal(edit.path, baseVersion.path);
 	assert.equal(edit.s, 6);
 	assert.equal(edit.rmLine, 1);
-	assert.equal(edit.rmText, "to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\r\n");
+	assert.equal(edit.rmText, "to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n");
 	assert.equal(edit.addLine, 0);
 	assert.equal(edit.addText, null);
 
@@ -331,13 +331,13 @@ function testEditDetectorBasic() {
 	assert.equal(edit.rmLine, 0);
 	assert.equal(edit.rmText, null);
 	assert.equal(edit.addLine, 1);
-	assert.equal(edit.addText, "ccc\r\n");
+	assert.equal(edit.addText, "ccc\n");
 
 	edit = detector.editList[1];
 	assert.equal(edit.path, baseVersion.path);
 	assert.equal(edit.s, 5);
 	assert.equal(edit.rmLine, 1);
-	assert.equal(edit.rmText, "to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\r\n");
+	assert.equal(edit.rmText, "to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n");
 	assert.equal(edit.addLine, 0);
 	assert.equal(edit.addText, null);
 
