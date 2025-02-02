@@ -169,8 +169,8 @@ For basic remote backend deployment:
 ## 🐳 Deploy Backend Models with Docker
 
 > [!IMPORTANT]
-> This deployment method is not fully tested. Please feel free to raise issues if you encounter any problems.
-> MacOS is unable to use MPS acceleration via Docker, hence the following instructions are not applicable to MacOS.
+>   * This deployment method is not fully tested. Please feel free to raise issues if you encounter any problems.
+>   * MacOS is unable to use MPS acceleration via Docker, hence the following instructions are not applicable to MacOS.
 
 You can create a Docker image and start a Docker container according to the following steps to isolate the environment and simplify the backend model deployment.
 
