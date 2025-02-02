@@ -172,7 +172,7 @@
   },
   "type": "module",
   "scripts": {
-    "test": "node ./test/suite/test.js",
+    "test": "node ./test/suite/test.cjs",
     "watch": "tsc --watch --allowJs -p jsconfig.json",
     "build": "tsc --build jsconfig.json",
     "package": "yarn build && yes | vsce package --no-yarn",
