@@ -203,6 +203,10 @@ You can create a Docker image and start a Docker container according to the foll
    docker run --gpus all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 -p 5003:5003 coedpilot-extension
    ```
 
+Now, the backend model is up and running. You can proceed to run the extension to use CoEdPilot-Extension.
+
+After the usage, you may follow the following command to stop and remove the Docker container and image.
+
 5. ⚠️ Stop the Docker container:
 
    ```bash
@@ -222,8 +226,6 @@ You can create a Docker image and start a Docker container according to the foll
    ```bash
    docker rmi coedpilot-extension
    ```
-
-Now, the backend model is up and running. You can proceed to run the extension to use CoEdPilot-Extension.
 
 ## ❓ Issues
 
