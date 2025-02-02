@@ -32,7 +32,12 @@ def construct_discriminator_dataset(
 
 
 def load_model(model_path):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if torch.cuda.is_available():
+        device = torch.device('cuda')
+    elif torch.backends.mps.is_available():
+        device = torch.device('mps')
+    else:
+        device = torch.device('cpu')
     model = RobertaModel.from_pretrained("huggingface/CodeBERTa-small-v1")
     tokenizer = RobertaTokenizer.from_pretrained(
         "huggingface/CodeBERTa-small-v1")

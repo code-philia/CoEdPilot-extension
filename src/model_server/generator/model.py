@@ -5,8 +5,12 @@ import torch
 import torch.nn as nn
 import torch
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
+if torch.cuda.is_available():
+    device = torch.device('cuda')
+elif torch.backends.mps.is_available():
+    device = torch.device('mps')
+else:
+    device = torch.device('cpu')
 
 class Seq2Seq(nn.Module):
     """
@@ -94,7 +98,7 @@ class Seq2Seq(nn.Module):
             zero = torch.tensor(
                 [0],
                 dtype=torch.long,
-                device='cuda' if torch.cuda.is_available() else 'cpu')
+                device= device)
             for i in range(source_ids.shape[0]):
                 context = encoder_output[:, i:i + 1]
                 context_mask = source_mask[i:i + 1, :]

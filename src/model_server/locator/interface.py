@@ -123,7 +123,12 @@ def convert_examples_to_features(examples, tokenizer, stage=None):
 
 
 def load_model(model_path):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if torch.cuda.is_available():
+        device = torch.device('cuda')
+    elif torch.backends.mps.is_available():
+        device = torch.device('mps')
+    else:
+        device = torch.device('cpu')
     config_class, model_class, tokenizer_class = (
         RobertaConfig, RobertaModel, RobertaTokenizer)
     config = config_class.from_pretrained("microsoft/codebert-base")
@@ -133,7 +138,7 @@ def load_model(model_path):
     model = Seq2Seq(encoder=encoder, config=config,
                     beam_size=10, max_length=512,
                     sos_id=tokenizer.cls_token_id, eos_id=tokenizer.sep_token_id, mask_id=tokenizer.mask_token_id)
-    model.load_state_dict(torch.load(model_path))
+    model.load_state_dict(torch.load(model_path, map_location=device))
     model.to(device)
     return model, tokenizer, device
 

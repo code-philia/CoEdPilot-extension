@@ -168,15 +168,28 @@ For basic remote backend deployment:
 
 ## 🐳 Deploy Backend Models with Docker
 
+> [!IMPORTANT]
+> This deployment method is not fully tested. Please feel free to raise issues if you encounter any problems.
+> Existing Docker images are not GPU-accelerated. We will updating the Dockerfile to support GPU acceleration in the future.
+
 You can create a Docker image and start a Docker container according to the following steps to isolate the environment and simplify the backend model deployment.
 
 1. Navigate to the root directory of the CoEdPilot-extension project.
 
-2. Create the Docker image:
+2. Create the Docker image (without GPU acceleration):
 
-   ```bash
-   docker build -t coedpilot-extension --build-arg MIRROR_SOURCE=https://pypi.tuna.tsinghua.edu.cn/simple --build-arg LANG=python .
-   ```
+   * For Linux:
+      ```bash
+      docker build -t coedpilot-extension --build-arg MIRROR_SOURCE=https://pypi.tuna.tsinghua.edu.cn/simple --build-arg LANG=python -f Dockerfile/Dockerfile.linux .
+      ```
+   * For macOS (MacOS is unable to use MPS acceleration via Docker):
+      ```bash
+      docker build -t coedpilot-extension --build-arg MIRROR_SOURCE=https://pypi.tuna.tsinghua.edu.cn/simple --build-arg LANG=python -f Dockerfile/Dockerfile.mac .
+      ```
+   * For Windows:
+      ```bash
+      docker build -t coedpilot-extension --build-arg MIRROR_SOURCE=https://pypi.tuna.tsinghua.edu.cn/simple --build-arg LANG=python -f Dockerfile/Dockerfile.win .
+      ```
 
    This command supports two `build-arg` parameters:
 
@@ -193,6 +206,26 @@ You can create a Docker image and start a Docker container according to the foll
 
    ```bash
    docker run --gpus all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 -p 5003:5003 coedpilot-extension
+   ```
+
+5. Stop the Docker container:
+
+   ```bash
+   docker stop $(docker ps -a -q --filter ancestor=coedpilot-extension)
+   ```
+
+   This command stops all running containers based on the `coedpilot-extension` image.
+
+6. Remove the Docker container:
+
+   ```bash
+   docker rm $(docker ps -a -q --filter ancestor=coedpilot-extension)
+   ```
+
+7. Remove the Docker image:
+
+   ```bash
+   docker rmi coedpilot-extension
    ```
 
 Now, the backend model is up and running. You can proceed to run the extension to use CoEdPilot-Extension.

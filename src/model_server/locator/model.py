@@ -85,14 +85,25 @@ class Seq2Seq(nn.Module):
 class Beam(object):
     def __init__(self, size, sos, eos):
         self.size = size
-        self.tt = torch.cuda
+        if torch.cuda.is_available():
+            self.tt = torch.cuda
+        elif torch.backends.mps.is_available():
+            self.tt = torch.mps
+        else:
+            self.tt = torch
         # The score for each translation on the beam.
-        self.scores = self.tt.FloatTensor(size).zero_()
+        if torch.backends.mps.is_available():
+            self.scores = torch.zeros(size, dtype=torch.float32)
+        else:
+            self.scores = self.tt.FloatTensor(size).zero_()
+
         # The backpointers at each time-step.
         self.prevKs = []
         # The outputs at each time-step.
-        self.nextYs = [self.tt.LongTensor(size)
-                       .fill_(0)]
+        if torch.backends.mps.is_available():
+            self.nextYs = [torch.full((size,), 0, dtype=torch.long)]
+        else:
+            self.nextYs = [self.tt.LongTensor(size).fill_(0)]
         self.nextYs[0][0] = sos
         # Has EOS topped the beam yet.
         self._eos = eos
@@ -102,7 +113,10 @@ class Beam(object):
 
     def getCurrentState(self):
         "Get the outputs for the current timestep."
-        batch = self.tt.LongTensor(self.nextYs[-1]).view(-1, 1)
+        if torch.backends.mps.is_available():
+            batch = torch.tensor(self.nextYs[-1], dtype=torch.long).view(-1, 1)
+        else:
+            batch = self.tt.LongTensor(self.nextYs[-1]).view(-1, 1)
         return batch
 
     def getCurrentOrigin(self):
