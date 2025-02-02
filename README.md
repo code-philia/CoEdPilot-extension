@@ -104,9 +104,11 @@ You have 2 ways to prepare models. Choose one.
 
 **Method 1: Use init-server script**
 
-Just execute `python3 ./init-server.py` and follow the language you want to run.
+Select <language> from `go`, `python`, `java`, `typescript` and `javascript` to download models for the language.
 
-Example: `python3 ./init-server.py typescript`
+```bash
+python init-server.py <language>
+```
 
 **Method 2: Download manually**
 
