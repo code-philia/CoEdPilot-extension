@@ -6,9 +6,13 @@ export default [
       sourceType: "module",
     },
     rules: {
-      "semi": ["error", "always"],
-      "quotes": ["error", "double"],
-      // 添加更多规则
+      "no-const-assign": "warn",
+      "no-this-before-super": "warn",
+      "no-undef": "warn",
+      "no-unreachable": "warn",
+      "no-unused-vars": "warn",
+      "constructor-super": "warn",
+      "valid-typeof":"warn",
     },
   },
 ];
