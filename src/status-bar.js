@@ -48,7 +48,7 @@ class ProgressDisplayStatusBarItem extends BaseComponent {
         this.item.tooltip = "CoEdPilot is using language model to analyze 🔬";
     }
 
-    setStatustProblem(errorMessage) {
+    setStatusProblem(errorMessage) {
         this.busy = true;
         this.setItemText("close", "CoEdPilot");
         this.item.backgroundColor = new vscode.ThemeColor("statusBarItem.errorBackground");

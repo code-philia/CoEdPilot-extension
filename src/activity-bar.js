@@ -1,7 +1,7 @@
 import vscode from 'vscode';
 import path from 'path';
 import { queryState } from './global-context';
-import { BaseComponent } from './base-component';
+import { BaseComponent, registerCommand } from './base-component';
 import { getRootPath, toRelPath } from './file';
 
 class LocationTreeProvider  {
@@ -130,8 +130,8 @@ class LocationTreeProvider  {
         )
 
         for (const loc of modListOnPath) {
-            let fromLine = loc.editType === "add" ? loc.atLines[0] + 1 : loc.atLines[0];
-            let toLine = loc.editType === "add" ? loc.atLines[loc.atLines.length - 1] + 2 : loc.atLines[loc.atLines.length - 1] + 1;
+            let fromLine = loc.atLines[0];
+            let toLine = loc.atLines.at(-1) + 1; // fromLine is inclusive, and toLine is exclusive
             fileItem.mods.push(
                 new ModItem(
                     `Line ${fromLine + 1}`,
@@ -140,12 +140,46 @@ class LocationTreeProvider  {
                     fromLine,
                     toLine,
                     loc.lineInfo.text,
-                    loc.editType
+                    loc.editType,
+                    loc.confidence
                 )
             );
         }
 
         return fileItem;
+    }
+
+    sortByLineNumber(asc) {
+        if (asc) {
+            this.modTree.forEach((fileItem) => {
+                fileItem.mods.sort((a, b) => a.fromLine - b.fromLine);
+            });
+        } else {
+            this.modTree.forEach((fileItem) => {
+                fileItem.mods.sort((a, b) => b.fromLine - a.fromLine);
+            });
+        }
+    }
+
+    sortByConfidence(asc) {
+        if (asc) {
+            this.modTree.forEach((fileItem) => {
+                fileItem.mods.sort((a, b) => a.confidence - b.confidence);
+            });
+        } else {
+            this.modTree.forEach((fileItem) => {
+                fileItem.mods.sort((a, b) => b.confidence - a.confidence);
+            });
+        }
+    }
+
+    sort(criterion = 'lineNumber', order = 'asc') {
+        if (criterion === 'lineNumber') {
+            this.sortByLineNumber(order === 'asc');
+        } else {
+            this.sortByConfidence(order === 'asc');
+        }
+        this.notifyChangeofTree();
     }
 }
 
@@ -169,7 +203,7 @@ class FileItem extends vscode.TreeItem {
 }
 
 class ModItem extends vscode.TreeItem {
-    constructor(label, collapsibleState, fileItem, fromLine, toLine, lineContent, editType) {
+    constructor(label, collapsibleState, fileItem, fromLine, toLine, lineContent, editType, confidence) {
         super(label, collapsibleState);
         this.collapsibleState = collapsibleState;
         this.fileItem = fileItem;
@@ -178,16 +212,21 @@ class ModItem extends vscode.TreeItem {
         this.editType = editType;
         this.lineContent = lineContent
         this.text = `    ${this.lineContent.trim()}`;
+        this.confidence = confidence;
 
-        this.tooltip = `Line ${this.fromLine}`; // match real line numbers in the gutter
+        this.tooltip = `Line ${this.fromLine + 1}`;
         this.description = this.text;
         this.command = {
             command: 'coEdPilot.openFileAtLine',
             title: '',
-            arguments: [
+            arguments: editType === "add" ? [
+                this.fileItem.filePath,
+                this.toLine,
+                this.toLine  // edit of type "add" will only place the cursor at the starting of line
+            ] : [
                 this.fileItem.filePath,
                 this.fromLine,
-                editType === "add" ? this.fromLine : this.toLine  // edit of type "add" will only place the cursor at the starting of line
+                this.toLine  
             ]
         }
         
@@ -227,6 +266,9 @@ class ModItem extends vscode.TreeItem {
 }
 
 class EditLocationView extends BaseComponent {
+    sortCriterion = undefined;
+    sortOrder = undefined;
+
     constructor() {
         super();
         this.provider = new LocationTreeProvider();
@@ -250,12 +292,64 @@ class EditLocationView extends BaseComponent {
             }, this),
             queryState.onDidChangeLocations(async (qs) => {
                 this.provider.refresh(qs.locations);
+                this.sort();
                 if (!this.treeView.visible) {
                     await vscode.commands.executeCommand('editLocations.focus');
                 }
                 await this.treeView.reveal(this.provider.modTree[0], { expand: 2 });
             }, this),
+            // NOTE if register for each edit location view, may cause config
+            registerCommand('coEdPilot.setLocationSortByLineNumber', async () => {
+                this.setSortCriterion("lineNumber");
+            }),
+            registerCommand('coEdPilot.setLocationSortByConfidence', async () => {
+                this.setSortCriterion("confidence");
+            }),
+            registerCommand('coEdPilot.setLocationSortAsc', async () => {
+                this.setSortOrder("asc");
+            }),
+            registerCommand('coEdPilot.setLocationSortDesc', async () => {
+                this.setSortOrder("desc");
+            })
         );
+
+        // `sortCriterion` and `order` is initially undefined, so they will be switched to 'lineNumber' and 'asc' first
+        this.switchSortCriterion();
+        // this.switchSortOrder();  // switch order will switch the original order of "lineNumber" criterion to "desc"
+    }
+    
+    sort() {
+        this.provider?.sort(this.sortCriterion, this.sortOrder);
+    }
+
+    setSortCriterion(criterion) {
+        this.sortCriterion = criterion;
+        this.provider.sort(this.sortCriterion, this.sortOrder);
+        vscode.commands.executeCommand('setContext', 'coEdPilot.locationSortCriterion', criterion);
+    }
+
+    setSortOrder(order) {
+        this.sortOrder = order;
+        this.provider.sort(this.sortCriterion, this.sortOrder);
+        vscode.commands.executeCommand('setContext', 'coEdPilot.locationSortOrder', order);
+    }
+
+    switchSortCriterion() {
+        if (this.sortCriterion === 'lineNumber') {
+            this.setSortCriterion('confidence');
+            this.setSortOrder('desc');
+        } else {
+            this.setSortCriterion('lineNumber');
+            this.setSortOrder('asc');
+        }
+    }
+
+    switchSortOrder() {
+        if (this.sortOrder === 'asc') {
+            this.setSortOrder('desc');
+        } else {
+            this.setSortOrder('asc');
+        }
     }
 }
 

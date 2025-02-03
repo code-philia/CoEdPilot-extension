@@ -29,7 +29,7 @@ async function predictLocation() {
             statusBarItem.setStatusDefault();
         } catch (err) {
             console.error(err);
-            statusBarItem.setStatustProblem("Some error occured when predicting locations");
+            statusBarItem.setStatusProblem("Some error occured when predicting locations");
             throw err;
         }
     });
@@ -58,13 +58,27 @@ async function predictEdit() {
 
     statusBarItem.setStatusLoadingFiles();
     const uri = activeDocument.uri;
+    const filePath = toPosixPath(uri.fsPath);
     const atLines = [];
     const selectedRange = activeEditor.selection;
     
     const fromLine = selectedRange.start.line;
     let toLine = selectedRange.end.line;
     let editType = "";
-    if (selectedRange.isEmpty) {
+
+    // NOTE only starting line of the selection is used for matching
+    const locationIncludesLine = (loc, line) => {
+        return (loc.editType === "replace" && loc.atLines.includes(line))
+            || (loc.editType === "add" && loc.atLines.includes(line - 1));
+    }
+    const firstMatchLocation = queryState.locations
+        .find(loc => loc.targetFilePath === filePath
+            && locationIncludesLine(loc, fromLine));
+    
+    if (firstMatchLocation) {
+        editType = firstMatchLocation.editType;
+        atLines.push(...firstMatchLocation.atLines);
+    } else if (selectedRange.isEmpty) {
         editType = "add";
         atLines.push(fromLine);
     } else {
@@ -113,7 +127,7 @@ async function predictEdit() {
         statusBarItem.setStatusDefault();
     } catch (err) {
         console.error(err);
-        statusBarItem.setStatustProblem("Some error occured when predicting edits");
+        statusBarItem.setStatusProblem("Some error occured when predicting edits");
         throw err;
     }
 }

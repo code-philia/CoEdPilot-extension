@@ -260,20 +260,6 @@ def predict(json_input, language):
         targetFileLineNum = len(targetFileLines)
 
         model_inputs = []
-        # for windowIdx in range(math.ceil(targetFileLineNum/codeWindowLength)):
-        #     # 按照 codeWindowLength 将文件内容分割成 codeWindow
-        #     if windowIdx == math.ceil(targetFileLineNum/codeWindowLength)-1:
-        #         codeWindowLines = targetFileLines[windowIdx*codeWindowLength:]
-        #     else:
-        #         codeWindowLines = targetFileLines[windowIdx*codeWindowLength:(windowIdx+1)*codeWindowLength]
-        #     codeWindowLines = [" <mask> " + line for line in codeWindowLines]
-        #     codeWindow = ''.join(codeWindowLines)
-
-        #     # 将 CodeWindow， CommitMessage 和 prevEdit 合并为一个字符串，作为模型的输入
-        #     model_input = codeWindow + ' </s> '  + commitMessage
-        #     for prevEdit in prevEdits:
-        #         model_input +=' </s> replace ' + prevEdit["beforeEdit"] + ' add ' + prevEdit["afterEdit"]
-        #     model_inputs.append(model_input)
 
         i = 0
         while i < targetFileLineNum:
@@ -316,6 +302,8 @@ def predict(json_input, language):
         # run model
         model.eval()
         preds = []
+        confidences = []
+        softmax = torch.nn.Softmax(dim=-1)
         for batch in tqdm(eval_dataloader, total=len(eval_dataloader)):
             batch = tuple(t.to(device) for t in batch)
             source_ids, source_mask,target_ids,target_mask = batch                  
@@ -324,18 +312,26 @@ def predict(json_input, language):
                 # extract masked edit operations
                 for i in range(lm_logits.shape[0]):  # for sample within batch
                     output = []
+                    confidence = []
                     for j in range(lm_logits.shape[1]):  # for every token
                         if source_ids[i][j] == tokenizer.mask_token_id: # if is masked
                             output.append(
-    tokenizer.decode(
-        torch.argmax(
-            lm_logits[i][j]),
-             clean_up_tokenization_spaces=False))
+                                            tokenizer.decode(
+                                                torch.argmax(lm_logits[i][j]),
+                                                clean_up_tokenization_spaces=False
+                                            )
+                                        )
+                            confidence.append(
+                                softmax(lm_logits[i][j]).max().item()
+                            )
                     preds.extend(output)
+                    confidences.extend(confidence)
 
         if len(preds) != targetFileLineNum:
             # TODO: solve this problem when some lines are too long
             raise ValueError(f'The number of lines ({targetFileLineNum}) in the target file is not equal to the number of predictions ({len(preds)}).')
+        if len(confidences) != targetFileLineNum:
+            raise ValueError(f'The number of lines ({targetFileLineNum}) in the target file is not equal to the number of confidences ({len(confidences)}).')
         stopwatch.lap_by_task('infer result')
 
         # print(f"+++ Target file lines:\n{''.join([preds[i] + '    ' + targetFileLines[i] for i in range(targetFileLineNum)])}")
@@ -354,16 +350,12 @@ def predict(json_input, language):
 
                 results.append({
                     "targetFilePath": targetFilePath,
-                    # "prevEdits": prevEdits,
-                    # "toBeReplaced": normalize_string(targetFileLines[i].rstrip("\n\r")), # 高亮的部分不包括行尾的换行符
-                    # "startPos": len(text),
-                    # "endPos": len(text)+len(targetFileLines[i].rstrip("\n\r")), # 高亮的部分不包括行尾的换行符
                     "editType": preds[i],
                     "lineBreak": lineBreak,
-                    "atLines": [i]  # 行数从 0 开始
+                    "atLines": [i],  # 行数从 0 开始
+                    "confidence": confidences[i]
                 })
 
-            # text += targetFileLines[i]
         stopwatch.lap_by_task('prepare result')
 
     results = merge_adjacent_removals(results)
