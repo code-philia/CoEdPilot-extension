@@ -4,7 +4,8 @@
   "description": "A code co-edit helper.",
   "license": "MIT",
   "version": "0.1.0",
-  "publisher": "Code Philia",
+  "publisher": "CodePhilia",
+  "icon": "media/icon.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/code-philia/CoEdPilot-extension.git"

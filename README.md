@@ -164,7 +164,7 @@ Open the project directory in VS Code. Press `F5`, then choose `Run Extension` i
 #### 2.3: Package extension as `.vsix`
 
 > [!NOTE]
-> You can skip [Step 2.3](#23-package-extension-as-vsix) and [Step 2.4](#24-install-extension-in-vs-code) by directly donwloading the `.vsix` file from VS Code Extension Store.
+> You can skip [Step 2.3](#23-package-extension-as-vsix) and [Step 2.4](#24-install-extension-in-vs-code) by directly [donwloading](https://marketplace.visualstudio.com/items?itemName=CodePhilia.co-ed-pilot) the extension from VS Code Extension Store.
 
 Make sure you have `yarn` installed.
 
@@ -182,6 +182,8 @@ yarn package
 This command will generate a `.vsix` file in the project root directory, based on the `package.json` file.
 
 #### 2.4: Install extension in VS Code
+
+Open the VS Code command palette (`Ctrl + Shift + P` / `Cmd + Shift + P`), then select `Extensions: Install from VSIX...` and choose the `.vsix` file generated in the previous step.
 
 ## 🛠️ Advanced Deployment
 
