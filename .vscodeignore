@@ -10,3 +10,5 @@ vsc-extension-quickstart.md
 src/
 models/
 mock/
+Dockerfile
+requirements.txt
