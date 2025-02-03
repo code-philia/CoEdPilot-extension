@@ -44,7 +44,8 @@
       {
         "command": "coEdPilot.inputMessage",
         "category": "CoEdPilot",
-        "title": "Change Edit Description"
+        "title": "Change Edit Description",
+        "icon": "$(comment)"
       },
       {
         "title": "Last Suggestion",
@@ -73,12 +74,14 @@
       {
         "title": "Predict Locations",
         "category": "CoEdPilot",
-        "command": "coEdPilot.predictLocations"
+        "command": "coEdPilot.predictLocations",
+        "icon": "$(list-tree)"
       },
       {
         "title": "Generate Edits",
         "category": "CoEdPilot",
-        "command": "coEdPilot.generateEdits"
+        "command": "coEdPilot.generateEdits",
+        "icon": "$(edit)"
       },
       {
         "title": "Show Commands",
@@ -88,6 +91,31 @@
         "title": "Clear Locations",
         "command": "coEdPilot.clearLocations",
         "icon": "$(close)"
+      },
+      {
+        "title": "Clear Edit Memory",
+        "command": "coEdPilot.clearPrevEdits",
+        "icon": "$(history)"
+      },
+      {
+        "title": "Set Sorting By Line Number",
+        "command": "coEdPilot.setLocationSortByLineNumber",
+        "icon": "$(star-full)"
+      },
+      {
+        "title": "Set Sorting By Confidence",
+        "command": "coEdPilot.setLocationSortByConfidence",
+        "icon": "$(list-ordered)"
+      },
+      {
+        "title": "Set Ascending",
+        "command": "coEdPilot.setLocationSortAsc",
+        "icon": "$(triangle-down)"
+      },
+      {
+        "title": "Set Descending",
+        "command": "coEdPilot.setLocationSortDesc",
+        "icon": "$(triangle-up)"
       }
     ],
     "menus": {
@@ -128,6 +156,26 @@
           "command": "coEdPilot.dismiss-edit",
           "group": "navigation@-1",
           "when": "coEdPilot:isEditDiff"
+        },
+        {
+          "command": "coEdPilot.predictLocations",
+          "group": "navigation@-99",
+          "when": "editorFocus && (!(coEdPilot:isEditDiff))"
+        },
+        {
+          "command": "coEdPilot.generateEdits",
+          "group": "navigation@-98",
+          "when": "editorFocus && (!(coEdPilot:isEditDiff))"
+        },
+        {
+          "command": "coEdPilot.inputMessage",
+          "group": "navigation@-97",
+          "when": "editorFocus && (!(coEdPilot:isEditDiff))"
+        },
+        {
+          "command": "coEdPilot.clearPrevEdits",
+          "group": "navigation@-96",
+          "when": "(!(coEdPilot:isEditDiff))"
         }
       ],
       "view/title": [
@@ -135,6 +183,26 @@
           "command": "coEdPilot.clearLocations",
           "when": "view == editLocations",
           "group": "navigation"
+        },
+        {
+          "command": "coEdPilot.setLocationSortByLineNumber",
+          "when": "view == editLocations && coEdPilot.locationSortCriterion == 'confidence'",
+          "group": "navigation@-3"
+        },
+        {
+          "command": "coEdPilot.setLocationSortByConfidence",
+          "when": "view == editLocations && coEdPilot.locationSortCriterion == 'lineNumber'",
+          "group": "navigation@-4"
+        },
+        {
+          "command": "coEdPilot.setLocationSortAsc",
+          "when": "view == editLocations && coEdPilot.locationSortOrder == 'desc'",
+          "group": "navigation@-1"
+        },
+        {
+          "command": "coEdPilot.setLocationSortDesc",
+          "when": "view == editLocations && coEdPilot.locationSortOrder == 'asc'",
+          "group": "navigation@-2"
         }
       ]
     },
@@ -170,7 +238,6 @@
       }
     ]
   },
-  "type": "module",
   "scripts": {
     "test": "node ./test/suite/test.cjs",
     "watch": "tsc --watch --allowJs -p jsconfig.json",
