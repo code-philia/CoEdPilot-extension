@@ -157,16 +157,20 @@ npm install
 > [!NOTE]
 > * Other extensions will be disabled in the development host.
 > * Debug mode is intended for temporary testing and development purposes. If this setup meets your needs, you can start using CoEdPilot extension right away without proceeding to the next steps.
-> * If you prefer long-term usage, please refer to following for detailed instructions.
+> * If you prefer long-term usage, please skip this step and refer to following steps for detailed instructions.
 
 Open the project directory in VS Code. Press `F5`, then choose `Run Extension` if you are required to choose a configuration. A new VS Code window (the "development host") will open with CoEdPilot extension loaded. 
 
 #### 2.3: Package extension as `.vsix`
 
+> [!NOTE]
+> You can skip [Step 2.3](#2-3-package-extension-as-vsix) and [Step 2.4](#2-4-install-extension-in-vs-code) by directly donwloading the `.vsix` file from VS Code Extension Store.
+
 Make sure you have `yarn` installed.
 
 ```shell
 npm install -g yarn
+npm install -g vsce
 ```
 
 Execute the following command in the project root directory:
