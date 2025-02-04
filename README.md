@@ -69,6 +69,7 @@ Once performing a prediction on a line, a diff view is shown for switching â†”ï¸
    > [!IMPORTANT]
    >   * This deployment method is not fully tested. Please feel free to raise issues if you encounter any problems;
    >   * MacOS is unable to use MPS acceleration via Docker, hence the following instructions are not applicable to MacOS.
+   >   * If you need CUDA acceleration, your system **must have an NVIDIA GPU** with the **correct drivers installed**. Install the [NVIDIA Container Toolkit](https://learn.microsoft.com/en-us/windows/wsl/tutorials/gpu-compute).
 
    You can create a Docker image and start a Docker container according to the following steps to isolate the environment and simplify the backend model deployment.
 
@@ -94,9 +95,7 @@ Once performing a prediction on a line, a diff view is shown for switching â†”ï¸
       ```
 
    4. Start the Docker container with GPU acceleration (Recommended ðŸ‘):
-      > [!IMPORTANT]
-      > Your system **must have an NVIDIA GPU** with the **correct drivers installed**. Install the [NVIDIA Container Toolkit](https://learn.microsoft.com/en-us/windows/wsl/tutorials/gpu-compute).
-
+      
       Start the Docker container with the following command (with 5003 as default port, please check the availability of this port):
 
       ```bash
