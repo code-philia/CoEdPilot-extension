@@ -183,19 +183,21 @@ This command will generate a `.vsix` file in the project root directory, based o
 
 #### 2.4: Install extension in VS Code
 
-Open the VS Code command palette (`Ctrl + Shift + P` / `Cmd + Shift + P`), then select `Extensions: Install from VSIX...` and choose the `.vsix` file generated in the previous step.
+Open the VS Code command palette (`Ctrl` + `Shift` + `P` / `Cmd` + `Shift` + `P`), then select `Extensions: Install from VSIX...` and choose the `.vsix` file generated in the previous step.
 
-## 🛠️ Advanced Deployment
+#### 2.5 Configuration of extension
+Configure to connect to the backend model. 
 
-We recommend to try this extension with backend deployed locally. This will require **CUDA** and **~4GB** video memory. But deploying backend remotely is also easy, since key is to match extension configuration of VS Code and the server listening configuration. 
-
-By default `server.py` fetches configuration from `server.ini` then listens to `0.0.0.0:5001`. The extension client sends requests to `coEdPilot.queryUrl`, by default `http://localhost:5001`.
-
-For basic remote backend deployment:
-
-+ On the backend machine, confirm the IP on LAN/WAN, and open up a port through firewall.
-+ Use that port in `server.ini` then run the backend `server.py`.
-+ When using the extension, set `coEdPilot.queryUrl` in VS Code settings (press `Ctrl + ,` then search) to the proper connectable IP of the server.
+* For backend model at localhost:
+   1. open `src/model_server/server.ini` to acquire the current listening host and port.
+   2. Start the backend: `python src/model_server/server.py`.
+   3. Open VS Code settings (press `Ctrl` + `,` / `Cmd` + `,`), search for `@ext:CodePhilia.co-ed-pilot`
+   4. Set `coEdPilot.queryUrl` to the server address, e.g., `http://localhost:5003`
+* For backend model at remote server: 
+   1. Confirm the IP on LAN/WAN, and open up a port through firewall. 
+   2. Use the port (default: 5003) in `server.ini` then start the backend: `python src/model_server/server.py`.
+   3. Open VS Code settings (press `Ctrl` + `,` / `Cmd` + `,`), search for `@ext:CodePhilia.co-ed-pilot`
+   4. Set `coEdPilot.queryUrl` to the server address, e.g., `http://<SERVER_IP_ADDRESS>:<PORT>`
 
 ## 🐳 Deploy Backend Models with Docker
 
@@ -220,6 +222,8 @@ You can create a Docker image and start a Docker container according to the foll
 
 3. Start the Docker container without GPU acceleration (Not recommended 👎):
 
+   With the following command (with 5003 as default port):
+   
    ```bash
    docker run -p 5003:5003 coedpilot-extension
    ```
@@ -228,7 +232,7 @@ You can create a Docker image and start a Docker container according to the foll
    * Your system **must have an NVIDIA GPU** with the **correct drivers installed**.
    * Install the [NVIDIA Container Toolkit](https://learn.microsoft.com/en-us/windows/wsl/tutorials/gpu-compute).
 
-   and then start the Docker container with the following command:
+   and then start the Docker container with the following command (with 5003 as default port):
 
    ```bash
    docker run --gpus all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 -p 5003:5003 coedpilot-extension
