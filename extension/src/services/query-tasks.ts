@@ -1,12 +1,11 @@
 import vscode from 'vscode';
-import { getRootPath, readGlobFiles, updatePrevEdits, toPosixPath } from '../utils/file-utils';
-import { globalQueryContext } from '../global-result-context';
+import { getRootPath, updatePrevEdits, toPosixPath, readGlobFiles } from '../utils/file-utils';
+import { globalQueryContext, globalEditLock } from '../global-result-context';
 import { globalEditorState } from '../global-workspace-context';
 import { globalEditDetector } from '../editor-state-monitor';
-import { startLocationQueryProcess, startEditQueryProcess } from './query-processes';
+import { requestAndUpdateLocation, requestAndUpdateEdit, requestAndUpdateLocationByNavEdit } from './query-processes';
 import { DisposableComponent } from '../utils/base-component';
 import { EditSelector, diffTabSelectors, tempWrite } from '../views/compare-view';
-import { globalEditLock } from '../global-result-context';
 import { statusBarItem } from '../ui/progress-indicator';
 import { EditType } from '../utils/base-types';
 
@@ -21,16 +20,42 @@ async function predictLocation() {
 
         statusBarItem.setStatusLoadingFiles();
         const rootPath = getRootPath();
-        const files = await readGlobFiles();
-        // const currentPrevEdits = getPrevEdits();
+        // wait 1 second
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        const files: [string, string][] = [];
         try {
-            console.log("++++++++++++ getting updates");
-            const currentPrevEdits = await globalEditDetector.getUpdatedEditList();
+            const currentPrevEdits = await globalEditDetector.getUpdatedSimpleEditList();
             statusBarItem.setStatusQuerying("locator");
-            await startLocationQueryProcess(rootPath, files, currentPrevEdits, commitMessage, globalEditorState.language);
+            // TODO depart this step, because it is not parallel to other steps
+            await requestAndUpdateLocation(rootPath, files, currentPrevEdits, commitMessage, globalEditorState.language);
             statusBarItem.setStatusDefault();
         } catch (err) {
-            console.error(err);
+            vscode.window.showErrorMessage("Oops! Something went wrong with the query request 😦");
+            statusBarItem.setStatustProblem("Some error occured when predicting locations");
+            throw err;
+        }
+    });
+}
+
+async function predictLocationByNavEdit() {
+    if (!globalEditorState.isActiveEditorLanguageSupported()) {
+        vscode.window.showInformationMessage(`Predicting location canceled: language ${globalEditorState.language} not supported yet.`);
+        return;
+    }
+    return await globalEditLock.tryWithLock(async () => {
+        const commitMessage = await globalQueryContext.querySettings.requireCommitMessage();
+        if (commitMessage === undefined) return;
+
+        statusBarItem.setStatusLoadingFiles();
+        const rootPath = getRootPath();
+        const files = await readGlobFiles();
+        try {
+            const currentPrevEdits = await globalEditDetector.getUpdatedEditList();
+            statusBarItem.setStatusQuerying("locator");
+            // TODO depart this step, because it is not parallel to other steps
+            await requestAndUpdateLocationByNavEdit(rootPath, files, currentPrevEdits, commitMessage, globalEditorState.language);
+            statusBarItem.setStatusDefault();
+        } catch (err) {
             vscode.window.showErrorMessage("Oops! Something went wrong with the query request 😦");
             statusBarItem.setStatustProblem("Some error occured when predicting locations");
             throw err;
@@ -60,7 +85,11 @@ async function predictEdit() {
     if (activeDocument.uri.scheme !== "file") return;
 
     statusBarItem.setStatusLoadingFiles();
+
+    // extract uri
     const uri = activeDocument.uri;
+
+    // extract selected line numbers
     const atLines = [];
     const selectedRange = activeEditor.selection;
     
@@ -92,16 +121,19 @@ async function predictEdit() {
     
     statusBarItem.setStatusQuerying("generator");
     try {
-        const queryResult = await startEditQueryProcess(
+        const queryResult = await requestAndUpdateEdit(
             targetFileContent,
             editType,
             atLines,
-            await globalEditDetector.getUpdatedEditList(),
+            await globalEditDetector.getUpdatedSimpleEditList(),
             commitMessage,
             globalEditorState.language
         );
+
+        if (!queryResult) { return; }
         
         // Remove syntax-level unchanged replacements
+        // TODO specify this step to a function
         queryResult.replacement = queryResult.replacement.filter((snippet: string) => snippet.trim() !== selectedContent.trim());
 
         const selector = new EditSelector(
@@ -110,13 +142,13 @@ async function predictEdit() {
             toLine+1,
             queryResult.replacement,
             tempWrite,
-            editType === "add"
+            false
         );
         await selector.init();
         await selector.editDocumentAndShowDiff();
         statusBarItem.setStatusDefault();
     } catch (err) {
-        console.error(err);
+        // TODO add a error logging channel to "Outputs"
         vscode.window.showErrorMessage("Oops! Something went wrong with the query request 😦");
         statusBarItem.setStatustProblem("Some error occured when predicting edits");
         throw err;
@@ -127,7 +159,7 @@ class PredictLocationCommand extends DisposableComponent {
 	constructor() {
 		super();
 		this.register(
-            vscode.commands.registerCommand("coEdPilot.predictLocations", predictLocation),
+            vscode.commands.registerCommand("coEdPilot.predictLocations", predictLocationByNavEdit),
             vscode.commands.registerCommand("coEdPilot.clearLocations", async () => {
                 globalQueryContext.clearResults();
             })
@@ -173,7 +205,11 @@ class GenerateEditCommand extends DisposableComponent {
         }
         async function acceptEdit() {
             const selector = getSelectorOfCurrentTab();
-            selector && await selector.acceptEdit();
+            if (selector) {
+                await selector.acceptEdit();
+            } else {
+                globalQueryContext.applyRefactor();
+            }
         }
         return vscode.Disposable.from(
             vscode.commands.registerCommand("coEdPilot.lastSuggestion", async () => {
@@ -183,9 +219,9 @@ class GenerateEditCommand extends DisposableComponent {
                 await switchEdit(1);
             }),
             vscode.commands.registerCommand("coEdPilot.acceptEdit", async () => {
+                globalEditorState.toPredictLocation = true;
                 await acceptEdit();
                 await closeTab();
-                globalEditorState.toPredictLocation = true;
             }),
             vscode.commands.registerCommand("coEdPilot.dismissEdit", async () => {
                 await clearEdit();

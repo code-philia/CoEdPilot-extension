@@ -4,7 +4,6 @@ import { limitNum } from "./utils/utils";
 import { globalEditDetector } from "./editor-state-monitor";
 import { FileEdits } from "./utils/base-types";
 import { createVirtualModifiedFileUri } from "./views/compare-view";
-import { readFileSync } from "fs";
 // import { addUserStatItem } from "./global-context";
 
 export function registerBasicCommands() {
@@ -102,7 +101,8 @@ async function openRefactorPreview(refactorEditSet: UniqueRefactorEditsSet) {
 	
 	const changes: [vscode.Uri, vscode.Uri][] = [];
 	for (const [originalFileUri, rangeEdits] of refactorEditSet.edits) {
-		const originalContent = readFileSync(originalFileUri.fsPath, { encoding: 'utf-8' });
+		// const originalContent = readFileSync(originalFileUri.fsPath, { encoding: 'utf-8' });
+		const originalContent = (await vscode.workspace.openTextDocument(originalFileUri)).getText();
 
 		const replacements: [number, number, string][] = [];
 		const offsetCounter = new FileOffsetCounter(originalContent);

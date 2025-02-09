@@ -138,12 +138,13 @@ async function readGlobFiles(useSnapshot = true) {
     const rootPath = getRootPath();
 
     // Use glob to exclude certain files and return a list of all valid files
-    const filePathList = await globFiles(rootPath);
+    
+    const absolutePathList = await globFiles(rootPath);
+
     const fileGetter = useSnapshot
         ? async (filePath: string) => {
-            const liveGetter = liveFilesGetter();
             const openedPaths = getOpenedFilePaths();
-            return await liveGetter(openedPaths, toDriveLetterLowerCasePath(filePath));
+            return await getStagedFile(openedPaths, toDriveLetterLowerCasePath(filePath));
         }
         : async (filePath: string) => fs.readFileSync(filePath, 'utf-8');
     
@@ -163,7 +164,7 @@ async function readGlobFiles(useSnapshot = true) {
     }
 
     const fileList: [string, string][] = [];
-    await readFileFromPathList(filePathList, fileList);
+    await readFileFromPathList(absolutePathList, fileList);
     // Replace directly when reading files, instead of replacing later
     // if (useSnapshot) {
     //     replaceCurrentSnapshot(fileList);
@@ -173,6 +174,12 @@ async function readGlobFiles(useSnapshot = true) {
 }
 
 // Exact match is used here! Ensure the file paths and opened paths are in the same format
+async function getStagedFile(openedPaths: Set<string>, filePath: string) {
+    return openedPaths.has(filePath)
+        ? (await vscode.workspace.openTextDocument(vscode.Uri.file(filePath))).getText()
+        : fs.readFileSync(filePath, 'utf-8');
+}
+
 function liveFilesGetter() {
     return async (openedPaths: Set<string>, filePath: string) => 
         openedPaths.has(filePath)
@@ -318,5 +325,6 @@ export {
     getRootPath,
     readGlobFiles,
     getOpenedFilePaths,
+    getStagedFile,
     liveFilesGetter
 };

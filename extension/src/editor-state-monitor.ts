@@ -4,8 +4,10 @@ import { statusBarItem } from './ui/progress-indicator';
 import { Change, diffLines } from 'diff';
 import { Edit } from "./utils/base-types";
 import { DisposableComponent } from "./utils/base-component";
-import { getOpenedFilePaths, liveFilesGetter } from './utils/file-utils';
+import { getOpenedFilePaths, getStagedFile } from './utils/file-utils';
+import { globalQueryContext } from './global-result-context';
 
+// TODO add tests for this
 class EditDetector {
     editLimit: number;
     textBaseSnapshots: Map<any, any>;
@@ -88,7 +90,7 @@ class EditDetector {
             }
         });
         
-        oldEditsWithIdx.sort((edit1, edit2) => edit1.edit.s - edit2.edit.s);	// sort in starting line order
+        oldEditsWithIdx.sort((edit1, edit2) => edit1.edit.line - edit2.edit.line);	// sort in starting line order
 
         const oldAdjustedEditsWithIdx = new Map();
         const newEdits: Edit[] = [];
@@ -102,7 +104,7 @@ class EditDetector {
             // construct new edit
             const newEdit = {
                 "path": path,
-                "s": fromLine,
+                "line": fromLine,
                 "rmLine": rmDiff?.count ?? 0,
                 "rmText": rmDiff?.value ?? null,
                 "addLine": addDiff?.count ?? 0,
@@ -125,7 +127,7 @@ class EditDetector {
             // skip all old edits between this diff and the last diff
             while (
                 oldEditIdx < oldEditsWithIdx.length &&
-				oldEditsWithIdx[oldEditIdx].edit.s + oldEditsWithIdx[oldEditIdx].edit.rmLine < fromLine
+				oldEditsWithIdx[oldEditIdx].edit.line + oldEditsWithIdx[oldEditIdx].edit.rmLine < fromLine
             ) {
                 ++oldEditIdx;
                 // oldAdjustedEditsWithIdx.push(oldEditsWithIdx[oldEditIdx]);
@@ -134,13 +136,13 @@ class EditDetector {
             // if current edit is overlapped/adjoined with this diff
 			if (
 				oldEditIdx < oldEditsWithIdx.length &&
-				oldEditsWithIdx[oldEditIdx].edit.s <= toLine
+				oldEditsWithIdx[oldEditIdx].edit.line <= toLine
 			) {
                 // replace the all the overlapped/adjoined old edits with the new edit
                 const fromIdx = oldEditIdx;
                 while (
                     oldEditIdx < oldEditsWithIdx.length &&
-                    oldEditsWithIdx[oldEditIdx].edit.s <= toLine
+                    oldEditsWithIdx[oldEditIdx].edit.line <= toLine
                 ) {
                     ++oldEditIdx;
                 }
@@ -174,7 +176,8 @@ class EditDetector {
                 mergeDiff(undefined, diff);
             }
 
-			if (!(diff.added)) {
+            // now lastLine represents after-edit snapshot line number
+			if (!(diff.removed)) {
 				lastLine += diff.count ?? 0;
 			}
         }
@@ -212,7 +215,7 @@ class EditDetector {
 
 			const addedLines = Array(lines.length).fill("");
 			for (const edit of edits) {
-				const s = edit.s - 1;  // zero-based starting line
+				const s = edit.line - 1;  // zero-based starting line
 				for (let i = s; i < s + edit.rmLine; ++i) {
 					lines[i] = "";
 				}
@@ -231,7 +234,7 @@ class EditDetector {
 			const doc = this.textBaseSnapshots.get(filePath);
 			const editsOnPath = this.editList
 				.filter((edit) => edit.path === filePath)
-				.sort((edit1, edit2) => edit1.s - edit2.s);
+				.sort((edit1, edit2) => edit1.line - edit2.line);
 				
 			// execute removed edits
 			const removedEditsOnPath = editsOnPath.filter((edit) => removedEdits.has(edit));
@@ -243,7 +246,7 @@ class EditDetector {
 				if (removedEdits.has(edit)) {
 					offsetLines = offsetLines - edit.rmLine + edit.addLine;
 				} else {
-					edit.s += offsetLines;
+					edit.line += offsetLines;
 				}
 			}
         }
@@ -261,7 +264,7 @@ class EditDetector {
      * 		...
      * ]
      */
-    async getEditList() {
+    async getSimpleEditList() {
         return this.editList.map((edit) => ({
 			"beforeEdit": edit.rmText?.trim() ?? "",
             "afterEdit": edit.addText?.trim() ?? "",
@@ -270,13 +273,25 @@ class EditDetector {
         }));
     }
 
-    async getUpdatedEditList() {
-        const liveGetter = liveFilesGetter();
+    async getEditList() {
+        return this.editList;
+    }
+
+    async updateEditList() {
         const openedDocuments = getOpenedFilePaths();
         const docGetter = async (filePath: string) => {
-            return await liveGetter(openedDocuments, filePath);
+            return await getStagedFile(openedDocuments, filePath);
         };
         await this.updateAllSnapshotsFromDocument(docGetter);
+    }
+
+    async getUpdatedSimpleEditList() {
+        await this.updateEditList();
+        return await this.getSimpleEditList();
+    }
+
+    async getUpdatedEditList() {
+        await this.updateEditList();
         return await this.getEditList();
     }
 }
@@ -284,8 +299,8 @@ class EditDetector {
 export const globalEditDetector = new EditDetector();
 
 export function updateEditorState(editor: vscode.TextEditor | undefined) {
-    if (!editor) return;
-    globalEditorState.inDiffEditor = (vscode.window.tabGroups.activeTabGroup.activeTab?.input instanceof vscode.TabInputTextDiff);
+    if (!editor) globalEditorState.inDiffEditor = true;
+    else globalEditorState.inDiffEditor = (vscode.window.tabGroups.activeTabGroup.activeTab?.input instanceof vscode.TabInputTextDiff);
     globalEditorState.language = vscode.window.activeTextEditor?.document?.languageId.toLowerCase() ?? "unknown";
     statusBarItem.setStatusDefault(true);
 
@@ -298,13 +313,15 @@ export function updateEditorState(editor: vscode.TextEditor | undefined) {
 
     let isEditDiff = false;
     if (globalEditorState.inDiffEditor) {
-        const input = vscode.window.tabGroups.activeTabGroup?.activeTab?.input;
-        isEditDiff = (input instanceof vscode.TabInputTextDiff)
+        const input = vscode.window.tabGroups.activeTabGroup?.activeTab?.input as any;
+        isEditDiff = ((input instanceof vscode.TabInputTextDiff)
             && input.original.scheme === 'temp'
-            && input.modified.scheme === 'file';
+            && input.modified.scheme === 'file') || (input.textDiffs ? true : false);
     }
 
-    if (vscode.workspace.getConfiguration("coEdPilot").get("predictLocationOnEditAcception") && globalEditorState.toPredictLocation) {
+    console.log(`toPredictLocation: ${globalEditorState.toPredictLocation}`);
+    console.log(`length: ${globalQueryContext.getLocations()?.length}`);
+    if (vscode.workspace.getConfiguration("coEdPilot").get("predictLocationOnEditAcception") && globalEditorState.toPredictLocation && !(globalQueryContext.getLocations()?.length)) {
         vscode.commands.executeCommand("coEdPilot.predictLocations");
         globalEditorState.toPredictLocation = false;
     }

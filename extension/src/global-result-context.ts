@@ -3,7 +3,7 @@ import vscode from "vscode";
 import { DisposableComponent } from "./utils/base-component";
 import { LineBreak, BackendApiEditLocation, SingleLineEdit, FileEdits } from "./utils/base-types";
 import { LocationResultDecoration } from "./ui/location-decoration";
-import { globalLocationViewManager, globalRefactorPreviewViewManager } from "./views/location-tree-view";
+import { globalLocationViewManager, globalRefactorPreviewTreeViewManager } from "./views/location-tree-view";
 import { findFirstDiffPos } from "./utils/utils";
 import { getLineInfoInDocument } from "./utils/file-utils";
 import { diffWords } from "diff";
@@ -43,7 +43,7 @@ class QuerySettings {
             placeHolder: 'Add a feature...',
             ignoreFocusOut: true,
             value: this.commitMessage ?? '',
-            title: "✍️ Edit Description"
+            title: "Edit Description"
         });
         
         if (userInput) {
@@ -84,19 +84,49 @@ class LocationResult {
 class SingleRefactorResult {
     private readonly refactorOperation: RefactorOperation;
     
-    private edits: FileEdits[] = [];
+    private fileEdits: FileEdits[] = [];
 
     constructor(refactorOperation: RefactorOperation) {
         this.refactorOperation = refactorOperation;
     }
+
+    async openRefactorPreview() {
+
+    }
+
+    async apply() {
+        for (const fileEdit of this.fileEdits) {
+            // TODO how to perform refactor in background in VS Code
+            const editor = await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(fileEdit[0]), { preserveFocus: true });
+            editor.edit((editBuilder) => {
+                fileEdit[1].forEach((edit) => {
+                    editBuilder.replace(edit.range, edit.newText);
+                });
+            });
+        }
+    }
+
+    async closeRefactorPreview() {
+        // close the tab that is displaying the multi-diff preview
+        for (const fileEdit of this.fileEdits) {
+            const editors = vscode.window.visibleTextEditors;
+            for (const e of editors) {
+                console.log(e.document.uri.toString());
+            }
+            const editor = editors.find((editor) => editor.document.uri.fsPath === fileEdit[0].fsPath);
+            if (editor) {
+                editor.hide();
+            }
+        }
+    }
     
     async resolve() {
-        this.edits = await this.refactorOperation.resolveLocations();
-        globalRefactorPreviewViewManager.reloadLocations(this.edits);
+        this.fileEdits = await this.refactorOperation.resolveLocations();
+        globalRefactorPreviewTreeViewManager.reloadLocations(this.fileEdits);
     }
 
     dispose() {
-        globalRefactorPreviewViewManager.reloadLocations([]);
+        globalRefactorPreviewTreeViewManager.reloadLocations([]);
     }
 }
 
@@ -118,8 +148,13 @@ export async function createRenameRefactor(file: string, line: number, beforeTex
     });
 }
 
-class RenameRefactor {
+interface Refactor {
+    resolveLocations(): Promise<FileEdits[]>;
+}
+
+class RenameRefactor implements Refactor {
     private readonly firstRename: SingleLineEdit;
+    private resolvedEdits: FileEdits[] = [];
 
     constructor(firstRename: SingleLineEdit) {
         this.firstRename = firstRename;
@@ -157,7 +192,7 @@ class RenameRefactor {
         });
 
         // show a progress message
-        await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: "Simulating rename..." }, async () => {
+        await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: "Analyzing rename..." }, async () => {
 
             await editor.edit((editBuilder) => {
                 editBuilder.replace(line.range, bc);
@@ -187,7 +222,8 @@ class RenameRefactor {
             });
         });
 
-        return await getEditsPromise;
+        this.resolvedEdits = await getEditsPromise;
+        return this.resolvedEdits;
         // const doc = vscode.workspace.
     }
 }
@@ -210,6 +246,8 @@ class QueryContext extends DisposableComponent {
     clearResults() {
         this.activeLocationResult?.dispose();
         this.activeRefactorResult?.dispose();
+        this.activeLocationResult = undefined,
+        this.activeRefactorResult = undefined;
     }
 
     getLocations() {
@@ -226,6 +264,12 @@ class QueryContext extends DisposableComponent {
         this.clearResults();
         this.activeRefactorResult = new SingleRefactorResult(refactor);
         this.activeRefactorResult.resolve();
+    }
+
+    // TODO this is not a good entrance of accessing from refactor result from outside
+    async applyRefactor() {
+        await this.activeRefactorResult?.apply();
+        await this.activeRefactorResult?.closeRefactorPreview();
     }
 }
 

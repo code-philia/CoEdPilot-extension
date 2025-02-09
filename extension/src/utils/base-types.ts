@@ -48,7 +48,7 @@ export type FileEdits = [vscode.Uri, vscode.TextEdit[]];
 
 export type Edit = {
     path: string; // the file path
-    s: number; // starting line
+    line: number; // starting line
     rmLine: number; // number of removed lines
     rmText: string | null; // removed text, could be null
     addLine: number; // number of added lines

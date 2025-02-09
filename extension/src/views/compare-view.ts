@@ -250,8 +250,8 @@ class EditSelector {
                 && loc.atLines[loc.atLines.length - 1] + 1 + offset > this.fromLine) {
                     _locs.splice(i, 1);
                 }
-                globalQueryContext.updateLocations(_locs);
             });
+            globalQueryContext.updateLocations(_locs);
         }
     }
 

@@ -98,17 +98,17 @@
       "editor/context": [
         {
           "command": "coEdPilot.inputMessage",
-          "group": "coEdPilot@3",
+          "group": "0_coEdPilot@3",
           "when": "editorFocus"
         },
         {
           "command": "coEdPilot.predictLocations",
-          "group": "coEdPilot@1",
+          "group": "0_coEdPilot@1",
           "when": "editorFocus"
         },
         {
           "command": "coEdPilot.generateEdits",
-          "group": "coEdPilot@2",
+          "group": "0_coEdPilot@2",
           "when": "editorFocus && coEdPilot:isLanguageSupported"
         }
       ],
@@ -134,19 +134,9 @@
           "when": "coEdPilot:isEditDiff"
         },
         {
-          "command": "coEdPilot.predictLocations",
-          "group": "navigation@-99",
-          "when": "editorFocus && (!(coEdPilot:isEditDiff)) && coEdPilot:isLanguageSupported"
-        },
-        {
-          "command": "coEdPilot.generateEdits",
-          "group": "navigation@-98",
-          "when": "editorFocus && (!(coEdPilot:isEditDiff)) && coEdPilot:isLanguageSupported"
-        },
-        {
           "command": "coEdPilot.inputMessage",
           "group": "navigation@-97",
-          "when": "editorFocus && (!(coEdPilot:isEditDiff)) && coEdPilot:isLanguageSupported"
+          "when": "(!(coEdPilot:isEditDiff)) && coEdPilot:isLanguageSupported"
         },
         {
           "command": "coEdPilot.clearPrevEdits",
@@ -166,7 +156,7 @@
       "activitybar": [
         {
           "id": "coEdPilot",
-          "title": "CoEdPilot",
+          "title": "NavEdit",
           "icon": "$(edit)"
         }
       ]
@@ -179,7 +169,7 @@
         },
         {
           "id": "Refactor",
-          "name": "Suggested Refactoring"
+          "name": "Suggested Code Actions"
         }
       ]
     },
@@ -218,6 +208,7 @@
     "diff": "^5.1.0",
     "fuzzysort": "^3.0.2",
     "glob": "^10.3.10",
+    "io-ts": "^2.2.21",
     "mocha": "^10.2.0",
     "tree-sitter": "^0.21.1",
     "tree-sitter-go": "^0.21.0",

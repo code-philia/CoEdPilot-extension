@@ -34,32 +34,32 @@ class ProgressDisplayStatusBarItem extends DisposableComponent {
         if (globalEditorState.isActiveEditorLanguageSupported()) {
             iconId = "edit";
             this.item.backgroundColor = undefined;
-            this.item.tooltip = "CoEdPilot is ready 🛫";
+            this.item.tooltip = "NavEdit is ready";
         } else {
             iconId = "circle-slash";
             this.item.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
-            this.item.tooltip = "CoEdPilot doesn't support this language yet 💤";
+            this.item.tooltip = "NavEdit doesn't support this language yet";
         }
-        this.setItemText(iconId, "CoEdPilot");
+        this.setItemText(iconId, "NavEdit");
     } 
 
     setStatusLoadingFiles() {
         this.busy = true;
         this.setItemText(this.loadingIconId, "Loading files...");
         this.item.backgroundColor = undefined;
-        this.item.tooltip = "CoEdPilot is working on local files 🔍";
+        this.item.tooltip = "NavEdit is working on local files 🔍";
     }
 
     setStatusQuerying(modelName: string) {
         this.busy = true;
         this.setItemText(this.loadingIconId, `Querying ${modelName}...`);
         this.item.backgroundColor = undefined;
-        this.item.tooltip = "CoEdPilot is using language model to analyze 🔬";
+        this.item.tooltip = "NavEdit is using language model to analyze 🔬";
     }
 
     setStatustProblem(errorMessage: string) {
         this.busy = true;
-        this.setItemText("close", "CoEdPilot");
+        this.setItemText("close", "NavEdit");
         this.item.backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
         this.item.tooltip = errorMessage;
     }

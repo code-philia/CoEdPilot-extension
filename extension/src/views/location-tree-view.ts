@@ -389,4 +389,4 @@ class RefactorPreviewViewManager implements vscode.Disposable {
     }
 }
 
-export const globalRefactorPreviewViewManager = new RefactorPreviewViewManager();
+export const globalRefactorPreviewTreeViewManager = new RefactorPreviewViewManager();
