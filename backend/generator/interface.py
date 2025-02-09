@@ -6,7 +6,7 @@ from .model import Seq2Seq
 from tqdm import tqdm
 from torch.utils.data import DataLoader, SequentialSampler, TensorDataset
 from transformers import (RobertaConfig, RobertaModel, RobertaTokenizer)
-from perf import Stopwatch
+from measure import Stopwatch
 from model_cache import load_model_with_cache
 
 MODEL_CLASSES = {'roberta': (RobertaConfig, RobertaModel, RobertaTokenizer)}
@@ -235,4 +235,4 @@ def predict(json_input, language):
     stopwatch.print_result()
     return {"data": result}
 
-load_model_with_cache(MODEL_ROLE, "python", load_model)
+# load_model_with_cache(MODEL_ROLE, "python", load_model)

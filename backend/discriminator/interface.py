@@ -8,7 +8,7 @@ from sklearn.linear_model import LinearRegression
 from transformers import RobertaTokenizer, RobertaModel
 from .dependency_analyzer import cal_dep_score, DependencyClassifier
 from .siamese_net import evaluate_embedding_model, load_siamese_data
-from perf import Stopwatch
+from measure import Stopwatch
 from model_cache import load_model_with_cache
 
 MODEL_ROLE = "embedding"
@@ -116,4 +116,4 @@ def predict(json_input, language):
 
     return output    
 
-load_model_with_cache(MODEL_ROLE, "python", load_model)
+# load_model_with_cache(MODEL_ROLE, "python", load_model)

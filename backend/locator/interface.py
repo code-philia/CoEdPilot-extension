@@ -4,7 +4,7 @@ from .model import Seq2Seq
 from tqdm import tqdm
 from torch.utils.data import DataLoader, SequentialSampler, TensorDataset
 from transformers import (RobertaConfig, RobertaModel, RobertaTokenizer)
-from perf import Stopwatch
+from measure import Stopwatch
 from model_cache import load_model_with_cache
 
 CODE_WINDOW_LENGTH = 10
@@ -330,4 +330,4 @@ def predict(json_input, language):
 
     return {"data": results}
 
-load_model_with_cache(MODEL_ROLE, "python", load_model)
+# load_model_with_cache(MODEL_ROLE, "python", load_model)
