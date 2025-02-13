@@ -9,7 +9,7 @@ export const supportedLanguages = [
     "typescript",
     "javascript",
     "java"
-]
+];
 
 export function isLanguageSupported() {
     return supportedLanguages.includes(editorState.language);
@@ -62,7 +62,7 @@ class QueryState extends BaseComponent {
         this.onDidChangeLocations = this._onDidChangeLocations.event;
 
         this.register(
-            registerCommand('coEdPilot.inputMessage', this.inputCommitMessage, this),
+            registerCommand("coEdPilot.inputMessage", this.inputCommitMessage, this),
             this._onDidChangeLocations
         );
     }
@@ -87,8 +87,8 @@ class QueryState extends BaseComponent {
 
     async inputCommitMessage() {
         const userInput = await vscode.window.showInputBox({
-            prompt: 'Enter a description of edits you want to make.',
-            placeHolder: 'Add a feature...',
+            prompt: "Enter a description of edits you want to make.",
+            placeHolder: "Add a feature...",
             ignoreFocusOut: true,
             value: queryState.commitMessage,
             title: "✍️ Edit Description"
@@ -118,7 +118,7 @@ class EditorState extends BaseComponent {
 
 export const editorState = new EditorState();
 
-export const supportedOSTypes = ['Windows_NT', 'Darwin', 'Linux'];
+export const supportedOSTypes = ["Windows_NT", "Darwin", "Linux"];
 export const osType = os.type();
 
 if (!supportedOSTypes.includes(osType)) {
@@ -126,9 +126,9 @@ if (!supportedOSTypes.includes(osType)) {
 }
 
 export const defaultLineBreaks = {
-    'Windows_NT': '\r\n',
-    'Darwin': '\r',
-    'Linux': '\n'
+    "Windows_NT": "\r\n",
+    "Darwin": "\r",
+    "Linux": "\n"
 };
-export const defaultLineBreak = defaultLineBreaks[osType] ?? '\n';
+export const defaultLineBreak = defaultLineBreaks[osType] ?? "\n";
 

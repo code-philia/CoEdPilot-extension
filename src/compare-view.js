@@ -1,10 +1,10 @@
-import vscode from 'vscode';
-import crypto from 'crypto';
-import util from 'util';
-import path from 'path';
-import { BaseComponent } from './base-component';
-import { toPosixPath } from './file';
-import { defaultLineBreak, editorState, queryState } from './global-context';
+import vscode from "vscode";
+import crypto from "crypto";
+import util from "util";
+import path from "path";
+import { BaseComponent } from "./base-component";
+import { toPosixPath } from "./file";
+import { defaultLineBreak, editorState, queryState } from "./global-context";
 
 class BaseTempFileProvider extends BaseComponent {
     constructor() {
@@ -24,7 +24,7 @@ class BaseTempFileProvider extends BaseComponent {
             mtime: Date.now(),
             size: 0,
             name: uri.fsPath
-        }
+        };
     }
 
     watch(uri, options) { return { dispose: () => { } }; }
@@ -116,9 +116,9 @@ class EditSelector {
         const toLine = this.isAdd ? fromLine : Math.min(this.toLine, numLines);
         
         const modifiedText = (lines.slice(0, fromLine)).join(lineBreak)
-            + (fromLine > 0 ? lineBreak : '')
+            + (fromLine > 0 ? lineBreak : "")
             + replacement
-            + (toLine < numLines ? lineBreak : '')
+            + (toLine < numLines ? lineBreak : "")
             + (lines.slice(toLine, numLines)).join(lineBreak);
         
         this._replaceDocument(modifiedText);
@@ -135,13 +135,13 @@ class EditSelector {
         );
         
         await editor.edit(editBuilder => {
-            editBuilder.replace(fullRange, fullText)
+            editBuilder.replace(fullRange, fullText);
         }, { undoStopBefore: false, undoStopAfter: false });
     }
 
     async _showDiffView() {
         // Open a diff view to compare the original and the modified document
-        await vscode.commands.executeCommand('vscode.diff',
+        await vscode.commands.executeCommand("vscode.diff",
             vscode.Uri.parse(`temp:/${this.id}`),
             vscode.Uri.file(this.path),
             `EDIT ${this.modAt+1}/${this.edits.length}: ${path.basename(this.path)}`
@@ -174,7 +174,7 @@ class EditSelector {
     }
 
     async clearEdit() {
-        // await vscode.commands.executeCommand('undo');
+        // await vscode.commands.executeCommand("undo");
         await this._replaceDocument(this.originalContent);
     }
 
@@ -188,11 +188,11 @@ class EditSelector {
                 locations.splice(i, 1);
             }
             queryState._onDidChangeLocations.fire(queryState);
-        })
+        });
     }
 
     _getPathId() {
-        this.pathId = crypto.createHash('sha256').update(this.path).digest('hex') + path.extname(this.path);
+        this.pathId = crypto.createHash("sha256").update(this.path).digest("hex") + path.extname(this.path);
         return this.pathId;
     }
 }
@@ -215,10 +215,10 @@ class DiffTabCodelensProvider extends BaseComponent {
     
     provideCodeLenses(document, token) {
         this.codelenses = [];
-        if (document.uri.scheme === 'temp') {
+        if (document.uri.scheme === "temp") {
             this.codelenses.push(this.codelenseAtTop(this.originalContentLabel));
         }
-        else if (document.uri.scheme === 'file') {
+        else if (document.uri.scheme === "file") {
             for (const [tab, selector] of diffTabSelectors) {
                 if (selector.path == toPosixPath(document.path)) {
                     this.codelenses.push(this.codelenseAtTop(this.modifiedContentLabel));
@@ -239,7 +239,7 @@ class DiffTabCodelensProvider extends BaseComponent {
             {
                 title: title
             }
-        )
+        );
     }
 }
 

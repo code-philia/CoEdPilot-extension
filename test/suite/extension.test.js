@@ -1,23 +1,23 @@
-import assert from 'assert';
+import assert from "assert";
 
-// You can import and use all API from the 'vscode' module
+// You can import and use all API from the "vscode" module
 // as well as import your extension to test it
-import vscode from 'vscode';
-// import myExtension from '../extension';
+import vscode from "vscode";
+// import myExtension from "../extension";
 
-import { join } from 'path';
-import { EditDetector } from '../../src/file';
-import { readFileSync } from 'fs';
+import { join } from "path";
+import { EditDetector } from "../../src/file";
+import { readFileSync } from "fs";
 
 function testEditDetectorBasic() {
-	const versionFiles = ['file1.txt', 'file2.txt', 'file3.txt'];
+	const versionFiles = ["file1.txt", "file2.txt", "file3.txt"];
 	const versions = versionFiles.map((fileName) => {
-		const filePath = join(__dirname, 'files', fileName);
+		const filePath = join(__dirname, "files", fileName);
 		return {
 			path: filePath,
 			text: readFileSync()
-		}
-	})
+		};
+	});
 
 	const detector = new EditDetector();
 	const baseVersion = versions[0];
@@ -71,7 +71,7 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 	assert.equal(edit.path, baseVersion.path);
 	assert.equal(edit.s, 4);
 	assert.equal(edit.rmLine, 1);
-	assert.equal(edit.rmText, 'of this software and associated documentation files (the "Software"), to deal\r\n');
+	assert.equal(edit.rmText, "of this software and associated documentation files (the 'Software'), to deal\r\n");
 	assert.equal(edit.addLine, 0);
 	assert.equal(edit.addText, null);
 
@@ -100,12 +100,12 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 	assert.equal(edit.addText, null);
 }
 
-suite('Edit Detector Basic Test', testEditDetectorBasic);
+suite("Edit Detector Basic Test", testEditDetectorBasic);
 
-suite('Extension Test Suite', () => {
-	vscode.window.showInformationMessage('Start all tests.');
+suite("Extension Test Suite", () => {
+	vscode.window.showInformationMessage("Start all tests.");
 
-	test('Sample test', () => {
+	test("Sample test", () => {
 		assert.strictEqual(-1, [1, 2, 3].indexOf(5));
 		assert.strictEqual(-1, [1, 2, 3].indexOf(0));
 	});

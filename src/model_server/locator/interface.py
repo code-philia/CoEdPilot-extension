@@ -16,12 +16,15 @@ model = None
 tokenizer = None
 device = None
 
+
 def is_model_cached():
     global tokenizer, model, device
-    return not (tokenizer == None or model == None or device == None)
+    return not (tokenizer is None or model is None or device == None)
+
 
 class Example(object):
     """A single training/test example."""
+
     def __init__(self,
                  idx,
                  source,
@@ -31,8 +34,10 @@ class Example(object):
         self.source = source
         self.target = target
 
+
 class InputFeatures(object):
     """A single training/test features for a example."""
+
     def __init__(self,
                  example_id,
                  source_ids,
@@ -40,77 +45,82 @@ class InputFeatures(object):
                  source_mask,
                  target_mask,
 
-    ):
+                 ):
         self.example_id = example_id
         self.source_ids = source_ids
         self.target_ids = target_ids
         self.source_mask = source_mask
-        self.target_mask = target_mask  
-        
+        self.target_mask = target_mask
+
+
 def read_examples(raw_inputs):
     examples = []
     for idx, sample in enumerate(raw_inputs):
-        code=sample
-        label=''       
+        code = sample
+        label = ''
         examples.append(
             Example(
-                    idx = idx,
-                    source=code,
-                    target=label
-                    ) 
+                idx=idx,
+                source=code,
+                target=label
+                )
         )
     return examples
+
 
 def convert_examples_to_features(examples, tokenizer, stage=None):
     features = []
     for example_index, example in enumerate(tqdm(examples)):
-        #source
-        source_tokens = tokenizer.tokenize(example.source)[:512-2]
-        source_tokens =[tokenizer.cls_token]+source_tokens+[tokenizer.sep_token]
-        source_ids =  tokenizer.convert_tokens_to_ids(source_tokens)
+        # source
+        source_tokens = tokenizer.tokenize(example.source)[:512 - 2]
+        source_tokens = [tokenizer.cls_token] + \
+            source_tokens + [tokenizer.sep_token]
+        source_ids = tokenizer.convert_tokens_to_ids(source_tokens)
         original_source_len = len(source_ids)
         source_mask = [1] * (len(source_tokens))
         padding_length = 512 - len(source_ids)
-        source_ids+=[tokenizer.pad_token_id]*padding_length
-        source_mask+=[0]*padding_length
- 
-        #target
-        if stage=="test":
+        source_ids += [tokenizer.pad_token_id] * padding_length
+        source_mask += [0] * padding_length
+
+        # target
+        if stage == "test":
             target_tokens = tokenizer.tokenize("None")
         else:
-            target_tokens = tokenizer.tokenize(example.source)[:512-2]
+            target_tokens = tokenizer.tokenize(example.source)[:512 - 2]
         label_idx = 0
         # replace mask token with label token
         for i in range(len(target_tokens)):
             if target_tokens[i] == tokenizer.mask_token:
-                target_tokens[i]=example.target[label_idx]
-                label_idx+=1
-        
-        target_tokens = [tokenizer.cls_token]+target_tokens+[tokenizer.sep_token]            
+                target_tokens[i] = example.target[label_idx]
+                label_idx += 1
+
+        target_tokens = [tokenizer.cls_token] + \
+            target_tokens + [tokenizer.sep_token]
         target_ids = tokenizer.convert_tokens_to_ids(target_tokens)
         original_target_len = len(target_ids)
-        target_mask = [1] *len(target_ids)
+        target_mask = [1] * len(target_ids)
         padding_length = 512 - len(target_ids)
-        target_ids+=[tokenizer.pad_token_id]*padding_length
-        target_mask+=[0]*padding_length   
+        target_ids += [tokenizer.pad_token_id] * padding_length
+        target_mask += [0] * padding_length
 
         # if original_source_len != original_target_len:
-            # print(example.source)
-            # print(example.target)
-            # print('source length: ', original_source_len)
-            # print('target length: ', original_target_len)
-            # break
+          # print(example.source)
+          # print(example.target)
+          # print('source length: ', original_source_len)
+          # print('target length: ', original_target_len)
+          # break
 
         features.append(
             InputFeatures(
-                 example_index,
-                 source_ids,
-                 target_ids,
-                 source_mask,
-                 target_mask,
+                example_index,
+                source_ids,
+                target_ids,
+                source_mask,
+                target_mask,
             )
         )
     return features
+
 
 def load_model(model_path):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -139,20 +149,27 @@ def load_model(model_path):
     model.to(device)
     return model, tokenizer, device
 
-def load_model_cache():
-    global model, tokenizer, device
-    model, tokenizer, device = load_model()
 
 def normalize_string(s):
-    if type(s) != str:
+# if not isinstance(s,     if)        return s
+#    # 当检测到 s 含有 ' 时，进行转义
+#    if s.find("'") != -1:
+#         s = s.replace("'", "\'")
+#     return s
+    if not isinstance(s, str):
         return s
     # 当检测到 s 含有 ' 时，进行转义
     if s.find("'") != -1:
         s = s.replace("'", "\'")
     return s
 
+
 def merge_adjacent_removals(results):
-    sorted_results = sorted(results, key=lambda x: (x["targetFilePath"], x["atLines"][0]))  # 按照目标文件路径和起始位置对元素进行排序
+    sorted_results = sorted(
+        results,
+        key=lambda x: (
+        x["targetFilePath"],
+        x["atLines"][0]))  # 按照目标文件路径和起始位置对元素进行排序
     merged_results = []
 
     def can_merge(last_result, this_result):
@@ -185,13 +202,13 @@ def predict(json_input):
     Returns:
         output: dictionary
             {
-                "data": [ 
-                    {   
+                "data": [
+                    {
                         "targetFilePath":   str, filePath,
                         "editType":         str, the type of edit, add or replace,
                         "lineBreak":        str, '\n', '\r' or '\r\n',
-                        "atLines":           list, numbers of the line indices of to be replaced code 
-                    }, 
+                        "atLines":           list, numbers of the line indices of to be replaced code
+                    },
                     ...
                 ]
             }
@@ -213,17 +230,20 @@ def predict(json_input):
     window_token_cnt = 0
     window_line_cnt = 0
     window_text = ""
+
     def try_feed_in_window(text):
         nonlocal window_token_cnt, window_line_cnt, window_text
         masked_line = f"{tokenizer.mask_token}" + text
         masked_line_token_cnt = len(tokenizer.tokenize(masked_line))
-        if window_token_cnt + masked_line_token_cnt < 508 and window_line_cnt < 10: # a conservative number for token number
+        # a conservative number for token number
+        if window_token_cnt + masked_line_token_cnt < 508 and window_line_cnt < 10:
             window_token_cnt += masked_line_token_cnt
             window_line_cnt += 1
             window_text += masked_line
             return True
         else:
             return False
+
     def end_window(input_list):
         nonlocal prevEdits, commitMessage, window_token_cnt, window_line_cnt, window_text
         model_input = f"<code_window>{window_text}</code_window>" + "<prompt>" + commitMessage + "</prompt>"
@@ -253,10 +273,10 @@ def predict(json_input):
 
     # 获取每个文件的内容
     for file in files:
-        targetFilePath = file[0] 
+        targetFilePath = file[0]
         targetFileContent = file[1]
         # 获取文件行数
-        targetFileLines = targetFileContent.splitlines(True) # 保留每行的换行符
+        targetFileLines = targetFileContent.splitlines(True)  # 保留每行的换行符
         targetFileLineNum = len(targetFileLines)
 
         model_inputs = []
@@ -267,9 +287,9 @@ def predict(json_input):
             if try_feed_in_window(cur_line):
                 i += 1
             else:
-                if window_line_cnt == 0:    # the first line is longer than window limit 
+                if window_line_cnt == 0:    # the first line is longer than window limit
                     while True:
-                        cur_line = cur_line[:len(cur_line)/2]
+                        cur_line = cur_line[:len(cur_line) / 2]
                         if try_feed_in_window(cur_line):
                             break
                 else:
@@ -289,10 +309,14 @@ def predict(json_input):
         eval_data = TensorDataset(all_source_ids,all_source_mask, all_target_ids)   
 
         eval_sampler = SequentialSampler(eval_data)
-        eval_dataloader = DataLoader(eval_data, sampler=eval_sampler, batch_size=10, shuffle=False)
+        eval_dataloader = DataLoader(
+            eval_data,
+            sampler=eval_sampler,
+            batch_size=10,
+            shuffle=False)
 
         # run model
-        model.eval() 
+        model.eval()
         preds = []
         confidences = []
         softmax = torch.nn.Softmax(dim=-1)
@@ -302,7 +326,7 @@ def predict(json_input):
             with torch.no_grad():
                 lm_logits = model(source_ids=source_ids,source_mask=source_mask,target_ids=target_ids).to('cpu')
                 # extract masked edit operations
-                for i in range(lm_logits.shape[0]): # for sample within batch
+                for i in range(lm_logits.shape[0]):  # for sample within batch
                     output = []
                     confidence = []
                     for j in range(lm_logits.shape[1]): # for every token
@@ -316,6 +340,7 @@ def predict(json_input):
                                 output.append("<keep>")
                                 confidence.append(1.0)
                     preds.extend(output)
+                    confidences.extend(confidence)
                     confidences.extend(confidence)
 
         if len(preds) != targetFileLineNum:
@@ -335,7 +360,7 @@ def predict(json_input):
                     lineBreak = '\r'
                 else:
                     lineBreak = ''
-                
+
                 results.append({
                     "targetFilePath": targetFilePath,
                     "editType": "replace" if pred == "<replace>" else "add",

@@ -6,7 +6,7 @@ function getWebviewContent(modifications, rootPath) {
 	let elements = "";
   
 	modifications.forEach((modification) => {
-        const absoluteTargetFilePath = modification.targetFilePath.replace(/\\/g, '\\\\');
+        const absoluteTargetFilePath = modification.targetFilePath.replace(/\\/g, "\\\\");
         const relativeTargetFilePath = modification.targetFilePath.replace(rootPath, ".");
         const toBeReplaced = modification.toBeReplaced;
         const atLines = modification.atLines.map(element => element + 1); // atLines 从 0 开始，但是显示的行数从 1 开始

@@ -11,9 +11,12 @@ from model_manager import load_model_with_cache
 CONTEXT_LENGTH = 5
 MODEL_ROLE = "generator"
 
+
 def is_model_cached():
     global tokenizer, model, device
-    return not (tokenizer == None or model == None or device == None)
+    return not (tokenizer is None or model is None or device is None)
+
+
 
 
 def load_model(model_path):
@@ -43,7 +46,7 @@ def predict(json_input):
     '''
     Function: interface between generator and VScode extension
     Args: input, dictionary
-        { 
+        {
             "targetFileContent":    string, the whole content fo target file
             "commitMessage":        string, edit description,
             "editType":             str, the type of edit,
@@ -52,7 +55,7 @@ def predict(json_input):
         }
     Return: dictionary
         {
-            "data": 
+            "data":
             {
                 "editType":     string, "replace" or "add",
                 "replacement":  [string], list of replacing candidates,
@@ -73,8 +76,8 @@ def predict(json_input):
     editType = json_input["editType"]
     prevEdits = json_input["prevEdits"]
     editLineIdx = json_input["atLines"]
-    
-    result = { # 提前记录返回的部分参数
+
+    result = {  # 提前记录返回的部分参数
         "editType": editType,
     }
 
@@ -83,8 +86,8 @@ def predict(json_input):
     targetFileLineNum = len(targetFileLines)
 
     # 获取 editRange 的上下文
-    startLineIdx = max(0, editLineIdx[0]-CONTEXT_LENGTH)
-    endLineIdx = min(targetFileLineNum, editLineIdx[-1]+CONTEXT_LENGTH+1)
+    startLineIdx = max(0, editLineIdx[0] - CONTEXT_LENGTH)
+    endLineIdx = min(targetFileLineNum, editLineIdx[-1] + CONTEXT_LENGTH + 1)
     stopwatch.lap('pre-process arguments')
 
     # 把 editRange 的上下文和 editRange 的内容拼接成 codeWindow
@@ -133,12 +136,15 @@ def predict(json_input):
     eval_data = TensorDataset(all_source_ids)  
 
     eval_sampler = SequentialSampler(eval_data)
-    eval_dataloader = DataLoader(eval_data, sampler=eval_sampler, batch_size=batch_size)
+    eval_dataloader = DataLoader(
+        eval_data,
+        sampler=eval_sampler,
+        batch_size=batch_size)
     stopwatch.lap('prepare data loader')
 
     # run model
-    replacements=[]
-    for batch in tqdm(eval_dataloader,total=len(eval_dataloader)):
+    replacements = []
+    for batch in tqdm(eval_dataloader, total=len(eval_dataloader)):
         batch = tuple(t.to(device) for t in batch)
         source_ids = batch[0]
         # print(source_ids.shape)

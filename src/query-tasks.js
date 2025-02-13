@@ -1,12 +1,12 @@
-import vscode from 'vscode';
-import { getRootPath, readGlobFiles, updatePrevEdits, toPosixPath, globalEditDetector } from './file';
-import { editorState, isLanguageSupported, queryState } from './global-context';
-import { queryLocationFromModel, queryEditFromModel } from './queries';
-import { BaseComponent } from './base-component';
-import { EditSelector, diffTabSelectors, tempWrite } from './compare-view';
+import vscode from "vscode";
+import { getRootPath, readGlobFiles, updatePrevEdits, toPosixPath, globalEditDetector } from "./file";
+import { editorState, isLanguageSupported, queryState } from "./global-context";
+import { queryLocationFromModel, queryEditFromModel } from "./queries";
+import { BaseComponent } from "./base-component";
+import { EditSelector, diffTabSelectors, tempWrite } from "./compare-view";
 import { registerCommand } from "./base-component";
-import { globalEditLock } from './global-context';
-import { statusBarItem } from './status-bar';
+import { globalEditLock } from "./global-context";
+import { statusBarItem } from "./status-bar";
 
 async function predictLocation() {
     if (!isLanguageSupported()) {
@@ -22,7 +22,7 @@ async function predictLocation() {
         const files = await readGlobFiles();
         // const currentPrevEdits = getPrevEdits();
         try {
-            console.log("++++++++++++ getting updates")
+            console.log("++++++++++++ getting updates");
             const currentPrevEdits = await globalEditDetector.getUpdatedEditList();
             statusBarItem.setStatusQuerying("locator");
             await queryLocationFromModel(rootPath, files, currentPrevEdits, commitMessage, editorState.language);
@@ -191,7 +191,7 @@ class GenerateEditCommand extends BaseComponent{
                 clearEdit();
                 closeTab();
             })
-        )
+        );
     }
 }
 
