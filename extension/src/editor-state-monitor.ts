@@ -299,7 +299,7 @@ class EditDetector {
 export const globalEditDetector = new EditDetector();
 
 export function updateEditorState(editor: vscode.TextEditor | undefined) {
-    if (!editor) globalEditorState.inDiffEditor = true;
+    if (!editor) globalEditorState.inDiffEditor = false;
     else globalEditorState.inDiffEditor = (vscode.window.tabGroups.activeTabGroup.activeTab?.input instanceof vscode.TabInputTextDiff);
     globalEditorState.language = vscode.window.activeTextEditor?.document?.languageId.toLowerCase() ?? "unknown";
     statusBarItem.setStatusDefault(true);
