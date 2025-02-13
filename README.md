@@ -63,6 +63,11 @@ Once performing a prediction on a line, a diff view is shown for switching ↔�
 
 5. After the model generates possible edits at that range, a difference tab with pop up for you to switch to different edits or edit the code. **There are buttons on the top right corner of the difference tab to accept, dismiss or switch among generated edits**.
 
+## 🚧 Beta version
+* We are continuously optimizing the user experience of this Extension. 
+* For a better experience, we recommend switching to the [beta branch](https://github.com/code-philia/CoEdPilot-extension/tree/beta) and following the instructions in its README. 
+* The implementation on the main branch strictly adheres to the description in the CoEdPilot paper.
+
 ## 🛠️ Setup backend model
 
 ### Method 1: 🐳 Deploy via Docker (recommended 👍)
