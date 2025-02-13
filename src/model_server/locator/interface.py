@@ -123,7 +123,12 @@ def convert_examples_to_features(examples, tokenizer, stage=None):
 
 
 def load_model(model_path):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+    elif torch.backends.mps.is_available():
+        device = torch.device("mps") # M chip acceleration
+    else:
+        device = torch.device("cpu")
     # Load pre-training models
     config_class, model_class, tokenizer_class = (T5Config, T5ForConditionalGeneration, RobertaTokenizer)
     config = config_class.from_pretrained("salesforce/codet5-large")
@@ -145,17 +150,12 @@ def load_model(model_path):
     config.vocab_size = len(tokenizer)
     
     model = Locator(encoder=encoder,config=config)
-    model.load_state_dict(torch.load(model_path))
+    model.load_state_dict(torch.load(model_path, map_location=device))
     model.to(device)
     return model, tokenizer, device
 
 
 def normalize_string(s):
-# if not isinstance(s,     if)        return s
-#    # 当检测到 s 含有 ' 时，进行转义
-#    if s.find("'") != -1:
-#         s = s.replace("'", "\'")
-#     return s
     if not isinstance(s, str):
         return s
     # 当检测到 s 含有 ' 时，进行转义
@@ -340,7 +340,6 @@ def predict(json_input):
                                 output.append("<keep>")
                                 confidence.append(1.0)
                     preds.extend(output)
-                    confidences.extend(confidence)
                     confidences.extend(confidence)
 
         if len(preds) != targetFileLineNum:

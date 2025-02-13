@@ -30,7 +30,7 @@ RUN if [ -n "$MIRROR_SOURCE" ]; then \
     fi
 
 # Download models
-RUN python ./init-server.py ${LANG}
+RUN python ./download.py
 
 # Exposed port
 EXPOSE 5003

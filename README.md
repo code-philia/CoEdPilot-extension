@@ -72,6 +72,67 @@ Once performing a prediction on a line, a diff view is shown for switching ↔�
 
 ## 🛠️ Setup backend model
 
+### Method 1: 🐳 Deploy via Docker (recommended 👍)
+   > [!IMPORTANT]
+   >   * This deployment method is not fully tested. Please feel free to raise issues if you encounter any problems;
+   >   * MacOS is unable to use MPS acceleration via Docker, hence the following instructions are not applicable to MacOS.
+   >   * If you need CUDA acceleration, your system **must have an NVIDIA GPU** with the **correct drivers installed**. Install the [NVIDIA Container Toolkit](https://learn.microsoft.com/en-us/windows/wsl/tutorials/gpu-compute).
+
+   You can create a Docker image and start a Docker container according to the following steps to isolate the environment and simplify the backend model deployment.
+
+   1. Navigate to the root directory of the CoEdPilot-extension project.
+
+   2. Create the Docker image (For Linux / Windows with WSL):
+
+      ```bash
+      docker build -t coedpilot-extension --build-arg MIRROR_SOURCE=<MIRROR_SOURCE> --build-arg LANG=<LANG> .
+      ```
+
+      This command supports two `build-arg` parameters:
+
+      - `MIRROR_SOURCE`: Specifies the mirror source for installing Python dependencies, e.g., `--build-arg MIRROR_SOURCE=https://pypi.tuna.tsinghua.edu.cn/simple`. If this argument is not provided, the mirror source will not be used for installing Python dependencies.
+      - `LANG`: Specifies the model for different languages, e.g., `--build-arg LANG=javascript`. The supported languages are go, python, java, typescript, and javascript. If this argument is not provided, the default model language will be Python.
+
+   3. Start the Docker container without GPU acceleration (Not recommended 👎):
+
+      With the following command (with 5003 as default port):
+      
+      ```bash
+      docker run -p 5003:5003 coedpilot-extension
+      ```
+
+   4. Start the Docker container with GPU acceleration (Recommended 👍):
+      
+      Start the Docker container with the following command (with 5003 as default port, please check the availability of this port):
+
+      ```bash
+      docker run --gpus all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 -p 5003:5003 coedpilot-extension
+      ```
+
+   Now, the backend model is up and running. You can proceed to [setup the extension](#️-extension-deployment) to use CoEdPilot-Extension.
+
+   After the usage, you may follow the following command to stop and remove the Docker container and image.
+
+   5. ⚠️ Stop the Docker container:
+
+      ```bash
+      docker stop $(docker ps -a -q --filter ancestor=coedpilot-extension)
+      ```
+
+      This command stops all running containers based on the `coedpilot-extension` image.
+
+   6. ⚠️ Remove the Docker container:
+
+      ```bash
+      docker rm $(docker ps -a -q --filter ancestor=coedpilot-extension)
+      ```
+
+   7. ⚠️ Remove the Docker image:
+
+      ```bash
+      docker rmi coedpilot-extension
+      ```
+
 ### Method 2: Manual setup
    
    > [!IMPORTANT]
@@ -97,34 +158,26 @@ Once performing a prediction on a line, a diff view is shown for switching ↔�
 
       As mentioned before, we respectively prepared 3 models (*file locator*(including embedding model, dependency analyzer and a regression model), *line locator*, and *generator*) for each language. Supported languages are `go`, `python`, `java`, `typescript` and `javascript`. You have 2 ways to download models.
 
-      * **Method 2-1: Use init-server script (Recommended 👍)**
+      * **Method 2-1: Use init-server script**
 
-         Select <language> from `go`, `python`, `java`, `typescript` and `javascript` to download models for the language.
-
+         Execute the following command to automatically download models.
          ```bash
-         python init-server.py <language>
+         python download.py
          ```
 
-      * **Method 2-2: Download manually**
-
-         * Download and rename **models for different languages** and **dependency analyzer** from [Huggingface Collections](https://huggingface.co/collections/code-philia/coedpilot-65ee9df1b5e3b11755547205). 
-            * `dependency-analyzer/`: dependency anaylzer model, available in [Huggingface](https://huggingface.co/code-philia/dependency-analyzer);
-            * `embedding_model.bin`: embedding model for file locator, available in [Huggingface](https://huggingface.co/code-philia/CoEdPilot-file-locator);
-            * `reg_model.pickle`: , linear regression model, available in [Huggingface](https://huggingface.co/code-philia/CoEdPilot-file-locator);
-            * `locator_model.bin`: model for line locator, available in [Huggingface](https://huggingface.co/code-philia/CoEdPilot-line-locator), require renaming form `pytorch_model.bin` to `locator_model.bin`;
-            * `generator_model.bin`: model for generator, available in [Huggingface](https://huggingface.co/code-philia/CoEdPilot-generator), require renaming from `pytorch_model.bin` to `generator_model.bin`.
-
-         * To deploy models for one language, put its unzipped model folder **named with the language**.
-            ```
-            edit-pilot/
-               models/
-                     dependency-analyzer/
-                     <language>/
-                        embedding_model.bin
-                        reg_model.pickle
-                        locator_model.bin
-                        generator_model.bin
-            ```
+         Models should be downloaded into the following hierarchy:
+         
+         ```
+         edit-pilot/
+            models/
+                  dependency-analyzer/
+                  <language>/
+                     embedding_model.bin
+                     reg_model.pickle
+                  multilingual/
+                     locator_model.bin
+                     generator_model.bin
+         ```
 
    3. Start the backend:
 
