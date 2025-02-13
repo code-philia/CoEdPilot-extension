@@ -66,6 +66,10 @@ Once performing a prediction on a line, a diff view is shown for switching ↔�
 ## 🚧 Beta version
 * We are continuously optimizing the user experience of this Extension. 
 * For a better experience, we recommend switching to the [beta branch](https://github.com/code-philia/CoEdPilot-extension/tree/beta) and following the instructions in its README. 
+   ```bash
+   git fetch --all
+   git checkout beta
+   ```
 * The implementation on the main branch strictly adheres to the description in the CoEdPilot paper.
 
 ## 🛠️ Setup backend model
