@@ -1,3 +1,6 @@
+> [!WARNING]
+> You are now at beta version of CoEdPilot extension. We will release better backend models and more features at the version. The design does not strictly follow the content of the CoedPilot paper. If you have any questions or suggestions, please feel free to raise an issue.
+
 # ✏️ CoEdPilot
 
 CoEdPilot is a Visual Studio Code extension that features automatic code edit recommendations, proposed by the paper "*CoEdPilot: Recommending Code Edits with Learned Prior Edit Relevance, Project-wise Awareness, and Interactive Nature*" by Chenyan Liu, Yufan Cai, Yun Lin, Yuhuan Huang, Yunrui Pei, Bo Jiang, Ping Yang, Jin Song Dong, and Hong Mei. Presented at ISSTA'24. 
@@ -63,68 +66,11 @@ Once performing a prediction on a line, a diff view is shown for switching ↔�
 
 5. After the model generates possible edits at that range, a difference tab with pop up for you to switch to different edits or edit the code. **There are buttons on the top right corner of the difference tab to accept, dismiss or switch among generated edits**.
 
+## 🚧 Beta features:
+* Model upgrade from `microsoft/codebert-base` to `salesforce/codet5-large` encoder and `salesforce/codet5-base`;
+* The dataset distribution used for model training is more in-distribution with real world editing scenairos.
+
 ## 🛠️ Setup backend model
-
-### Method 1: 🐳 Deploy via Docker (recommended 👍)
-   > [!IMPORTANT]
-   >   * This deployment method is not fully tested. Please feel free to raise issues if you encounter any problems;
-   >   * MacOS is unable to use MPS acceleration via Docker, hence the following instructions are not applicable to MacOS.
-   >   * If you need CUDA acceleration, your system **must have an NVIDIA GPU** with the **correct drivers installed**. Install the [NVIDIA Container Toolkit](https://learn.microsoft.com/en-us/windows/wsl/tutorials/gpu-compute).
-
-   You can create a Docker image and start a Docker container according to the following steps to isolate the environment and simplify the backend model deployment.
-
-   1. Navigate to the root directory of the CoEdPilot-extension project.
-
-   2. Create the Docker image (For Linux / Windows with WSL):
-
-      ```bash
-      docker build -t coedpilot-extension --build-arg MIRROR_SOURCE=<MIRROR_SOURCE> --build-arg LANG=<LANG> .
-      ```
-
-      This command supports two `build-arg` parameters:
-
-      - `MIRROR_SOURCE`: Specifies the mirror source for installing Python dependencies, e.g., `--build-arg MIRROR_SOURCE=https://pypi.tuna.tsinghua.edu.cn/simple`. If this argument is not provided, the mirror source will not be used for installing Python dependencies.
-      - `LANG`: Specifies the model for different languages, e.g., `--build-arg LANG=javascript`. The supported languages are go, python, java, typescript, and javascript. If this argument is not provided, the default model language will be Python.
-
-   3. Start the Docker container without GPU acceleration (Not recommended 👎):
-
-      With the following command (with 5003 as default port):
-      
-      ```bash
-      docker run -p 5003:5003 coedpilot-extension
-      ```
-
-   4. Start the Docker container with GPU acceleration (Recommended 👍):
-      
-      Start the Docker container with the following command (with 5003 as default port, please check the availability of this port):
-
-      ```bash
-      docker run --gpus all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 -p 5003:5003 coedpilot-extension
-      ```
-
-   Now, the backend model is up and running. You can proceed to [setup the extension](#️-extension-deployment) to use CoEdPilot-Extension.
-
-   After the usage, you may follow the following command to stop and remove the Docker container and image.
-
-   5. ⚠️ Stop the Docker container:
-
-      ```bash
-      docker stop $(docker ps -a -q --filter ancestor=coedpilot-extension)
-      ```
-
-      This command stops all running containers based on the `coedpilot-extension` image.
-
-   6. ⚠️ Remove the Docker container:
-
-      ```bash
-      docker rm $(docker ps -a -q --filter ancestor=coedpilot-extension)
-      ```
-
-   7. ⚠️ Remove the Docker image:
-
-      ```bash
-      docker rmi coedpilot-extension
-      ```
 
 ### Method 2: Manual setup
    
