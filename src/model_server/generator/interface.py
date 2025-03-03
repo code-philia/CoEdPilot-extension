@@ -38,8 +38,11 @@ def load_model(model_path):
                           "<replace-by>", "</replace-by>",
                           "<feedback>", "</feedback>"]
     tokenizer.add_tokens(new_special_tokens, special_tokens=True)
-    model.encoder.resize_token_embeddings(len(tokenizer))
     config.vocab_size = len(tokenizer)
+    # if directly using model.encoder.resize_token_embeddings(), in some cases, will also change the shape of decoder embedding
+    new_encoder_embedding = nn.Embedding(config.vocab_size, config.d_model)
+    model.encoder.embed_tokens = new_encoder_embedding
+    
     
     model.load_state_dict(torch.load(model_path, map_location=device))
     model.to(device)

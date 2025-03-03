@@ -1,13 +1,9 @@
 # Use Python as the base image to ensure that the version is consistent with the project requirements
 FROM python:3.10.16-bookworm
 
-# Whether to use a mirror source
-# If it is empty, do not use the mirror source
-# otherwise, use this value as the mirror source for installing dependencies
-ARG MIRROR_SOURCE 
-
-# Choose language for your project, defalut language is python
-ARG LANG=python
+# Whether to use a mirror source for PyPI (True means use TUNA mirror)
+# GFW is used to determine whether to switch to the TUNA mirror in China
+ARG GFW=false
 
 # Set working directory
 WORKDIR /app
@@ -21,13 +17,23 @@ RUN apt install git-lfs
 RUN git lfs install
 
 # Install dependencies
-RUN if [ -n "$MIRROR_SOURCE" ]; then \
-        echo "Using mirror source: $MIRROR_SOURCE"; \
-        pip install -r requirements.txt -i "$MIRROR_SOURCE"; \
+RUN if [ "$GFW" = "True" ]; then \
+        echo "Using TUNA mirror for PyPI"; \
+        pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple; \
     else \
         echo "Using default PyPI"; \
         pip install -r requirements.txt; \
     fi
+
+# Conditionally set Hugging Face mirror for runtime if GFW is True
+RUN if [ "$GFW" = "true" ]; then \
+        echo "Setting Hugging Face mirror to https://hf-mirror.com/ for runtime"; \
+        echo "export HF_ENDPOINT=https://hf-mirror.com/" >> /etc/profile; \
+    fi
+
+# Set Hugging Face mirror for runtime (not only during Python download.py)
+# This ensures HF_ENDPOINT is set based on the GFW condition
+ENV HF_ENDPOINT="https://hf-mirror.com/"
 
 # Download models
 RUN python ./download.py

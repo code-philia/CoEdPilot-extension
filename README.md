@@ -85,29 +85,28 @@ Once performing a prediction on a line, a diff view is shown for switching ↔�
    2. Create the Docker image (For Linux / Windows with WSL):
 
       ```bash
-      docker build -t coedpilot-extension --build-arg MIRROR_SOURCE=<MIRROR_SOURCE> --build-arg LANG=<LANG> .
+      docker build -t coedpilot-extension --build-arg GFW=<bool>  .
       ```
 
-      This command supports two `build-arg` parameters:
+      If you are inside Mainland China, set argument `GFW` to `True`. If you wish not to use HuggingFace mirror, please remove `ENV HF_ENDPOINT="https://hf-mirror.com/"` from `Dockerfile`
 
-      - `MIRROR_SOURCE`: Specifies the mirror source for installing Python dependencies, e.g., `--build-arg MIRROR_SOURCE=https://pypi.tuna.tsinghua.edu.cn/simple`. If this argument is not provided, the mirror source will not be used for installing Python dependencies.
-      - `LANG`: Specifies the model for different languages, e.g., `--build-arg LANG=javascript`. The supported languages are go, python, java, typescript, and javascript. If this argument is not provided, the default model language will be Python.
+   3. Start the Docker container
 
-   3. Start the Docker container without GPU acceleration (Not recommended 👎):
+      The default port is 5003, please check the availability of this port:
 
-      With the following command (with 5003 as default port):
-      
-      ```bash
-      docker run -p 5003:5003 coedpilot-extension
-      ```
+      * With GPU acceleration (Recommended 👍):
 
-   4. Start the Docker container with GPU acceleration (Recommended 👍):
-      
-      Start the Docker container with the following command (with 5003 as default port, please check the availability of this port):
+         ```bash
+         docker run --gpus all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 -p 5003:5003 coedpilot-extension
+         ```
+    
+      * Without GPU acceleration (Not recommended 👎):
 
-      ```bash
-      docker run --gpus all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 -p 5003:5003 coedpilot-extension
-      ```
+         With the following command (with 5003 as default port):
+         
+         ```bash
+         docker run -p 5003:5003 coedpilot-extension
+         ```
 
    Now, the backend model is up and running. You can proceed to [setup the extension](#️-extension-deployment) to use CoEdPilot-Extension.
 
@@ -156,28 +155,26 @@ Once performing a prediction on a line, a diff view is shown for switching ↔�
 
    2. Download models into the project directory:
 
-      As mentioned before, we respectively prepared 3 models (*file locator*(including embedding model, dependency analyzer and a regression model), *line locator*, and *generator*) for each language. Supported languages are `go`, `python`, `java`, `typescript` and `javascript`. You have 2 ways to download models.
+      As mentioned before, we respectively prepared 3 models (*file locator*(including embedding model, dependency analyzer and a regression model), *line locator*, and *generator*) for each language. Supported languages are `go`, `python`, `java`, `typescript` and `javascript`.
 
-      * **Method 2-1: Use init-server script**
+      Execute the following command to automatically download models.
+      ```bash
+      python download.py
+      ```
 
-         Execute the following command to automatically download models.
-         ```bash
-         python download.py
-         ```
-
-         Models should be downloaded into the following hierarchy:
-         
-         ```
-         edit-pilot/
-            models/
-                  dependency-analyzer/
-                  <language>/
-                     embedding_model.bin
-                     reg_model.pickle
-                  multilingual/
-                     locator_model.bin
-                     generator_model.bin
-         ```
+      Models should be downloaded into the following hierarchy:
+      
+      ```
+      edit-pilot/
+         models/
+               dependency-analyzer/
+               <language>/
+                  embedding_model.bin
+                  reg_model.pickle
+               multilingual/
+                  locator_model.bin
+                  generator_model.bin
+      ```
 
    3. Start the backend:
 
