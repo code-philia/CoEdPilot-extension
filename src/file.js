@@ -372,6 +372,17 @@ function getActiveFilePath() {
     return filePath === undefined ? undefined : toPosixPath(filePath);
 }
 
+async function getFilesInCurrentFolder() {
+    const activeFilePath = getActiveFilePath();
+    if (!activeFilePath) {
+        console.log("No active file found.");
+        return [];
+    }
+
+    const currentFolderPath = path.dirname(activeFilePath);
+    return await globFiles(currentFolderPath, ["/*"]);
+}
+
 async function getLineInfoInDocument(path, lineNo) {
     const doc = await vscode.workspace.openTextDocument(path);
     const textLine = doc.lineAt(lineNo);
@@ -390,7 +401,7 @@ async function readGlobFiles(useSnapshot = true) {
     const fileList = [];
 
     // Use glob to exclude certain files and return a list of all valid files
-    const filePathList = await globFiles(rootPath);
+    const filePathList = await getFilesInCurrentFolder();
     const fileGetter = useSnapshot
         ? async (filePath) => {
             const liveGetter = liveFilesGetter();
