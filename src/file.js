@@ -401,43 +401,7 @@ async function readGlobFiles(useSnapshot = true) {
     const fileList = [];
 
     // Use glob to exclude certain files and return a list of all valid files
-    const path = require('path');
-    const lastFolder = path.basename(rootPath);
-
-    function convertToAbsPaths(filePathList, rootPath, toAbsPath) {
-        return filePathList.map(filePath => toAbsPath(rootPath, filePath));
-    }
-    
-    let filePathList;
-    if (lastFolder === "stable-diffusion-webui") {
-        filePathList = [
-            "extensions-builtin/ScuNET/scripts/scunet_model.py",
-            "extensions-builtin/SwinIR/scripts/swinir_model.py",
-            "modules/esrgan_model.py",
-            "modules/gfpgan_model.py",
-            "modules/modelloader.py"
-        ];
-        filePathList = convertToAbsPaths(filePathList, rootPath, toAbsPath);
-    } else if (lastFolder === "keras") {
-        filePathList = [
-            "keras/layers/core.py"
-        ];
-        filePathList = convertToAbsPaths(filePathList, rootPath, toAbsPath);
-    } else if (lastFolder === "models") {
-        filePathList = [
-            "official/nlp/bert/input_pipeline.py",
-            "official/nlp/bert/run_classifier.py"
-        ];
-        filePathList = convertToAbsPaths(filePathList, rootPath, toAbsPath);
-    } else if (lastFolder === "scikit-learn") {
-        filePathList = [
-            "sklearn/tree/_classes.py"
-        ];
-        filePathList = convertToAbsPaths(filePathList, rootPath, toAbsPath);
-    } else {
-        filePathList = await getFilesInCurrentFolder();
-    }
-    
+    const filePathList = await getFilesInCurrentFolder();
     const fileGetter = useSnapshot
         ? async (filePath) => {
             const liveGetter = liveFilesGetter();
