@@ -1,15 +1,14 @@
 import os
 import json
+import uvicorn
 import warnings
 import configparser
 
-from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import PlainTextResponse, JSONResponse
-import uvicorn
-from discriminator.interface import predict as disc_predict
+from transformers import logging
+from fastapi import FastAPI, Request
 from locator.interface import predict as loc_predict
 from generator.interface import predict as gen_predict
-from transformers import logging
+from fastapi.responses import PlainTextResponse, JSONResponse
 
 logging.set_verbosity_error()
 app = FastAPI()
@@ -50,11 +49,6 @@ async def run_predict(predict_name, predict_func, request: Request, multi_lang=F
         print(f">>> {predict_name} output: \n{json.dumps(result, indent=4)}")
     print(f">>> {predict_name} sending output")
     return await make_plain_text_response(result)
-
-
-@app.post('/discriminator')
-async def run_discriminator(request: Request):
-    return await run_predict('discriminator', disc_predict, request)
 
 
 @app.post('/range')

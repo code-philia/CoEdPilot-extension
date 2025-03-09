@@ -129,8 +129,8 @@ async def predict(json_input):
             model_input += "<edit>" + codeAbove + "<insert>" + prevEdit["afterEdit"] + "</insert>" + codeBelow + "</edit>"
     model_input += "</prior_edits>"
     
-    # print("Generator input:")
-    # print(json.dumps(model_input, indent=4))
+    print("Generator input:")
+    print(model_input)
     encoded_source_seq = tokenizer(model_input, padding="max_length", truncation=True, max_length=512)
     source_ids = encoded_source_seq["input_ids"]
     stopwatch.lap('assemble input text')
@@ -172,6 +172,7 @@ async def predict(json_input):
     stopwatch.lap('infer result')
 
     result["replacement"] = replacements
+    print(f"Generator output: \n{replacements[0]}")
     stopwatch.lap('post-process result')
     print("+++ Generator profiling:")
     stopwatch.print_result()
