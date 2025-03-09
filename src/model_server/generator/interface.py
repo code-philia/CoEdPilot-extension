@@ -48,7 +48,7 @@ def load_model(model_path):
     model.to(device)
     return model, tokenizer, device
 
-def predict(json_input):
+async def predict(json_input):
     '''
     Function: interface between generator and VScode extension
     Args: input, dictionary
@@ -73,7 +73,7 @@ def predict(json_input):
     stopwatch.start()
     # check model cache
     language = "multilingual"
-    model, tokenizer, device = load_model_with_cache(MODEL_ROLE, language, load_model)
+    model, tokenizer, device = await load_model_with_cache(MODEL_ROLE, language, load_model)
     stopwatch.lap('load model')
 
     # 提取从 JavaScript 传入的参数

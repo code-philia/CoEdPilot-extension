@@ -54,7 +54,7 @@ def load_reg_model(lang):
     return reg
 
 
-def predict(json_input, language):
+async def predict(json_input, language):
     '''
     Function: this is the interface between discriminator and VSCode extension
     Args:
@@ -75,7 +75,7 @@ def predict(json_input, language):
 
     stopwatch.start()
     # check model cache
-    model, tokenizer, device = load_model_with_cache(
+    model, tokenizer, device = await load_model_with_cache(
         MODEL_ROLE, language, load_model)
     regModel = load_reg_model(language)
     dependency_analyzer = DependencyClassifier()
