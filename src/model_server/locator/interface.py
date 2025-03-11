@@ -206,13 +206,17 @@ async def run_batch(model, batch, device, tokenizer):
             for j in range(lm_logits.shape[1]):  # for every token
                 softmax_output = softmax(lm_logits[i][j])
                 if source_ids[i][j] == tokenizer.mask_token_id:  # decode masked edit operation token
-                    if torch.max(softmax_output) > 0.70:  # for <replace> & <insert>, they must pass a threshold
-                        max_confidence_token_idx = torch.argmax(softmax_output)
-                        output.append(tokenizer.decode(max_confidence_token_idx, clean_up_tokenization_spaces=False))
-                        confidence.append(softmax_output[max_confidence_token_idx].item())
-                    else:
+                    max_confidence_token_idx = torch.argmax(softmax_output)
+                    max_confidence_token = tokenizer.decode(max_confidence_token_idx, clean_up_tokenization_spaces=False)
+                    if max_confidence_token == "<replace>" and torch.max(softmax_output) < 0.90:
                         output.append("<keep>")
                         confidence.append(1.0)
+                    elif max_confidence_token == "<insert>" and torch.max(softmax_output) < 0.98:
+                        output.append("<keep>")
+                        confidence.append(1.0)
+                    else:
+                        output.append(max_confidence_token)
+                        confidence.append(softmax_output[max_confidence_token_idx].item())
             preds.extend(output)
             confidences.extend(confidence)
     return preds, confidences
@@ -254,7 +258,7 @@ async def predict(json_input):
     # 提取从 JavaScript 传入的参数
     files = json_input["files"]
     commitMessage = json_input["commitMessage"]
-    prevEdits = json_input["prevEdits"]
+    prevEdits = json_input["prevEdits"][::-1]
     results = []
 
     window_token_cnt = 0
@@ -278,22 +282,23 @@ async def predict(json_input):
         nonlocal prevEdits, commitMessage, window_token_cnt, window_line_cnt, window_text
         model_input = f"<code_window>{window_text}</code_window>" + "<prompt>" + commitMessage + "</prompt>"
         model_input += "<prior_edits>"
-        for prevEdit in prevEdits:
-            codeAbove = prevEdit["codeAbove"].splitlines(keepends=True)
-            codeAbove = "".join(["<keep>" + loc for loc in codeAbove])
-            beforeEdit = prevEdit["beforeEdit"].splitlines(keepends=True)
-            if len(beforeEdit) == 0:
-                editType = "insert"
-            else:
-                editType = "replace"
-            beforeEdit = "".join(["<replace>" + loc for loc in beforeEdit])
-            codeBelow = prevEdit["codeBelow"].splitlines(keepends=True)
-            codeBelow = "".join(["<keep>" + loc for loc in codeBelow])
-            
-            if editType == "replace":
-                model_input += "<edit>" + codeAbove + "<replace-by>" + prevEdit["afterEdit"] +"</replace-by>" + beforeEdit + codeBelow + "</edit>"
-            else:
-                model_input += "<edit>" + codeAbove + "<insert>" + prevEdit["afterEdit"] + "</insert>" + codeBelow + "</edit>"
+        if prevEdits:
+            for prevEdit in prevEdits[:3]:
+                codeAbove = prevEdit["codeAbove"].splitlines(keepends=True)
+                codeAbove = "".join(["<keep>" + loc for loc in codeAbove])
+                beforeEdit = prevEdit["beforeEdit"].splitlines(keepends=True)
+                if len(beforeEdit) == 0:
+                    editType = "insert"
+                else:
+                    editType = "replace"
+                beforeEdit = "".join(["<replace>" + loc for loc in beforeEdit])
+                codeBelow = prevEdit["codeBelow"].splitlines(keepends=True)
+                codeBelow = "".join(["<keep>" + loc for loc in codeBelow])
+                
+                if editType == "replace":
+                    model_input += "<edit>" + codeAbove + "<replace-by>" + prevEdit["afterEdit"] +"</replace-by>" + beforeEdit + codeBelow + "</edit>"
+                else:
+                    model_input += "<edit>" + codeAbove + "<insert>" + prevEdit["afterEdit"] + "</insert>" + codeBelow + "</edit>"
         model_input += "</prior_edits>"
         
         input_list.append(model_input)
@@ -388,5 +393,4 @@ async def predict(json_input):
     stopwatch.lap('post-process result')
     print("+++ Locator profiling:")
     stopwatch.print_result()
-
     return {"data": results}
