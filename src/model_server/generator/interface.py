@@ -16,9 +16,9 @@ def is_model_cached():
     global tokenizer, model, device
     return not (tokenizer is None or model is None or device is None)
 
-def load_model(model_path):
+def load_model(model_path, device):
     if torch.cuda.is_available():
-        device = torch.device("cuda")
+        device = torch.device(f"cuda:{device}")
     elif torch.backends.mps.is_available():
         device = torch.device("mps") # M chip acceleration
     else:
@@ -80,7 +80,7 @@ async def predict(json_input):
     targetFileContent = json_input["targetFileContent"]
     commitMessage = json_input["commitMessage"]
     editType = json_input["editType"]
-    prevEdits = json_input["prevEdits"]
+    prevEdits = json_input["prevEdits"][::-1]
     editLineIdx = json_input["atLines"]
 
     result = {  # 提前记录返回的部分参数
@@ -111,22 +111,23 @@ async def predict(json_input):
             codeWindow += f"<keep>{targetFileLines[lineIdx]}"
     
     model_input = f"<code_window>{codeWindow}</code_window><prompt>{commitMessage}</prompt><prior_edits>"
-    for prevEdit in prevEdits:
-        codeAbove = prevEdit["codeAbove"].splitlines(keepends=True)
-        codeAbove = "".join(["<keep>" + loc for loc in codeAbove])
-        beforeEdit = prevEdit["beforeEdit"].splitlines(keepends=True)
-        if len(beforeEdit) == 0:
-            editType = "insert"
-        else:
-            editType = "replace"
-        beforeEdit = "".join(["<replace>" + loc for loc in beforeEdit])
-        codeBelow = prevEdit["codeBelow"].splitlines(keepends=True)
-        codeBelow = "".join(["<keep>" + loc for loc in codeBelow])
-        
-        if editType == "replace":
-            model_input += "<edit>" + codeAbove + "<replace-by>" + prevEdit["afterEdit"] +"</replace-by>" + beforeEdit + codeBelow + "</edit>"
-        else:
-            model_input += "<edit>" + codeAbove + "<insert>" + prevEdit["afterEdit"] + "</insert>" + codeBelow + "</edit>"
+    if prevEdits:
+        for prevEdit in prevEdits[:3]:
+            codeAbove = prevEdit["codeAbove"].splitlines(keepends=True)
+            codeAbove = "".join(["<keep>" + loc for loc in codeAbove])
+            beforeEdit = prevEdit["beforeEdit"].splitlines(keepends=True)
+            if len(beforeEdit) == 0:
+                editType = "insert"
+            else:
+                editType = "replace"
+            beforeEdit = "".join(["<replace>" + loc for loc in beforeEdit])
+            codeBelow = prevEdit["codeBelow"].splitlines(keepends=True)
+            codeBelow = "".join(["<keep>" + loc for loc in codeBelow])
+            
+            if editType == "replace":
+                model_input += "<edit>" + codeAbove + "<replace-by>" + prevEdit["afterEdit"] +"</replace-by>" + beforeEdit + codeBelow + "</edit>"
+            else:
+                model_input += "<edit>" + codeAbove + "<insert>" + prevEdit["afterEdit"] + "</insert>" + codeBelow + "</edit>"
     model_input += "</prior_edits>"
     
     print("Generator input:")

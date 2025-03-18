@@ -8,7 +8,6 @@ from torch.utils.data import DataLoader, SequentialSampler, TensorDataset
 from transformers import (T5Config, T5ForConditionalGeneration, RobertaTokenizer)
 from perf import Stopwatch
 from model_manager import load_model_with_cache
-import asyncio
 
 CODE_WINDOW_LENGTH = 10
 MODEL_ROLE = "locator"
@@ -123,9 +122,9 @@ def convert_examples_to_features(examples, tokenizer, stage=None):
     return features
 
 
-def load_model(model_path):
+def load_model(model_path, device):
     if torch.cuda.is_available():
-        device = torch.device("cuda")
+        device = torch.device(f"cuda:{device}")
     elif torch.backends.mps.is_available():
         device = torch.device("mps") # M chip acceleration
     else:
@@ -189,35 +188,6 @@ def merge_adjacent_removals(results):
 
     return merged_results
 
-
-async def run_batch(model, batch, device, tokenizer):
-    softmax = torch.nn.Softmax(dim=-1)
-    preds = []
-    confidences = []
-
-    batch = tuple(t.to(device) for t in batch)
-    source_ids, source_mask, target_ids = batch
-    with torch.no_grad():
-        lm_logits = model(source_ids=source_ids, source_mask=source_mask, target_ids=target_ids).to('cpu')
-        # extract masked edit operations
-        for i in range(lm_logits.shape[0]):  # for sample within batch
-            output = []
-            confidence = []
-            for j in range(lm_logits.shape[1]):  # for every token
-                softmax_output = softmax(lm_logits[i][j])
-                if source_ids[i][j] == tokenizer.mask_token_id:  # decode masked edit operation token
-                    if torch.max(softmax_output) > 0.70:  # for <replace> & <insert>, they must pass a threshold
-                        max_confidence_token_idx = torch.argmax(softmax_output)
-                        output.append(tokenizer.decode(max_confidence_token_idx, clean_up_tokenization_spaces=False))
-                        confidence.append(softmax_output[max_confidence_token_idx].item())
-                    else:
-                        output.append("<keep>")
-                        confidence.append(1.0)
-            preds.extend(output)
-            confidences.extend(confidence)
-    return preds, confidences
-
-
 async def predict(json_input):
     '''
     Function: interface between locator and VScode extension
@@ -254,7 +224,7 @@ async def predict(json_input):
     # 提取从 JavaScript 传入的参数
     files = json_input["files"]
     commitMessage = json_input["commitMessage"]
-    prevEdits = json_input["prevEdits"]
+    prevEdits = json_input["prevEdits"][::-1]
     results = []
 
     window_token_cnt = 0
@@ -278,22 +248,23 @@ async def predict(json_input):
         nonlocal prevEdits, commitMessage, window_token_cnt, window_line_cnt, window_text
         model_input = f"<code_window>{window_text}</code_window>" + "<prompt>" + commitMessage + "</prompt>"
         model_input += "<prior_edits>"
-        for prevEdit in prevEdits:
-            codeAbove = prevEdit["codeAbove"].splitlines(keepends=True)
-            codeAbove = "".join(["<keep>" + loc for loc in codeAbove])
-            beforeEdit = prevEdit["beforeEdit"].splitlines(keepends=True)
-            if len(beforeEdit) == 0:
-                editType = "insert"
-            else:
-                editType = "replace"
-            beforeEdit = "".join(["<replace>" + loc for loc in beforeEdit])
-            codeBelow = prevEdit["codeBelow"].splitlines(keepends=True)
-            codeBelow = "".join(["<keep>" + loc for loc in codeBelow])
-            
-            if editType == "replace":
-                model_input += "<edit>" + codeAbove + "<replace-by>" + prevEdit["afterEdit"] +"</replace-by>" + beforeEdit + codeBelow + "</edit>"
-            else:
-                model_input += "<edit>" + codeAbove + "<insert>" + prevEdit["afterEdit"] + "</insert>" + codeBelow + "</edit>"
+        if prevEdits:
+            for prevEdit in prevEdits[:3]:
+                codeAbove = prevEdit["codeAbove"].splitlines(keepends=True)
+                codeAbove = "".join(["<keep>" + loc for loc in codeAbove])
+                beforeEdit = prevEdit["beforeEdit"].splitlines(keepends=True)
+                if len(beforeEdit) == 0:
+                    editType = "insert"
+                else:
+                    editType = "replace"
+                beforeEdit = "".join(["<replace>" + loc for loc in beforeEdit])
+                codeBelow = prevEdit["codeBelow"].splitlines(keepends=True)
+                codeBelow = "".join(["<keep>" + loc for loc in codeBelow])
+                
+                if editType == "replace":
+                    model_input += "<edit>" + codeAbove + "<replace-by>" + prevEdit["afterEdit"] +"</replace-by>" + beforeEdit + codeBelow + "</edit>"
+                else:
+                    model_input += "<edit>" + codeAbove + "<insert>" + prevEdit["afterEdit"] + "</insert>" + codeBelow + "</edit>"
         model_input += "</prior_edits>"
         
         input_list.append(model_input)
@@ -349,12 +320,32 @@ async def predict(json_input):
         model.eval()
         preds = []
         confidences = []
-        tasks = [run_batch(model, batch, device, tokenizer) for batch in eval_dataloader]
-        infe_results = await asyncio.gather(*tasks)
-
-        for batch_preds, batch_confidences in infe_results:
-            preds.extend(batch_preds)
-            confidences.extend(batch_confidences)
+        softmax = torch.nn.Softmax(dim=-1)
+        for batch in tqdm(eval_dataloader,total=len(eval_dataloader)):
+            batch = tuple(t.to(device) for t in batch)
+            source_ids,source_mask,target_ids = batch                  
+            with torch.no_grad():
+                lm_logits = model(source_ids=source_ids,source_mask=source_mask,target_ids=target_ids).to('cpu')
+                # extract masked edit operations
+                for i in range(lm_logits.shape[0]):  # for sample within batch
+                    output = []
+                    confidence = []
+                    for j in range(lm_logits.shape[1]): # for every token
+                        softmax_output = softmax(lm_logits[i][j])
+                        if source_ids[i][j]==tokenizer.mask_token_id: # decode masked edit operation token
+                            max_confidence_token_idx = torch.argmax(softmax_output)
+                            max_confidence_token = tokenizer.decode(max_confidence_token_idx, clean_up_tokenization_spaces=False)
+                            if max_confidence_token == "<replace>" and torch.max(softmax_output) < 0.90:
+                                output.append("<keep>")
+                                confidence.append(1.0)
+                            elif max_confidence_token == "<insert>" and torch.max(softmax_output) < 0.98:
+                                output.append("<keep>")
+                                confidence.append(1.0)
+                            else:
+                                output.append(max_confidence_token)
+                                confidence.append(softmax_output[max_confidence_token_idx].item())
+                    preds.extend(output)
+                    confidences.extend(confidence)
 
         if len(preds) != targetFileLineNum:
             raise ValueError(f'The number of lines ({targetFileLineNum}) in the target file is not equal to the number of predictions ({len(preds)}).') # TODO: solve this problem when some lines are too long
@@ -388,5 +379,4 @@ async def predict(json_input):
     stopwatch.lap('post-process result')
     print("+++ Locator profiling:")
     stopwatch.print_result()
-
     return {"data": results}

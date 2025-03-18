@@ -173,7 +173,7 @@ class LocationTreeProvider  {
         }
     }
 
-    sort(criterion = 'lineNumber', order = 'asc') {
+    sort(criterion = 'confidence', order = 'asc') {
         if (criterion === 'lineNumber') {
             this.sortByLineNumber(order === 'asc');
         } else {

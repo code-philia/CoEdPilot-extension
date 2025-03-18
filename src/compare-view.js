@@ -187,8 +187,8 @@ class EditSelector {
             && loc.atLines[loc.atLines.length - 1] + 1 + offset > this.fromLine) {
                 locations.splice(i, 1);
             }
-            queryState._onDidChangeLocations.fire(queryState);
         });
+        queryState.updateLocations(locations)
     }
 
     _getPathId() {
