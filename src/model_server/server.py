@@ -60,6 +60,9 @@ async def run_range(request: Request):
 async def run_content(request: Request):
     return await run_predict('generator', gen_predict, request, multi_lang=True)
 
+@app.get('/check')
+async def check(request: Request):
+    return JSONResponse(content={"status": "success", "message": "Backend connection is valid!"}, status_code=200)
 
 if __name__ == '__main__':
     config = configparser.ConfigParser()
