@@ -8,7 +8,7 @@ export function activate_notiy(context) {
             const response = await axios.get(queryURL + "/check");
             if (response.status === 200) {
                 if (showMessage || first_success) {
-                    vscode.window.showInformationMessage('Connection to backend successful');
+                    vscode.window.showInformationMessage('✅ Connect to backend successfully! 🎉');
                 }
                 first_success = false;
             } else {
