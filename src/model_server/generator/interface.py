@@ -178,3 +178,7 @@ async def predict(json_input):
     print("+++ Generator profiling:")
     stopwatch.print_result()
     return {"data": result}
+
+# load model when backend starts to run
+import asyncio
+asyncio.run(load_model_with_cache(MODEL_ROLE, "multilingual", load_model))
