@@ -70,7 +70,7 @@ def read_examples(raw_inputs):
 
 def convert_examples_to_features(examples, tokenizer, stage=None):
     features = []
-    for example_index, example in enumerate(tqdm(examples)):
+    for example_index, example in enumerate(examples):
         # source
         source_tokens = tokenizer.tokenize(example.source)[:512 - 2]
         source_tokens = [tokenizer.cls_token] + \
@@ -231,9 +231,12 @@ async def predict(json_input):
     window_line_cnt = 0
     window_text = ""
 
+    def security_checked(text, tokenizer):
+        return text.replace(tokenizer.mask_token, "\<mask\>")
+
     def try_feed_in_window(text):
         nonlocal window_token_cnt, window_line_cnt, window_text
-        masked_line = f"{tokenizer.mask_token}" + text
+        masked_line = f"{tokenizer.mask_token}" + security_checked(text, tokenizer)
         masked_line_token_cnt = len(tokenizer.tokenize(masked_line))
         # a conservative number for token number
         if window_token_cnt + masked_line_token_cnt < 508 and window_line_cnt < 10:
@@ -321,7 +324,7 @@ async def predict(json_input):
         preds = []
         confidences = []
         softmax = torch.nn.Softmax(dim=-1)
-        for batch in tqdm(eval_dataloader,total=len(eval_dataloader)):
+        for batch in tqdm(eval_dataloader,total=len(eval_dataloader), desc=targetFilePath):
             batch = tuple(t.to(device) for t in batch)
             source_ids,source_mask,target_ids = batch                  
             with torch.no_grad():
