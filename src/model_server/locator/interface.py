@@ -293,8 +293,9 @@ async def predict(json_input):
             else:
                 if window_line_cnt == 0:    # the first line is longer than window limit
                     while True:
-                        cur_line = cur_line[:len(cur_line) / 2]
+                        cur_line = cur_line[:len(cur_line) // 2]
                         if try_feed_in_window(cur_line):
+                            i += 1
                             break
                 else:
                     end_window(model_inputs)
