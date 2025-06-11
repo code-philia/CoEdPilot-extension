@@ -70,7 +70,7 @@ def read_examples(raw_inputs):
 
 def convert_examples_to_features(examples, tokenizer, stage=None):
     features = []
-    for example_index, example in enumerate(tqdm(examples)):
+    for example_index, example in enumerate(examples):
         # source
         source_tokens = tokenizer.tokenize(example.source)[:512 - 2]
         source_tokens = [tokenizer.cls_token] + \
@@ -224,9 +224,12 @@ def predict(json_input, language):
     window_line_cnt = 0
     window_text = ""
 
+    def security_checked(text, tokenizer):
+        return text.replace(tokenizer.mask_token, "\<mask\>")
+    
     def try_feed_in_window(text):
         nonlocal window_token_cnt, window_line_cnt, window_text
-        masked_line = " <mask> " + text
+        masked_line = " <mask> " + security_checked(text, tokenizer)
         masked_line_token_cnt = len(tokenizer.tokenize(masked_line))
         # a conservative number for token number
         if window_token_cnt + masked_line_token_cnt < 508 and window_line_cnt < 10:
@@ -241,7 +244,7 @@ def predict(json_input, language):
         nonlocal prevEdits, commitMessage, window_token_cnt, window_line_cnt, window_text
         model_input = window_text + ' </s> ' + commitMessage
         for prevEdit in prevEdits:
-            model_input += ' </s> replace ' + \
+            model_input += ' </s> remove ' + \
                 prevEdit["beforeEdit"] + ' add ' + prevEdit["afterEdit"]
         input_list.append(model_input)
         # with open(r"C:\Users\aaa\Desktop\edit-pilot\mark.txt", "a+", newline='') as f:
@@ -269,8 +272,9 @@ def predict(json_input, language):
             else:
                 if window_line_cnt == 0:    # the first line is longer than window limit
                     while True:
-                        cur_line = cur_line[:len(cur_line) / 2]
+                        cur_line = cur_line[:len(cur_line) // 2]
                         if try_feed_in_window(cur_line):
+                            i += 1
                             break
                 else:
                     end_window(model_inputs)
@@ -304,7 +308,7 @@ def predict(json_input, language):
         preds = []
         confidences = []
         softmax = torch.nn.Softmax(dim=-1)
-        for batch in tqdm(eval_dataloader, total=len(eval_dataloader)):
+        for batch in tqdm(eval_dataloader, total=len(eval_dataloader), desc=targetFilePath):
             batch = tuple(t.to(device) for t in batch)
             source_ids, source_mask,target_ids,target_mask = batch                  
             with torch.no_grad():
