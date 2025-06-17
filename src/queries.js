@@ -35,7 +35,8 @@ async function queryLocationFromModel(rootPath, files, prevEdits, commitMessage,
                     "toBeReplaced":     str, the content to be replaced, 
                     "editType":         str, the type of edit, add or remove,
                     "lineBreak":        str, "\n", "\r" or "\r\n",
-                    "atLines":           number, line number (beginning from 1) of the location
+                    "atLines":          number, line number (beginning from 1) of the location,
+                    "confidence":       number, float point confidence within [0, 1]
                 }, ...
             ]
         }
@@ -53,25 +54,8 @@ async function queryLocationFromModel(rootPath, files, prevEdits, commitMessage,
         );
     }
 
-    // Send to the discriminator model for analysis
-    const disc_input = {
-        rootPath: rootPath,
-        files: files,
-        targetFilePath: activeFilePath,
-        commitMessage: commitMessage,
-        prevEdits: prevEdits,
-        language: language
-    };
-    const discriminatorOutput = await queryDiscriminator(disc_input);
-    console.log("==> Discriminated files to be analyzed:");
-    discriminatorOutput.data.forEach(file => {
-        console.log("\t*" + file);
-    });
-    console.log("==> Total no. of files:", files.length);
-    console.log("==> No. of files to be analyzed:", discriminatorOutput.data.length);
-
     // Send the selected files to the locator model for location prediction
-    const filteredFiles = files.filter(([filename, _]) => discriminatorOutput.data.includes(filename) || filename == activeFilePath);
+    const filteredFiles = files;
 
     console.log("==> Filtered files:");
     console.log(filteredFiles);

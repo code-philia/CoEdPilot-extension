@@ -83,12 +83,14 @@ async function predictEdit() {
         atLines.push(fromLine);
     } else {
         editType = "replace";
-        // If only the beginning of the last line is included, exclude the last line
-        if (selectedRange.end.character === 0) {
-            toLine -= 1;
-        }
         for (let i = fromLine; i <= toLine; ++i) {
             atLines.push(i);
+        }
+    }
+    // If only the beginning of the last line is included, exclude the last line
+    if (editType === "replace") {
+        if (selectedRange.end.character === 0) {
+            toLine -= 1;
         }
     }
     

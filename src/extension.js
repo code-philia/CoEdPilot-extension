@@ -7,6 +7,7 @@ import { LocationDecoration } from "./inline";
 import { registerBasicCommands, registerTopTaskCommands } from "./extension-register";
 import { statusBarItem } from "./status-bar";
 import { modelServerProcess } from "./model-client";
+import { activate_notiy } from "./notification";
 
 function activate(context) {
 
@@ -30,6 +31,8 @@ function activate(context) {
 		new FileStateMonitor(),
 		new LocationDecoration(),	
 	);
+
+	activate_notiy(context);
 
 	console.log("==> Congratulations, your extension is now active!");
 }

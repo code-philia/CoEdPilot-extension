@@ -31,37 +31,22 @@ class ModelServerProcess extends BaseComponent{
         console.log("[ModelServer] Sending to ${this.toURL(urlPath)}");
         console.log("[ModelServer] Sending request:");
         console.log(jsonObject);
+        // TODO: @yuhuan, fix the jsonObject becomes too long(?) problem
         const response = await axios.post(this.toURL(urlPath), jsonObject, {
             headers: {
                 "Content-Type": "application/json",
             },
-            timeout: 100000
+            timeout: 0
         });
         if (response.statusText === "OK") {
             console.log("[ModelServer] Received response:");
             console.log(response.data);
-            // DEBUGGING
-            // fs.writeFileSync(
-            //     path.join(srcDir, "../mock/backend_response.json"),
-            //     JSON.stringify(response.data), { flag: "a" }
-            // );
             return response.data;
         } else {
             throw new axios.AxiosError(JSON.stringify(response));
         }
     }
 }
-
-// const res_jsons = JSON.parse(fs.readFileSync(path.join(srcDir, "../mock/mock_json_res.json"), { encoding:"utf-8" }));
-
-// class MockBackend {
-//     static async delayedResponse(res_type) {
-//         await new Promise(resolve => {
-//             setTimeout(resolve, 1000);
-//         })
-//         return JSON.parse(JSON.stringify(res_jsons[res_type])); // deep clone necessary here
-//     }
-// }
 
 export const modelServerProcess = new ModelServerProcess();
 

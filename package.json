@@ -1,9 +1,9 @@
 {
-  "name": "co-ed-pilot",
-  "displayName": "CoEdPilot",
+  "name": "co-ed-pilot-beta",
+  "displayName": "CoEdPilot_beta",
   "description": "A code co-edit helper.",
   "license": "MIT",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "publisher": "CodePhilia",
   "icon": "media/icon.png",
   "repository": {

@@ -1,13 +1,17 @@
 import os
-from flask import Flask, config, request, make_response
-from waitress import serve
-from discriminator.interface import predict as disc_predict
-from locator.interface import predict as loc_predict
-from generator.interface import predict as gen_predict
 import json
+import uvicorn
+import warnings
 import configparser
 
-app = Flask(__name__)
+from transformers import logging
+from fastapi import FastAPI, Request
+from locator.interface import predict as loc_predict
+from generator.interface import predict as gen_predict
+from fastapi.responses import PlainTextResponse, JSONResponse
+
+logging.set_verbosity_error()
+app = FastAPI()
 
 DEBUG = False
 SUPPORTED_LANGUAGES = ["go", "python", "java", "typescript", "javascript"]
@@ -15,58 +19,52 @@ SUPPORTED_LANGUAGES = ["go", "python", "java", "typescript", "javascript"]
 print(">>> Modules loaded. Server ready.")
 
 
-def make_plain_text_response(result):
-    response = make_response(result, 200)
-    response.mimetype = "text/plain"
-    response.charset = "utf-8"
-    return response
+async def make_plain_text_response(result):
+    if isinstance(result, dict):
+        return JSONResponse(content=result, status_code=200)
+    return PlainTextResponse(content=result, status_code=200)
 
 
-def make_400_response(err_msg):
-    response = make_response(err_msg, 400)
-    response.mimetype = "text/plain"
-    response.charset = "utf-8"
-    return response
+async def make_400_response(err_msg):
+    return PlainTextResponse(content=err_msg, status_code=400)
 
 
-def run_predict(predict_name, predict_func):
+async def run_predict(predict_name, predict_func, request: Request, multi_lang=False):
     print(f">>> Running {predict_name}")
-    json_str = request.data.decode('utf-8')
-    input_json = json.loads(json_str)
+    json_str = await request.body()
+    input_json = json.loads(json_str.decode('utf-8'))
 
     language = input_json["language"]
     if language not in SUPPORTED_LANGUAGES:
-        return make_400_response(f"Not supporting language {language} yet.")
+        return await make_400_response(f"Not supporting language {language} yet.")
 
     if DEBUG:
-        print(
-            f">>> {predict_name} inferencing: \n${json.dumps(input_json, indent=4)}")
-    result = predict_func(input_json, language)
+        print(f">>> {predict_name} inferencing: \n{json.dumps(input_json, indent=4)}")
+    if multi_lang:
+        result = await predict_func(input_json)
+    else:
+        result = await predict_func(input_json, language)
 
     if DEBUG:
-        print(f">>> {predict_name} output: \n${json.dumps(result, indent=4)}")
+        print(f">>> {predict_name} output: \n{json.dumps(result, indent=4)}")
     print(f">>> {predict_name} sending output")
-    return make_plain_text_response(result)
+    return await make_plain_text_response(result)
 
 
-@app.route('/discriminator', methods=['POST'])
-def run_discriminator():
-    return run_predict('discriminator', disc_predict)
+@app.post('/range')
+async def run_range(request: Request):
+    return await run_predict('locator', loc_predict, request, multi_lang=True)
 
 
-@app.route('/range', methods=['POST'])
-def run_range():
-    return run_predict('locator', loc_predict)
+@app.post('/content')
+async def run_content(request: Request):
+    return await run_predict('generator', gen_predict, request, multi_lang=True)
 
-
-@app.route('/content', methods=['POST'])
-def run_content():
-    return run_predict('generator', gen_predict)
-
+@app.get('/check')
+async def check(request: Request):
+    return JSONResponse(content={"status": "success", "message": "Backend connection is valid!"}, status_code=200)
 
 if __name__ == '__main__':
-    # app.run(host='0.0.0.0', port=5001, debug=True)
     config = configparser.ConfigParser()
     config.read(f'{os.path.dirname(__file__)}/server.ini')
-    serve(app, host=config['DEFAULT']['ListenHost'],
-          port=config['DEFAULT']['ListenPort'])
+    uvicorn.run(app, host=config['DEFAULT']['ListenHost'], port=int(config['DEFAULT']['ListenPort']))

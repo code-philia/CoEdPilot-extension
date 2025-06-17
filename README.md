@@ -1,3 +1,6 @@
+> [!WARNING]
+> You are now at beta version of CoEdPilot extension. We will release better backend models and more features at the version. The design does not strictly follow the content of the CoedPilot paper. If you have any questions or suggestions, please feel free to raise an issue.
+
 # ✏️ CoEdPilot
 
 CoEdPilot is a Visual Studio Code extension that features automatic code edit recommendations, proposed by the paper "*CoEdPilot: Recommending Code Edits with Learned Prior Edit Relevance, Project-wise Awareness, and Interactive Nature*" by Chenyan Liu, Yufan Cai, Yun Lin, Yuhuan Huang, Yunrui Pei, Bo Jiang, Ping Yang, Jin Song Dong, and Hong Mei. Presented at ISSTA'24. 
@@ -63,14 +66,9 @@ Once performing a prediction on a line, a diff view is shown for switching ↔�
 
 5. After the model generates possible edits at that range, a difference tab with pop up for you to switch to different edits or edit the code. **There are buttons on the top right corner of the difference tab to accept, dismiss or switch among generated edits**.
 
-## 🚧 Beta version
-* We are continuously optimizing the user experience of this Extension. 
-* For a better experience, we recommend switching to the [beta branch](https://github.com/code-philia/CoEdPilot-extension/tree/beta) and following the instructions in its README. 
-   ```bash
-   git fetch --all
-   git checkout beta
-   ```
-* The implementation on the main branch strictly adheres to the description in the CoEdPilot paper.
+## 🚧 Beta features:
+* Model upgrade from `microsoft/codebert-base` to `salesforce/codet5-large` encoder and `salesforce/codet5-base`;
+* The dataset distribution used for model training is more in-distribution with real world editing scenairos.
 
 ## 🛠️ Setup backend model
 
@@ -87,29 +85,28 @@ Once performing a prediction on a line, a diff view is shown for switching ↔�
    2. Create the Docker image (For Linux / Windows with WSL):
 
       ```bash
-      docker build -t coedpilot-extension --build-arg MIRROR_SOURCE=<MIRROR_SOURCE> --build-arg LANG=<LANG> .
+      docker build -t coedpilot-extension --build-arg GFW=<bool>  .
       ```
 
-      This command supports two `build-arg` parameters:
+      If you are inside Mainland China, set argument `GFW` to `True`. If you wish not to use HuggingFace mirror, please remove `ENV HF_ENDPOINT="https://hf-mirror.com/"` from `Dockerfile`
 
-      - `MIRROR_SOURCE`: Specifies the mirror source for installing Python dependencies, e.g., `--build-arg MIRROR_SOURCE=https://pypi.tuna.tsinghua.edu.cn/simple`. If this argument is not provided, the mirror source will not be used for installing Python dependencies.
-      - `LANG`: Specifies the model for different languages, e.g., `--build-arg LANG=javascript`. The supported languages are go, python, java, typescript, and javascript. If this argument is not provided, the default model language will be Python.
+   3. Start the Docker container
 
-   3. Start the Docker container without GPU acceleration (Not recommended 👎):
+      The default port is 5003, please check the availability of this port:
 
-      With the following command (with 5003 as default port):
-      
-      ```bash
-      docker run -p 5003:5003 coedpilot-extension
-      ```
+      * With GPU acceleration (Recommended 👍):
 
-   4. Start the Docker container with GPU acceleration (Recommended 👍):
-      
-      Start the Docker container with the following command (with 5003 as default port, please check the availability of this port):
+         ```bash
+         docker run --gpus all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 -p 5003:5003 coedpilot-extension
+         ```
+    
+      * Without GPU acceleration (Not recommended 👎):
 
-      ```bash
-      docker run --gpus all --shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 -p 5003:5003 coedpilot-extension
-      ```
+         With the following command (with 5003 as default port):
+         
+         ```bash
+         docker run -p 5003:5003 coedpilot-extension
+         ```
 
    Now, the backend model is up and running. You can proceed to [setup the extension](#️-extension-deployment) to use CoEdPilot-Extension.
 
@@ -158,36 +155,26 @@ Once performing a prediction on a line, a diff view is shown for switching ↔�
 
    2. Download models into the project directory:
 
-      As mentioned before, we respectively prepared 3 models (*file locator*(including embedding model, dependency analyzer and a regression model), *line locator*, and *generator*) for each language. Supported languages are `go`, `python`, `java`, `typescript` and `javascript`. You have 2 ways to download models.
+      As mentioned before, we respectively prepared 3 models (*file locator*(including embedding model, dependency analyzer and a regression model), *line locator*, and *generator*) for each language. Supported languages are `go`, `python`, `java`, `typescript` and `javascript`.
 
-      * **Method 2-1: Use init-server script (Recommended 👍)**
+      Execute the following command to automatically download models.
+      ```bash
+      python download.py
+      ```
 
-         Select <language> from `go`, `python`, `java`, `typescript` and `javascript` to download models for the language.
-
-         ```bash
-         python init-server.py <language>
-         ```
-
-      * **Method 2-2: Download manually**
-
-         * Download and rename **models for different languages** and **dependency analyzer** from [Huggingface Collections](https://huggingface.co/collections/code-philia/coedpilot-65ee9df1b5e3b11755547205). 
-            * `dependency-analyzer/`: dependency anaylzer model, available in [Huggingface](https://huggingface.co/code-philia/dependency-analyzer);
-            * `embedding_model.bin`: embedding model for file locator, available in [Huggingface](https://huggingface.co/code-philia/CoEdPilot-file-locator);
-            * `reg_model.pickle`: , linear regression model, available in [Huggingface](https://huggingface.co/code-philia/CoEdPilot-file-locator);
-            * `locator_model.bin`: model for line locator, available in [Huggingface](https://huggingface.co/code-philia/CoEdPilot-line-locator), require renaming form `pytorch_model.bin` to `locator_model.bin`;
-            * `generator_model.bin`: model for generator, available in [Huggingface](https://huggingface.co/code-philia/CoEdPilot-generator), require renaming from `pytorch_model.bin` to `generator_model.bin`.
-
-         * To deploy models for one language, put its unzipped model folder **named with the language**.
-            ```
-            edit-pilot/
-               models/
-                     dependency-analyzer/
-                     <language>/
-                        embedding_model.bin
-                        reg_model.pickle
-                        locator_model.bin
-                        generator_model.bin
-            ```
+      Models should be downloaded into the following hierarchy:
+      
+      ```
+      edit-pilot/
+         models/
+               dependency-analyzer/
+               <language>/
+                  embedding_model.bin
+                  reg_model.pickle
+               multilingual/
+                  locator_model.bin
+                  generator_model.bin
+      ```
 
    3. Start the backend:
 
