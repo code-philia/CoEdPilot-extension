@@ -249,6 +249,7 @@ async def predict(json_input):
 
     def end_window(input_list):
         nonlocal prevEdits, commitMessage, window_token_cnt, window_line_cnt, window_text
+
         model_input = f"<code_window>{window_text}</code_window>" + "<prompt>" + commitMessage + "</prompt>"
         model_input += "<prior_edits>"
         if prevEdits:
@@ -325,6 +326,7 @@ async def predict(json_input):
         preds = []
         confidences = []
         softmax = torch.nn.Softmax(dim=-1)
+
         for batch in tqdm(eval_dataloader,total=len(eval_dataloader), desc=targetFilePath):
             batch = tuple(t.to(device) for t in batch)
             source_ids,source_mask,target_ids = batch                  
