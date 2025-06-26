@@ -181,7 +181,7 @@ def merge_adjacent_removals(results):
         if len(merged_results) > 0 and can_merge(merged_results[-1], mod):
             merged_length = len(merged_results[-1]["atLines"])
             mod_length = len(mod["atLines"])
-            merged_results[-1]["confidence"] = merged_length * merged_results[-1]["confidence"] + mod_length * mod["confidence"] / (merged_length + mod_length)
+            merged_results[-1]["confidence"] = (merged_length * merged_results[-1]["confidence"] + mod_length * mod["confidence"]) / (merged_length + mod_length)
             merged_results[-1]["atLines"].append(mod["atLines"][0])
         else:
             merged_results.append(mod)

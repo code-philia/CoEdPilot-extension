@@ -28,7 +28,7 @@ class ModelServerProcess extends BaseComponent{
     }
 
     async sendPostRequest(urlPath, jsonObject) {
-        console.log("[ModelServer] Sending to ${this.toURL(urlPath)}");
+        console.log(`[ModelServer] Sending to ${this.toURL(urlPath)}`);
         console.log("[ModelServer] Sending request:");
         console.log(jsonObject);
         // TODO: @yuhuan, fix the jsonObject becomes too long(?) problem
