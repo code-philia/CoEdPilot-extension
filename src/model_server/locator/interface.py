@@ -266,11 +266,12 @@ async def predict(json_input):
                 codeBelow = "".join(["<keep>" + loc for loc in codeBelow])
                 
                 if editType == "replace":
-                    model_input += "<edit>" + codeAbove + "<replace-by>" + prevEdit["afterEdit"] +"</replace-by>" + beforeEdit + codeBelow + "</edit>"
+                    model_input += "<edit>" + security_checked(codeAbove, tokenizer) + "<replace-by>" + security_checked(prevEdit["afterEdit"], tokenizer) +"</replace-by>" + security_checked(beforeEdit, tokenizer) + security_checked(codeBelow, tokenizer) + "</edit>"
                 else:
-                    model_input += "<edit>" + codeAbove + "<insert>" + prevEdit["afterEdit"] + "</insert>" + codeBelow + "</edit>"
+                    model_input += "<edit>" + security_checked(codeAbove, tokenizer) + "<insert>" + security_checked(prevEdit["afterEdit"], tokenizer) + "</insert>" + security_checked(codeBelow, tokenizer) + "</edit>"
         model_input += "</prior_edits>"
         
+        assert model_input.count(tokenizer.mask_token) == len(window_text.splitlines()), f"This code window contains {model_input.count(tokenizer.mask_token)} mask tokens, but there are {len(window_text.splitlines())} lines."
         input_list.append(model_input)
         window_token_cnt = 0
         window_line_cnt = 0
